@@ -1,0 +1,19 @@
+{% for motor_name, motor_id in motor_ids.items() %}
+<div class="box">
+    <h2>{{ motor_name | capitalize }}</h2>
+    <p>ID: {{ motor_id }}</p>
+    <p>Aktuelle Position: <span id="current_position_{{ motor_id }}">-</span></p>
+    <p>Soll-Position: <span id="goal_position_{{ motor_id }}">-</span></p>
+    <p>Temperatur: <span id="temperature_{{ motor_id }}">-</span></p>
+    <label for="goal_position_input_{{ motor_id }}">Zielposition:</label>
+    <input type="number" id="goal_position_input_{{ motor_id }}" 
+           min="{{ motor_limits[motor_name]['min'] }}" 
+           max="{{ motor_limits[motor_name]['max'] }}" 
+           step="1" 
+           value="{{ motor_limits[motor_name]['min'] }}">
+
+    <label for="duration_{{ motor_id }}">Dauer (Sekunden):</label>
+    <input type="number" id="duration_{{ motor_id }}" min="0.1" step="0.1" value="1">
+    <button onclick="setMotor({{ motor_id }})">Setzen</button>
+</div>
+{% endfor %}
