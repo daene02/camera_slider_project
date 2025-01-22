@@ -105,6 +105,31 @@ class MotorController:
             print("[ERROR] GroupBulkRead not properly defined or imported.")
             raise e
 
+    def bulk_read_data(self, motor_ids, data_addresses):
+        print("[DEBUG] Performing bulk read for multiple parameters...")
+        try:
+            group_bulk_read = GroupBulkRead(self.port_handler, self.packet_handler)
+            for motor_id in motor_ids:
+                for address, length in data_addresses:
+                    group_bulk_read.addParam(motor_id, address, length)
+
+            comm_result = group_bulk_read.txRxPacket()
+            if comm_result != COMM_SUCCESS:
+                raise Exception(f"Bulk read failed with result: {comm_result}")
+
+            data = {}
+            for motor_id in motor_ids:
+                motor_data = {}
+                for address, length in data_addresses:
+                    value = group_bulk_read.getData(motor_id, address, length)
+                    motor_data[address] = value
+                data[motor_id] = motor_data
+
+            return data
+        except Exception as e:
+            print("[ERROR] Bulk read failed: ", str(e))
+            raise e
+
     def bulk_write_positions(self, target_positions):
         for motor_id, position in target_positions.items():
             param_goal_position = [
@@ -143,3 +168,23 @@ class MotorController:
 
     def close(self):
         self.port_handler.closePort()
+
+    def get_bulk_motor_data(self, motor_ids):
+        data_addresses = [
+            (PRESENT_POSITION, LEN_PRO_PRESENT_POSITION),
+            (TEMPERATURE_ADDR, LEN_PRO_TEMPERATURE),
+            (CURRENT_ADDR, LEN_PRO_CURRENT),
+            (VOLTAGE_ADDR, LEN_PRO_VOLTAGE),
+            (TORQUE_ADDR, LEN_PRO_TORQUE)
+        ]
+        raw_data = self.bulk_read_data(motor_ids, data_addresses)
+        formatted_data = {}
+        for motor_id, values in raw_data.items():
+            formatted_data[motor_id] = {
+                "position": values[PRESENT_POSITION],
+                "temperature": values[TEMPERATURE_ADDR],
+                "current": values[CURRENT_ADDR],
+                "voltage": values[VOLTAGE_ADDR],
+                "torque": values[TORQUE_ADDR]
+            }
+        return formatted_data

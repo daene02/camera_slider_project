@@ -1,43 +1,3 @@
-function saveProfile() {
-    const profileName = document.getElementById('profile_name').value;
-    if (!profileName) {
-        alert('Bitte einen Profilnamen eingeben.');
-        return;
-    }
-    fetch('/save_profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: profileName, points })
-    }).then(response => response.json()).then(data => {
-        if (data.status === 'success') {
-            alert(`Profil "${profileName}" gespeichert.`);
-        } else {
-            alert(`Fehler: ${data.message}`);
-        }
-    }).catch(error => console.error('Fehler beim Speichern des Profils:', error));
-}
-
-function loadProfile() {
-    const profileName = document.getElementById('profile_name').value;
-    if (!profileName) {
-        alert('Bitte einen Profilnamen eingeben.');
-        return;
-    }
-    fetch('/load_profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: profileName })
-    }).then(response => response.json()).then(data => {
-        if (data.status === 'success') {
-            points = data.points;
-            updatePointList();
-            alert(`Profil "${profileName}" geladen.`);
-        } else {
-            alert(`Fehler: ${data.message}`);
-        }
-    }).catch(error => console.error('Fehler beim Laden des Profils:', error));
-}
-
 function runScript(scriptPath) {
     fetch('/run_script', {
         method: 'POST',
@@ -55,7 +15,6 @@ function runScript(scriptPath) {
     })
     .catch(error => console.error('Fehler:', error));
 }
-
 
 function setMotor(motorId) {
     const goalPositionElement = document.getElementById(`goal_position_input_${motorId}`);
@@ -103,14 +62,16 @@ function setMotor(motorId) {
 }
 
 function fetchMotorData() {
-    fetch('/motor_data')
+    fetch('/bulk_read')
         .then(response => response.json())
         .then(data => {
-            document.getElementById('temperature').innerText = `Temperatur: ${data.temperature}°C`;
-            document.getElementById('position').innerText = `Position: ${data.current_position}`;
-            document.getElementById('current').innerText = `Strom: ${data.current} A`;
-            document.getElementById('volt').innerText = `Spannung: ${data.volt} V`;
-            document.getElementById('torque').innerText = `Drehmoment: ${data.torque} Nm`;
+            for (const [motorId, motorInfo] of Object.entries(data.data)) {
+                document.getElementById(`current_position_${motorId}`).innerText = motorInfo.position;
+                document.getElementById(`temperature_${motorId}`).innerText = `${motorInfo.temperature}°C`;
+                document.getElementById(`current_${motorId}`).innerText = `${motorInfo.current} A`;
+                document.getElementById(`voltage_${motorId}`).innerText = `${motorInfo.voltage} V`;
+                document.getElementById(`torque_${motorId}`).innerText = `${motorInfo.torque} Nm`;
+            }
         })
         .catch(error => console.error('Fehler beim Abrufen der Motordaten:', error));
 }
@@ -123,8 +84,10 @@ function createMotorBox(motorId, motorName) {
     motorBox.innerHTML = `
         <h3>${motorName}</h3>
         <p>Aktuelle Position: <span id="current_position_${motorId}">-</span></p>
-        <p>Soll-Position: <span id="goal_position_${motorId}">-</span></p>
         <p>Temperatur: <span id="temperature_${motorId}">-</span></p>
+        <p>Strom: <span id="current_${motorId}">-</span></p>
+        <p>Spannung: <span id="voltage_${motorId}">-</span></p>
+        <p>Drehmoment: <span id="torque_${motorId}">-</span></p>
         <label for="goal_position_input_${motorId}">Zielposition:</label>
         <input type="number" id="goal_position_input_${motorId}" min="0" max="4096" step="1" value="0">
         <label for="duration_${motorId}">Dauer (Sekunden):</label>
@@ -183,5 +146,6 @@ function initializeInterface() {
     document.body.appendChild(errorBox);
 
     setInterval(fetchMotorData, 2000);
+}
 
 document.addEventListener('DOMContentLoaded', initializeInterface);

@@ -32,48 +32,6 @@ def upload_to_github():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/save_profile', methods=['POST'])
-def save_profile():
-    data = request.json
-    profile_name = data.get('name')
-    profile_points = data.get('points')
-
-    if not profile_name or not isinstance(profile_points, list):
-        return jsonify({"status": "error", "message": "Invalid profile data"}), 400
-
-    try:
-        with open(PROFILES_FILE, 'r') as f:
-            profiles = json.load(f)
-
-        profiles[profile_name] = profile_points
-
-        with open(PROFILES_FILE, 'w') as f:
-            json.dump(profiles, f, indent=4)
-
-        return jsonify({"status": "success", "message": "Profile saved successfully"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-@app.route('/load_profile', methods=['POST'])
-def load_profile():
-    data = request.json
-    profile_name = data.get('name')
-
-    if not profile_name:
-        return jsonify({"status": "error", "message": "Profile name is required"}), 400
-
-    try:
-        with open(PROFILES_FILE, 'r') as f:
-            profiles = json.load(f)
-
-        profile_points = profiles.get(profile_name)
-        if not profile_points:
-            return jsonify({"status": "error", "message": "Profile not found"}), 404
-
-        return jsonify({"status": "success", "points": profile_points}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
 @app.route('/')
 def index():
     try:
@@ -119,17 +77,6 @@ def set_motor():
     except Exception as e:
         print(f"Fehler beim Setzen des Motors: {e}")
         return {"error": str(e)}, 500
-
-
-@app.route('/set_turntable_mode', methods=['POST'])
-def set_turntable_mode():
-    data = request.json
-    mode = data.get('mode')
-    try:
-        controller.configure_turntable_mode(motor_id=MOTOR_IDS['turntable'], mode=mode)
-        return jsonify({"status": "success", "mode": mode})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/toggle_all_torque', methods=['POST'])
 def toggle_all_torque():
@@ -185,43 +132,24 @@ def get_motor_data():
     return jsonify(motor_data)
 
 
-@app.route('/bulk_read', methods=['POST'])
+@app.route('/bulk_read', methods=['POST', 'GET'])
 def bulk_read():
     try:
         motor_ids = list(MOTOR_IDS.values())
-        status_data = controller.read_status_sync(motor_ids)
+        # Hole die Daten über den MotorController
+        status_data = controller.get_bulk_motor_data(motor_ids)
         print("DEBUG: Daten aus Bulk-Read:", status_data)  # Debug-Ausgabe
         return jsonify({"status": "success", "data": status_data}), 200
     except Exception as e:
         print("Fehler beim Bulk-Read:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/save_profile_v2', methods=['POST'])
-def save_profile_v2():
-    data = request.json
-    profile_name = data.get('name')
-    points = data.get('points')
-
-    if not profile_name or not isinstance(points, list):
-        return jsonify({"status": "error", "message": "Ungültige Profildaten"}), 400
-
+@app.route('/terminate_app', methods=['POST'])
+def terminate_app():
     try:
-        with open(PROFILES_FILE, 'r') as f:
-            profiles = json.load(f)
-
-        profiles[profile_name] = [
-            {
-                "slider": point.get('slider'),
-                "pan": point.get('pan'),
-                "tilt": point.get('tilt'),
-                "duration": point.get('duration')
-            } for point in points
-        ]
-
-        with open(PROFILES_FILE, 'w') as f:
-            json.dump(profiles, f, indent=4)
-
-        return jsonify({"status": "success", "message": "Profile gespeichert"}), 200
+        pid = os.getpid()
+        os.kill(pid, signal.SIGTERM)
+        return jsonify({"status": "success", "message": "Application terminated."}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
