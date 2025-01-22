@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from motor_control import get_motor_data
+from motor_control import MotorController
 from settings import MOTOR_IDS, MOTOR_LIMITS
 import json
 import os
@@ -82,17 +82,24 @@ def index():
     except AttributeError:
         return jsonify({"status": "error", "message": "Die Funktion bulk_read_positions ist nicht verfügbar."}), 500
 
-@app.route('/run_script', methods=['POST'])
-def run_script():
-    script = request.json.get('script')  # Prüfe, wie das Skript übergeben wird
+@app.route('/run_script/<script_name>', methods=['POST'])
+def run_script(script_name):
+    scripts = {
+        "video_drehteller1": "/home/pi/camera_slider_project/video_drehteller1.py",
+        "zeitlupe_start": "/home/pi/camera_slider_project/zeitlupe_start.py",
+        "zeitlupe_stop": "/home/pi/camera_slider_project/zeitlupe_stop.py"
+    }
+
+    if script_name not in scripts:
+        return jsonify({"status": "error", "message": "Script not found"}), 400
+
+    script_path = scripts[script_name]
+
     try:
-        if not script.startswith('scripts/'):
-            raise ValueError("Ungültiger Skriptpfad")
-        
-        subprocess.run(['python', script], check=True)
-        return jsonify({"status": "success"}), 200
+        subprocess.Popen(["python3", script_path])
+        return jsonify({"status": "success", "message": f"{script_name} is running"}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/set_motor', methods=['POST'])
 def set_motor():
@@ -178,6 +185,18 @@ def get_motor_data():
         "torque": motor.get_torque()
     }
     return jsonify(motor_data)
+
+
+@app.route('/bulk_read', methods=['POST'])
+def bulk_read():
+    try:
+        motor_ids = list(MOTOR_IDS.values())
+        status_data = controller.read_status_sync(motor_ids)
+        print("DEBUG: Daten aus Bulk-Read:", status_data)  # Debug-Ausgabe
+        return jsonify({"status": "success", "data": status_data}), 200
+    except Exception as e:
+        print("Fehler beim Bulk-Read:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/save_profile_v2', methods=['POST'])
 def save_profile_v2():

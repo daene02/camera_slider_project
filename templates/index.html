@@ -183,19 +183,16 @@
             console.log('Profil abspielen');
         }
 
-        function runScript(scriptName) {
-            fetch(`/run_script/${scriptName}`, {
-                method: 'POST'
-            }).then(response => response.json()).then(data => {
-                if (data.status === 'success') {
-                    alert(`${scriptName} gestartet: ${data.message}`);
-                } else {
-                    alert(`Fehler: ${data.message}`);
-                }
-            }).catch(error => {
-                console.error(`Fehler beim Starten von ${scriptName}:`, error);
-                alert(`Fehler beim Starten von ${scriptName}`);
-            });
+        function runScript(scriptPath) {
+            fetch(`/run_script?script=${scriptPath}`)
+                .then(response => {
+                    if (response.ok) {
+                        console.log(`${scriptPath} erfolgreich ausgeführt.`);
+                    } else {
+                        console.error(`Fehler beim Ausführen von ${scriptPath}.`);
+                    }
+                })
+                .catch(error => console.error('Fehler:', error));
         }
 
         function displayError(message) {

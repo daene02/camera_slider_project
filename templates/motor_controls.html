@@ -2,9 +2,11 @@
 <div class="box">
     <h2>{{ motor_name | capitalize }}</h2>
     <p>ID: {{ motor_id }}</p>
-    <p>Aktuelle Position: <span id="current_position_{{ motor_id }}">-</span></p>
-    <p>Soll-Position: <span id="goal_position_{{ motor_id }}">-</span></p>
-    <p>Temperatur: <span id="temperature_{{ motor_id }}">-</span></p>
+    <div id="temperature">Temperatur: --°C</div>
+    <div id="position">Position: --</div>
+    <div id="current">Strom: -- A</div>
+    <div id="volt">Spannung: -- V</div>
+    <div id="torque">Drehmoment: -- Nm</div>
     <label for="goal_position_input_{{ motor_id }}">Zielposition:</label>
     <input type="number" id="goal_position_input_{{ motor_id }}" 
            min="{{ motor_limits[motor_name]['min'] }}" 

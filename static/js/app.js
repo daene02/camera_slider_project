@@ -38,20 +38,24 @@ function loadProfile() {
     }).catch(error => console.error('Fehler beim Laden des Profils:', error));
 }
 
-function runScript(scriptName) {
-    fetch(`/run_script/${scriptName}`, {
-        method: 'POST'
-    }).then(response => response.json()).then(data => {
-        if (data.status === 'success') {
-            alert(`${scriptName} gestartet: ${data.message}`);
+function runScript(scriptPath) {
+    fetch('/run_script', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ script: scriptPath }),
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log(`${scriptPath} erfolgreich ausgeführt.`);
         } else {
-            alert(`Fehler: ${data.message}`);
+            console.error(`Fehler beim Ausführen von ${scriptPath}:`, response.statusText);
         }
-    }).catch(error => {
-        console.error(`Fehler beim Starten von ${scriptName}:`, error);
-        alert(`Fehler beim Starten von ${scriptName}`);
-    });
+    })
+    .catch(error => console.error('Fehler:', error));
 }
+
 
 function setMotor(motorId) {
     const goalPositionElement = document.getElementById(`goal_position_input_${motorId}`);
@@ -98,45 +102,17 @@ function setMotor(motorId) {
     });
 }
 
-function bulkReadStatus() {
-    console.log("Starte Bulk-Read...", new Date().toISOString()); // Debugging: Bulk-Read gestartet
-    fetch('/bulk_read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-    }).then(response => response.json()).then(data => {
-        console.log("Antwort vom Bulk-Read:", data, new Date().toISOString()); // Debugging: Antwort des Servers
-        if (data.status === "success") {
-            for (const [motorId, motorData] of Object.entries(data.data)) {
-                console.log(`Motor ID: ${motorId}, Daten:`, motorData); // Debugging: Daten für jeden Motor
-
-                const positionElement = document.getElementById(`current_position_${motorId}`);
-                const goalPositionElement = document.getElementById(`goal_position_${motorId}`);
-                const temperatureElement = document.getElementById(`temperature_${motorId}`);
-
-                if (positionElement) {
-                    positionElement.textContent = motorData.position || "-";
-                } else {
-                    console.warn(`Element current_position_${motorId} nicht gefunden.`);
-                }
-                if (goalPositionElement) {
-                    goalPositionElement.textContent = motorData.goal_position || "-";
-                } else {
-                    console.warn(`Element goal_position_${motorId} nicht gefunden.`);
-                }
-                if (temperatureElement) {
-                    temperatureElement.textContent = motorData.temperature || "-";
-                } else {
-                    console.warn(`Element temperature_${motorId} nicht gefunden.`);
-                }
-            }
-        } else {
-            console.error("Fehler beim Bulk-Read:", data.message);
-            alert("Fehler beim Bulk-Read: " + data.message);
-        }
-    }).catch(error => {
-        console.error('Fehler beim Bulk-Read:', error);
-        alert('Fehler beim Bulk-Read!');
-    });
+function fetchMotorData() {
+    fetch('/motor_data')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('temperature').innerText = `Temperatur: ${data.temperature}°C`;
+            document.getElementById('position').innerText = `Position: ${data.current_position}`;
+            document.getElementById('current').innerText = `Strom: ${data.current} A`;
+            document.getElementById('volt').innerText = `Spannung: ${data.volt} V`;
+            document.getElementById('torque').innerText = `Drehmoment: ${data.torque} Nm`;
+        })
+        .catch(error => console.error('Fehler beim Abrufen der Motordaten:', error));
 }
 
 function createMotorBox(motorId, motorName) {
@@ -206,8 +182,6 @@ function initializeInterface() {
     `;
     document.body.appendChild(errorBox);
 
-    bulkReadStatus(); // Initialer Aufruf zum Laden der aktuellen Werte
-    setInterval(bulkReadStatus, 1000); // Aktualisierung alle 1000 ms (1 Sekunde)
-}
+    setInterval(fetchMotorData, 2000);
 
 document.addEventListener('DOMContentLoaded', initializeInterface);
