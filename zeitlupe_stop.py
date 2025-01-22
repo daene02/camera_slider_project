@@ -17,7 +17,7 @@ VELOCITY_LIMITS = {
 class MotorControllerWithFocus(MotorController):
     def calculate_focus_angles(self, slider_position, x_offset, y_offset, z_offset, camera_offset_z=0):
         relative_x = x_offset #+ TURNTABLE_POSITION.get("offset", 0) * math.cos(math.radians(y_offset))
-        relative_y = y_offset - slider_position #+ TURNTABLE_POSITION.get("offset", 0) * math.sin(math.radians(y_offset))
+        relative_y = y_offset #- slider_position #+ TURNTABLE_POSITION.get("offset", 0) * math.sin(math.radians(y_offset))
         relative_z = z_offset# - MOTOR_OFFSETS.get("camera_to_tilt_pivot", 0) - camera_offset_z
 
         pan_angle = math.degrees(math.atan2(relative_x, relative_y)) + MOTOR_OFFSETS.get("pan", 0)

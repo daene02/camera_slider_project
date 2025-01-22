@@ -82,24 +82,22 @@ def index():
     except AttributeError:
         return jsonify({"status": "error", "message": "Die Funktion bulk_read_positions ist nicht verfügbar."}), 500
 
-@app.route('/run_script/<script_name>', methods=['POST'])
-def run_script(script_name):
-    scripts = {
-        "video_drehteller1": "/home/pi/camera_slider_project/video_drehteller1.py",
-        "zeitlupe_start": "/home/pi/camera_slider_project/zeitlupe_start.py",
-        "zeitlupe_stop": "/home/pi/camera_slider_project/zeitlupe_stop.py"
-    }
+@app.route("/run_script")
+def run_script():
+    script = request.args.get("script")
+    if not script:
+        return jsonify({"error": "Script not specified"}), 400
 
-    if script_name not in scripts:
-        return jsonify({"status": "error", "message": "Script not found"}), 400
-
-    script_path = scripts[script_name]
+    script_path = os.path.join(os.getcwd(), script)
+    
+    if not os.path.exists(script_path):
+        return jsonify({"error": f"Script {script} not found in {os.getcwd()}"}), 404
 
     try:
-        subprocess.Popen(["python3", script_path])
-        return jsonify({"status": "success", "message": f"{script_name} is running"}), 200
+        result = subprocess.run(["python3", script_path], capture_output=True, text=True)
+        return jsonify({"output": result.stdout, "error": result.stderr, "returncode": result.returncode})
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/set_motor', methods=['POST'])
 def set_motor():
