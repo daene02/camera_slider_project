@@ -65,12 +65,15 @@ function fetchMotorData() {
     fetch('/bulk_read')
         .then(response => response.json())
         .then(data => {
-            for (const [motorId, motorInfo] of Object.entries(data.data)) {
-                document.getElementById(`current_position_${motorId}`).innerText = motorInfo.position;
-                document.getElementById(`temperature_${motorId}`).innerText = `${motorInfo.temperature}°C`;
-                document.getElementById(`current_${motorId}`).innerText = `${motorInfo.current} A`;
-                document.getElementById(`voltage_${motorId}`).innerText = `${motorInfo.voltage} V`;
-                document.getElementById(`torque_${motorId}`).innerText = `${motorInfo.torque} Nm`;
+            if (data.status === "success") {
+                for (const [motorId, motorInfo] of Object.entries(data.data)) {
+                    document.getElementById(`current_position_${motorId}`).innerText = motorInfo.position;
+                    document.getElementById(`temperature_${motorId}`).innerText = motorInfo.temperature ? `${motorInfo.temperature}°C` : '-';
+                    document.getElementById(`current_${motorId}`).innerText = motorInfo.current ? `${motorInfo.current} A` : '-';
+                    document.getElementById(`voltage_${motorId}`).innerText = motorInfo.voltage ? `${motorInfo.voltage} V` : '-';
+                }
+            } else {
+                console.error('Fehler beim Abrufen der Motordaten:', data.message);
             }
         })
         .catch(error => console.error('Fehler beim Abrufen der Motordaten:', error));
@@ -87,7 +90,6 @@ function createMotorBox(motorId, motorName) {
         <p>Temperatur: <span id="temperature_${motorId}">-</span></p>
         <p>Strom: <span id="current_${motorId}">-</span></p>
         <p>Spannung: <span id="voltage_${motorId}">-</span></p>
-        <p>Drehmoment: <span id="torque_${motorId}">-</span></p>
         <label for="goal_position_input_${motorId}">Zielposition:</label>
         <input type="number" id="goal_position_input_${motorId}" min="0" max="4096" step="1" value="0">
         <label for="duration_${motorId}">Dauer (Sekunden):</label>

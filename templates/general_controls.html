@@ -1,25 +1,42 @@
-<div class="box">
-    <h2>Allgemeine Steuerung</h2>
-    <button class="torque" onclick="toggleAllTorque(true)">Torque An</button>
-    <button class="torque" onclick="toggleAllTorque(false)">Torque Aus</button>
-    <button onclick="uploadToGitHub()">Upload to GitHub</button>
-    <button onclick="shutdownSystem()">System herunterfahren</button>
-    <button onclick="window.location.href='/pid_settings'">PID-Einstellungen</button>
-    <button onclick="window.location.href='/turntable_settings'">Drehteller-Einstellungen</button>
-    <p id="error_display" style="color: red; display: none;">-</p>    
-</div>
+    <div class="box">
+        <h2>Allgemeine Steuerung</h2>
+        <button class="torque" onclick="toggleAllTorque(true)">Torque An</button>
+        <button class="torque" onclick="toggleAllTorque(false)">Torque Aus</button>
+        <button onclick="uploadToGitHub()">Upload to GitHub</button>
+        <button onclick="shutdownSystem()">System herunterfahren</button>
+        <button onclick="window.location.href='/pid_settings'">PID-Einstellungen</button>
+        <button onclick="window.location.href='/turntable_settings'">Drehteller-Einstellungen</button>
+        <p id="error_display" style="color: red; display: none;">-</p>    
+    </div>
 
-<script>
-    function uploadToGitHub() {
-        fetch('/upload_to_github', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                alert('Upload erfolgreich: ' + data.message);
-            } else {
-                alert('Fehler beim Upload: ' + data.message);
-            }
-        })
-        .catch(error => alert('Fehler: ' + error));
-    }
-</script>
+    <script>
+        function uploadToGitHub() {
+            fetch('/upload_to_github', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Upload erfolgreich: ' + data.message);
+                } else {
+                    alert('Fehler beim Upload: ' + data.message);
+                }
+            })
+            .catch(error => alert('Fehler: ' + error));
+        }
+
+        function toggleAllTorque(enable) {
+            fetch('/toggle_all_torque', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ torque_enable: enable })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(`Torque wurde ${enable ? 'eingeschaltet' : 'ausgeschaltet'}.`);
+                } else {
+                    alert('Fehler: ' + data.message);
+                }
+            })
+            .catch(error => alert('Fehler: ' + error));
+        }
+    </script>

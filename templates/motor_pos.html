@@ -1,5 +1,4 @@
-<script>
-        const MOTOR_IDS = {
+    const MOTOR_IDS = {
             "turntable": 1,
             "slider": 2,
             "pan": 3,
@@ -44,71 +43,41 @@
 
             motorBox.innerHTML = `
                 <h2>${motorName}</h2>
-                <p>Aktuelle Position: <span id="current_position_${motorName}">-</span> ${motorName === 'slider' ? 'mm' : 'Grad'}</p>
-                <p>Temperatur: <span id="temperature_${motorName}">-</span> °C</p>
-                <p>Strom: <span id="current_${motorName}">-</span> mA</p>
-                <p>Spannung: <span id="voltage_${motorName}">-</span> V</p>
+                <p>Aktuelle Position: <span id="current_position_${motorName}">-</span></p>
+                <p>Temperatur: <span id="temperature_${motorName}">-</span></p>
+                <p>Strom: <span id="current_${motorName}">-</span></p>
+                <p>Spannung: <span id="voltage_${motorName}">-</span></p>
                 <label for="goal_position_${motorName}">Zielposition:</label>
-                <input type="number" id="goal_position_${motorName}" min="-1000" max="100000" step="1" value="0">
+                <input type="number" id="goal_position_${motorName}" min="0" max="4096" step="1" value="0">
                 <label for="duration_${motorName}">Dauer (Sekunden):</label>
-                <input type="number" id="duration_${motorName}" min="0.1" step="0.1" value="10">
-                <label for="acceleration_${motorName}">Beschleunigung (ms²):</label>
-                <input type="number" id="acceleration_${motorName}" min="0.01" step="0.01" value="1">
-                <button onclick="setMotor('${motorName}', ${motorId})">Setzen</button>`;
+                <input type="number" id="duration_${motorName}" min="0.1" step="0.1" value="1">
+                <button onclick="setMotor('${motorName}', ${motorId})">Setzen</button>
+            `;
 
             container.appendChild(motorBox);
-         }   
-       
-        function formatMotorData(motorData) {
-            for (const motorName in motorData) {
-                if (motorData[motorName].position !== undefined) {
-                    if (motorName === 'slider') {
-                        motorData[motorName].position = (motorData[motorName].position / 10).toFixed(1); // Umrechnung in mm
-                    } else {
-                        motorData[motorName].position = (motorData[motorName].position * 0.0878906).toFixed(1); // Umrechnung in Grad
-                    }
-                }
-                if (motorData[motorName].voltage !== undefined) {
-                    motorData[motorName].voltage = (motorData[motorName].voltage / 10).toFixed(1); // Umrechnung in Volt
-                }
-            }
-            return motorData;
         }
 
-       
         function setMotor(motorName, motorId) {
             const goalPositionElement = document.getElementById(`goal_position_${motorName}`);
             const durationElement = document.getElementById(`duration_${motorName}`);
-            const accelerationElement = document.getElementById(`acceleration_${motorName}`);
 
-            if (!goalPositionElement || !durationElement || !accelerationElement) {
+            if (!goalPositionElement || !durationElement) {
                 alert(`Eingaben für Motor ${motorName} fehlen.`);
                 return;
             }
 
             const goalPosition = parseInt(goalPositionElement.value, 10);
             const duration = parseFloat(durationElement.value);
-            const acceleration = parseFloat(accelerationElement.value);
 
-            if (isNaN(goalPosition) || isNaN(duration) || isNaN(acceleration)) {
+            if (isNaN(goalPosition) || isNaN(duration)) {
                 alert(`Ungültige Eingaben für Motor ${motorName}.`);
                 return;
             }
 
-            const profileVelocity = Math.round(1000 * duration); // Umwandlung von Dauer in Geschwindigkeit
-            const profileAcceleration = Math.round(acceleration * 1000); // Umwandlung der Beschleunigung in ms²
-
-            console.log(`Sende Daten: Motor ID=${motorId}, Zielposition=${goalPosition}, Profilgeschwindigkeit=${profileVelocity}, Profilbeschleunigung=${profileAcceleration}`); // Debug-Ausgabe
-
             fetch('/set_motor', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    motor_id: motorId,
-                    goal_position: goalPosition,
-                    profile_velocity: profileVelocity,
-                    profile_acceleration: profileAcceleration
-                })
+                body: JSON.stringify({ motor_id: motorId, goal_position: goalPosition, duration: duration })
             })
                 .then(response => response.json())
                 .then(data => {
@@ -129,7 +98,7 @@
                 createMotorBox(motorName, motorId);
             }
 
-            setInterval(fetchMotorData,2000);
+            setInterval(fetchMotorData, 2000);
         }
 
         document.addEventListener('DOMContentLoaded', initializeInterface);

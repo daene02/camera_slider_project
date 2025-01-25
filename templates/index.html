@@ -32,7 +32,7 @@
             background: rgba(0, 0, 0, 0.7);
             padding: 20px;
             border-radius: 10px;
-            width: 300px;
+            width: 220px;
             text-align: left;
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
         }
@@ -40,7 +40,7 @@
         h2 {
             margin-bottom: 10px;
             color: #FFD700;
-            font-size: 20px;
+            font-size: 25px;
             border-bottom: 2px solid #FFD700;
             padding-bottom: 5px;
         }
@@ -72,7 +72,7 @@
         }
 
         input[type="range"], input[type="number"] {
-            width: 100%;
+            width: 70%;
             margin: 10px 0;
         }
 
@@ -91,118 +91,19 @@
 
         @media (max-width: 768px) {
             .box {
-                width: 100%;
+                width: 80%;
             }
         }
     </style>
 </head>
 <body>
     <h1>Motor Control Dashboard</h1>
-    <div class="container">
+    <div class="container" id="motor_controls"></div>
         {% include 'motor_controls.html' %}
         {% include 'general_controls.html' %}
         {% include 'script_controls.html' %}
     </div>
 
-    <script>
-        function setMotor(motorId) {
-            const goalPositionElement = document.getElementById(`goal_position_${motorId}`);
-            const velocityElement = document.getElementById(`duration_${motorId}`);
-
-            if (!goalPositionElement || !velocityElement) {
-                displayError(`Elemente für Motor ID=${motorId} nicht gefunden.`);
-                return;
-            }
-
-            const goalPosition = parseFloat(goalPositionElement.value);
-            const profileVelocity = parseFloat(velocityElement.value) * 1000;
-
-            if (isNaN(goalPosition) || isNaN(profileVelocity) || profileVelocity <= 0) {
-                displayError("Ungültige Eingaben!");
-                return;
-            }
-
-            console.log(`Sende: Motor ID=${motorId}, Zielposition=${goalPosition}, Profilgeschwindigkeit=${profileVelocity}`);
-            fetch('/set_motor', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ motor_id: motorId, goal_position: goalPosition, profile_velocity: profileVelocity })
-            }).then(response => {
-                if (!response.ok) {
-                    return response.text().then(error => {
-                        throw new Error(`HTTP-Fehler ${response.status}: ${error}`);
-                    });
-                }
-                return response.json();
-            }).then(data => {
-                console.log(`Antwort: ${JSON.stringify(data)}`);
-                if (data.status === "success") {
-                    alert(`Motor ${motorId} erfolgreich gesetzt.`);
-                } else {
-                    displayError(data.message);
-                }
-            }).catch(error => {
-                displayError(`Fehler beim Setzen des Motors: ${error}`);
-            });
-        }
-
-        function toggleAllTorque(enable) {
-            console.log(`Schalte Torque ${enable ? 'ein' : 'aus'} für alle Motoren`);
-            fetch('/toggle_all_torque', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ torque_enable: enable })
-            }).then(response => {
-                if (!response.ok) {
-                    return response.text().then(error => {
-                        throw new Error(`HTTP-Fehler ${response.status}: ${error}`);
-                    });
-                }
-                return response.json();
-            }).then(data => {
-                console.log(`Antwort: ${JSON.stringify(data)}`);
-                alert(`Torque für alle Motoren ${enable ? 'aktiviert' : 'deaktiviert'}`);
-            }).catch(error => {
-                displayError(`Fehler beim Umschalten des Torque: ${error}`);
-            });
-        }
-
-        function savePoint() {
-            console.log('Punkt speichern');
-        }
-
-        function saveProfile() {
-            console.log('Profil speichern');
-        }
-
-        function loadProfile() {
-            console.log('Profil laden');
-        }
-
-        function playProfile() {
-            console.log('Profil abspielen');
-        }
-
-        function runScript(scriptPath) {
-            fetch(`/run_script?script=${scriptPath}`)
-                .then(response => {
-                    if (response.ok) {
-                        console.log(`${scriptPath} erfolgreich ausgeführt.`);
-                    } else {
-                        console.error(`Fehler beim Ausführen von ${scriptPath}.`);
-                    }
-                })
-                .catch(error => console.error('Fehler:', error));
-        }
-
-        function displayError(message) {
-            const errorDisplay = document.getElementById('error_display');
-            if (errorDisplay) {
-                errorDisplay.style.display = 'block';
-                errorDisplay.textContent = message;
-            }
-            console.error(message);
-        }
-    </script>
+    
 </body>
 </html>
