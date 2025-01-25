@@ -4,6 +4,7 @@ import sys
 import time
 import json
 import settings
+from scripts.port_handler_queue import PortHandlerQueue
 from dynamixel_sdk import PortHandler, PacketHandler, GroupBulkRead, GroupBulkWrite, DXL_LOBYTE, DXL_LOWORD, DXL_HIBYTE, DXL_HIWORD, COMM_SUCCESS
 from settings import *
 
@@ -97,13 +98,12 @@ class BulkOperations:
     def bulk_read_all(self, motor_ids):
         logging.info("Starte Bulk-Read...")
         group_bulk_read = GroupBulkRead(self.port_handler, self.packet_handler)
+        # Initialisiere PortHandlerQueue mit expliziten Argumenten
+        device_name = DEVICENAME  # Beispiel, ersetze durch die richtige Geräteadresse
+        baud_rate = BAUDRATE  # Beispiel-Baudrate
 
-        # Sicherstellen, dass der Port korrekt geöffnet ist
-        if not self.port_handler.is_using:
-            logging.info("Port ist nicht in Verwendung. Öffne den Port.")
-            if not self.port_handler.openPort():
-                logging.critical("Port konnte nicht geöffnet werden. Abbruch des Bulk-Write.")
-                return
+        port_handler_queue = PortHandlerQueue(device_name, baud_rate)
+        group_bulk_write = GroupBulkWrite(port_handler_queue.port_handler, self.packet_handler)
 
         for motor_id in motor_ids:
             if not group_bulk_read.addParam(motor_id, PRESENT_POSITION, 4):
@@ -144,10 +144,9 @@ class BulkOperations:
                 "position": converted_position
             }
 
-        # Port freigeben, um Konflikte zu vermeiden
-        if self.port_handler.is_using:
-            self.port_handler.closePort()
-            logging.info("Port geschlossen, um Konflikte zu vermeiden.")
+         # Port am Ende schließen
+        port_handler_queue.close()
+        logging.info("Port wurde nach Bulk-Write geschlossen.")
 
         group_bulk_read.clearParam()
         logging.info(f"Bulk-Read abgeschlossen: {status_data}")
@@ -156,6 +155,13 @@ class BulkOperations:
 
 
     def read_individual(self, motor_id):
+    
+        # Initialisiere PortHandlerQueue mit expliziten Argumenten
+        device_name = DEVICENAME  # Beispiel, ersetze durch die richtige Geräteadresse
+        baud_rate = BAUDRATE  # Beispiel-Baudrate
+
+        port_handler_queue = PortHandlerQueue(device_name, baud_rate)
+        group_bulk_write = GroupBulkWrite(port_handler_queue.port_handler, self.packet_handler)
         try:
             temperature, comm_result, error = self.packet_handler.read1ByteTxRx(self.port_handler, motor_id, PRESENT_TEMPERATURE)
             if comm_result != COMM_SUCCESS or error != 0:
@@ -171,6 +177,10 @@ class BulkOperations:
             if comm_result != COMM_SUCCESS or error != 0:
                 voltage = None
                 logging.warning(f"Fehler beim Lesen der Spannung von Motor {MOTOR_NAMES[motor_id]}: {self.packet_handler.getTxRxResult(comm_result)}")
+                
+             # Port am Ende schließen
+            port_handler_queue.close()
+            logging.info("Port wurde nach Bulk-Write geschlossen.")   
 
             # Werte direkt umwandeln
             converted_temperature = temperature if temperature is not None else "N/A"
@@ -186,21 +196,25 @@ class BulkOperations:
         except Exception as e:
             logging.error(f"Fehler beim Zugriff auf Motor {MOTOR_NAMES[motor_id]}: {e}")
             return {
-                "temperature": "N/A",
-                "current": "N/A",
-                "voltage": "N/A"
+                "temperature": "0",
+                "current": "0",
+                "voltage": "0"
             }
+    
+        
+
 
     def bulk_write_all(self, motor_profiles):
         logging.info("Starte Bulk-Write...")
-        group_bulk_write = GroupBulkWrite(self.port_handler, self.packet_handler)
+        from scripts.port_handler_queue import PortHandlerQueue  # Importiere zentralen PortHandler
 
-        # Sicherstellen, dass der Port korrekt geöffnet ist
-        if not self.port_handler.is_using:
-            logging.info("Port ist nicht in Verwendung. Öffne den Port.")
-            if not self.port_handler.openPort():
-                logging.critical("Port konnte nicht geöffnet werden. Abbruch des Bulk-Write.")
-                return
+        # Initialisiere PortHandlerQueue mit expliziten Argumenten
+        device_name = DEVICENAME  # Beispiel, ersetze durch die richtige Geräteadresse
+        baud_rate = BAUDRATE  # Beispiel-Baudrate
+
+        port_handler_queue = PortHandlerQueue(device_name, baud_rate)
+
+        group_bulk_write = GroupBulkWrite(port_handler_queue.port_handler, self.packet_handler)
 
         for motor_id, profile in motor_profiles.items():
             goal_position = profile["goal_position"]
@@ -252,7 +266,7 @@ class BulkOperations:
                     DXL_HIBYTE(DXL_HIWORD(velocity))
                 ]
                 logging.debug(f"Velocity Bytes: {param_velocity} für Motor {motor_name}")
-                result, error = self.packet_handler.write4ByteTxRx(self.port_handler, motor_id, PROFILE_VELOCITY, velocity)
+                result, error = port_handler_queue.add_request(self.packet_handler.write4ByteTxRx, port_handler_queue.port_handler, motor_id, PROFILE_VELOCITY, velocity)
                 if result != 0 or error != 0:
                     logging.error(f"Direktes Schreiben der Geschwindigkeit (PROFILE_VELOCITY) für Motor {motor_name} fehlgeschlagen: result={result}, error={error}")
                 else:
@@ -269,7 +283,7 @@ class BulkOperations:
                     DXL_HIBYTE(DXL_HIWORD(acceleration))
                 ]
                 logging.debug(f"Acceleration Bytes: {param_acceleration} für Motor {motor_name}")
-                result, error = self.packet_handler.write4ByteTxRx(self.port_handler, motor_id, PROFILE_ACCELERATION, acceleration)
+                result, error = port_handler_queue.add_request(self.packet_handler.write4ByteTxRx, port_handler_queue.port_handler, motor_id, PROFILE_ACCELERATION, acceleration)
                 if result != 0 or error != 0:
                     logging.error(f"Direktes Schreiben der Beschleunigung (PROFILE_ACCELERATION) für Motor {motor_name} fehlgeschlagen: result={result}, error={error}")
                 else:
@@ -283,12 +297,12 @@ class BulkOperations:
         else:
             logging.info("Bulk-Write erfolgreich abgeschlossen.")
 
-        # Port freigeben, um Konflikte zu vermeiden
-        if self.port_handler.is_using:
-            self.port_handler.closePort()
-            logging.info("Port geschlossen, um Konflikte zu vermeiden.")
-
         group_bulk_write.clearParam()
+
+        # Port am Ende schließen
+        port_handler_queue.close()
+        logging.info("Port wurde nach Bulk-Write geschlossen.")
+
 
 
 # Beispiel zur Initialisierung und Nutzung

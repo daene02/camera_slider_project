@@ -1,5 +1,5 @@
 from motor_control.motor_control import MotorController
-from settings import MOTOR_IDS, TURNTABLE_POSITION, PID_DEFAULTS, MOTOR_LIMITS, PROFILE_VELOCITY, PROFILE_ACCELERATION, LEN_PRO_GOAL_POSITION, LEN_PRO_PRESENT_POSITION, MOTOR_NAMES
+from settings import MOTOR_IDS, TURNTABLE_POSITION, PID_DEFAULTS, MOTOR_LIMITS, PROFILE_VELOCITY, PROFILE_ACCELERATION, LEN_PRO_GOAL_POSITION, LEN_PRO_PRESENT_POSITION, MOTOR_NAMES, VELOCITY_LIMITS
 from motor_control.bulk import BulkOperations
 import math
 import numpy as np
@@ -10,20 +10,6 @@ import json
 import settings
 
 PROFILES_FILE = "/home/pi/camera_slider_project/profiles/profiles.json"
-
-VELOCITY_LIMITS = {
-    "turntable": 1800,
-    "slider": 2000,
-    "pan": 1800,
-    "tilt": 1800
-}
-
-CONVERSION_FACTORS = {
-    "slider": 0.015,  # Schritte -> mm
-    "pan": 0.0878906,  # Schritte -> Grad
-    "tilt": 0.0878906,  # Schritte -> Grad
-    "turntable": 0.0878906  # Schritte -> Grad
-}
 
 class MotorControllerWithFocus(MotorController):
     def __init__(self):
@@ -36,35 +22,48 @@ class MotorControllerWithFocus(MotorController):
         if positions is None:
             raise RuntimeError("Bulk-Read fehlgeschlagen: Keine Positionsdaten verfügbar. Überprüfen Sie die Verbindung zu den Motoren.")
 
-        converted_positions = {}
-        for motor_name, motor_id in MOTOR_IDS.items():
-            raw_position = positions.get(motor_id, {}).get("position", 0)
-            conversion_factor = CONVERSION_FACTORS.get(motor_name, 1)
-            converted_positions[motor_name] = round(raw_position * conversion_factor, 2)
-
-        print("[DEBUG] Bulk read positions (in mm/deg):", converted_positions)
-        return converted_positions
+        print("[DEBUG] Bulk read positions:", positions)
+        return {motor_name: positions.get(motor_id, {}).get("position", 0) for motor_name, motor_id in MOTOR_IDS.items()}
 
     def bulk_write_positions(self, target_positions):
-        converted_positions = {}
-        for motor_name, target_position in target_positions.items():
-            conversion_factor = CONVERSION_FACTORS.get(motor_name, 1)
-            converted_positions[motor_name] = int(target_position / conversion_factor)
-
-        print("[DEBUG] Bulk write positions (converted to steps):", converted_positions)
+        print("[DEBUG] Bulk write positions:", target_positions)
         try:
-            self.bulk_operations.bulk_write_all(converted_positions)
+            self.bulk_operations.bulk_write_all(target_positions)
             print("[INFO] Positionen erfolgreich geschrieben.")
         except Exception as e:
             print(f"[ERROR] Fehler beim Schreiben der Positionen: {e}")
             raise e
+
+    def initialize_focus(self, slider_positions, turntable_positions, duration=10, resolution=1000, focus_enabled=False, camera_offset_z=0):
+        """
+        Initialisiert die Fokussteuerung und synchronisiert die Bewegungen.
+        :param slider_positions: Liste der Slider-Positionen
+        :param turntable_positions: Liste der Turntable-Positionen
+        :param duration: Dauer der Bewegung
+        :param resolution: Anzahl der Schritte für die Interpolation
+        :param focus_enabled: Aktiviert die Fokusberechnung (True/False)
+        :param camera_offset_z: Offset der Kamera in Z-Richtung
+        """
+        print("Initialisiere Fokussteuerung...")
+
+        positions = {
+            "slider": slider_positions,
+            "turntable": turntable_positions
+        }
+
+        if focus_enabled:
+            positions["pan"] = [0] * len(slider_positions)  # Beispiel für Pan
+            positions["tilt"] = [0] * len(slider_positions)  # Beispiel für Tilt
+
+        self.synchronize_movements(positions, resolution=resolution, duration=duration)
+        print("Fokussteuerung abgeschlossen.")
 
     def set_profile(self, motor_id, velocity, acceleration):
         """
         Setzt die Geschwindigkeit und Beschleunigung für einen Motor über Bulk-Schreiboperationen.
         """
         try:
-            velocity = min(velocity, VELOCITY_LIMITS[MOTOR_NAMES[motor_id]])  # Begrenzung der Geschwindigkeit
+            velocity = min(velocity, MOTOR_LIMITS[MOTOR_NAMES[motor_id]]["max_velocity"])  # Begrenzung der Geschwindigkeit
             target_values = {
                 motor_id: {
                     "velocity": velocity,
@@ -105,17 +104,31 @@ class MotorControllerWithFocus(MotorController):
             for motor_name in positions:
                 position = smoothed_positions[motor_name][i]
 
-                if not self.validate_target(motor_name, position):
+                if not self._validate_target(motor_name, position):
                     continue
 
                 velocity = abs(position - current_positions[motor_name]) / step_duration
-                velocity = min(velocity, VELOCITY_LIMITS[motor_name])  # Geschwindigkeit begrenzen
+                velocity = min(velocity, MOTOR_LIMITS[motor_name].get("max_velocity", 32767))  # Geschwindigkeit begrenzen
                 print(f"Motor: {motor_name}, Ziel: {position} mm/deg, Geschwindigkeit: {velocity} mm/deg pro Sekunde")
                 self.set_profile(MOTOR_IDS[motor_name], int(velocity), acceleration=500)
                 target_positions[motor_name] = position
 
             self.bulk_write_positions(target_positions)
             time.sleep(step_duration)
+
+    def _validate_target(self, motor_name, target_value):
+        """
+        Überprüft, ob der Zielwert im gültigen Bereich für den Motor liegt.
+        :param motor_name: Name des Motors
+        :param target_value: Zielwert
+        :return: True, wenn gültig, sonst False
+        """
+        min_limit = MOTOR_LIMITS[motor_name].get("min", 0)
+        max_limit = MOTOR_LIMITS[motor_name].get("max", 32767)
+        if not (min_limit <= target_value <= max_limit):
+            print(f"Zielwert {target_value} für Motor {motor_name} liegt außerhalb der Grenzen ({min_limit}, {max_limit}).")
+            return False
+        return True
 
 controller = MotorControllerWithFocus()
 

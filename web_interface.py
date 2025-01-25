@@ -153,6 +153,14 @@ def upload_to_github():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/shutdown_system', methods=['POST'])
+def shutdown_system():
+    try:
+        os.system('sudo shutdown -h now')
+        return jsonify({"status": "success", "message": "System wird heruntergefahren."}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @app.route('/terminate_app', methods=['POST'])
 def terminate_app():

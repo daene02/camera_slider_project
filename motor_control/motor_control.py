@@ -83,7 +83,17 @@ class MotorController:
         result, error = self.packet_handler.write1ByteTxRx(self.port_handler, motor_id, TORQUE_ENABLE, 0)
         if result != COMM_SUCCESS or error != 0:
             raise Exception(f"Failed to disable torque: Motor ID {motor_id}, result={result}, error={error}")
-
+ 
+    def shutdown_system(self):
+        """
+        Shutdown-System via API.
+        """
+        try:
+            os.system("sudo shutdown -h now")
+            print("[INFO] Das System wird heruntergefahren.")
+        except Exception as e:
+            print(f"[ERROR] Fehler beim Herunterfahren des Systems: {e}")
+ 
     def close(self):
         self.port_handler.closePort()
 
