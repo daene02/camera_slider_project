@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Camera Slider Control{% endblock %}
+
+{% block content %}
+<style>
+    .menu-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        padding: 20px;
+    }
+    .menu-item {
+        background: rgba(0,0,0,0.3);
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .menu-item:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px rgba(255,255,255,0.1);
+    }
+    .menu-item a {
+        color: white;
+        text-decoration: none;
+        font-size: 1.2em;
+    }
+    .menu-item a:hover {
+        color: #fff;
+    }
+</style>
+
+<h1>Camera Slider Control</h1>
+
+<div class="menu-grid">
+    <div class="menu-item">
+        <a href="/motor">Motor Control</a>
+    </div>
+    <div class="menu-item">
+        <a href="/profiles">Movement Profiles</a>
+    </div>
+    <div class="menu-item">
+        <a href="/video">Video Recording</a>
+    </div>
+    <div class="menu-item">
+        <a href="/photo">Photo Capture</a>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Motor Settings{% endblock %}
+
+{% block content %}
+<style>
+    button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 10px rgba(255,255,255,0.3);
+    }
+    .control-group {
+        margin-bottom: 10px;
+    }
+    .control-group button {
+        background-color: rgba(255,255,255,0.1);
+    }
+    .control-group button:hover {
+        background-color: rgba(255,255,255,0.2);
+    }
+</style>
+
+<h1>Motor Settings</h1>
+<div style="margin-bottom: 20px;">
+    <button onclick="toggleAllTorque(true)" style="background-color: rgba(0,255,0,0.2);">
+        Enable All Torque
+    </button>
+    <button onclick="toggleAllTorque(false)" style="background-color: rgba(255,0,0,0.2);">
+        Disable All Torque
+    </button>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+    {% for motor in motors %}
+    <div class="motor-box" data-motor-id="{{ motor.id }}" style="padding: 20px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 2px solid {% if motor.torque_enabled %}rgba(0,255,0,1){% else %}rgba(255,0,0,1){% endif %}">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 class="motor-name" style="{% if motor.torque_enabled %}color: rgba(0,255,0,1){% else %}color: rgba(255,0,0,1){% endif %}">
+                {{ motor.name }}
+            </h2>
+            <div>
+                <button onclick="toggleTorque({{ motor.id }}, true)">Enable</button>
+                <button onclick="toggleTorque({{ motor.id }}, false)">Disable</button>
+            </div>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <div>Position: <span class="position-value">{{ motor.position }}</span></div>
+            <div>Temperature: <span class="temperature-value">{{ motor.temperature }}</span>°C</div>
+            <div>Voltage: <span class="voltage-value">{{ motor.voltage }}</span>V</div>
+            <div>Current: <span class="current-value">{{ motor.current }}</span>A</div>
+            <div>Velocity: <span class="speed-value">{{ motor.speed }}</span> ms</div>
+            <div>Acceleration: <span class="load-value">{{ motor.load }}</span> ms</div>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <div class="control-group">
+                <label for="position_{{ motor.id }}">Position:</label>
+                <input type="number" 
+                       id="position_{{ motor.id }}"
+                       value="{{ motor.position }}"
+                       min="0"
+                       max="1023"
+                       style="width: 80px;">
+                <button onclick="updateMotorPosition({{ motor.id }})">Set</button>
+            </div>
+
+            <div class="control-group">
+                <label for="velocity_{{ motor.id }}">Velocity (ms):</label>
+                <input type="number" 
+                       id="velocity_{{ motor.id }}"
+                       value="100"
+                       min="0"
+                       max="1023"
+                       style="width: 80px;">
+                <button onclick="updateMotorVelocity({{ motor.id }})">Set</button>
+            </div>
+
+            <div class="control-group">
+                <label for="acceleration_{{ motor.id }}">Acceleration (ms):</label>
+                <input type="number" 
+                       id="acceleration_{{ motor.id }}"
+                       value="50"
+                       min="0"
+                       max="1023"
+                       style="width: 80px;">
+                <button onclick="updateMotorAcceleration({{ motor.id }})">Set</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script src="/static/main.js"></script>
+{% endblock %}

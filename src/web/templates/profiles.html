@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Movement Profiles{% endblock %}
+
+{% block content %}
+<style>
+    button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background-color: rgba(255,255,255,0.1);
+        margin: 5px;
+    }
+    button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 10px rgba(255,255,255,0.3);
+        background-color: rgba(255,255,255,0.2);
+    }
+    .profile-controls {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 8px;
+    }
+    .points-list {
+        margin: 20px 0;
+        padding: 15px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 8px;
+    }
+    .point-item {
+        margin: 10px 0;
+        padding: 10px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 4px;
+    }
+    .playback-controls {
+        margin-top: 20px;
+        padding: 15px;
+        background: rgba(0,0,0,0.3);
+        border-radius: 8px;
+    }
+    .control-group {
+        margin: 10px 0;
+    }
+    input[type="number"] {
+        width: 80px;
+        margin: 0 10px;
+    }
+    .profile-select {
+        padding: 5px;
+        margin: 5px;
+        background: rgba(255,255,255,0.1);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 4px;
+    }
+</style>
+
+<h1>Movement Profiles</h1>
+
+<div class="profile-controls">
+    <h2>Profile Management</h2>
+    <input type="text" id="profileName" placeholder="Profile name" style="margin-right: 10px;">
+    <button onclick="createProfile()">Create Profile</button>
+    <button onclick="saveProfile()">Save Profile</button>
+    <select id="profileSelect" class="profile-select">
+        <option value="">Select profile...</option>
+        {% for profile in profiles %}
+        <option value="{{ profile }}">{{ profile }}</option>
+        {% endfor %}
+    </select>
+    <button onclick="loadProfile()">Load Profile</button>
+</div>
+
+<div class="points-list">
+    <h2>Points</h2>
+    <button onclick="capturePoint()">Capture Current Point</button>
+    <div id="pointsList">
+        <!-- Points will be dynamically added here -->
+    </div>
+</div>
+
+<div class="playback-controls">
+    <h2>Playback Settings</h2>
+    <div class="control-group">
+        <label for="playbackVelocity">Velocity (ms):</label>
+        <input type="number" id="playbackVelocity" value="100" min="0" max="1023">
+        
+        <label for="playbackAcceleration">Acceleration (ms):</label>
+        <input type="number" id="playbackAcceleration" value="50" min="0" max="1023">
+        
+        <label for="focusMode" style="margin-left: 15px;">
+            <input type="checkbox" id="focusMode"> Enable Focus Mode
+        </label>
+    </div>
+    
+    <button onclick="startPlayback()">Start Movement</button>
+    <button onclick="stopPlayback()">Stop Movement</button>
+</div>
+
+<script src="/static/profiles.js"></script>
+{% endblock %}

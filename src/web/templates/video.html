@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Video Capture{% endblock %}
+
+{% block content %}
+<h1>Video Capture</h1>
+<div>
+    <button onclick="startCapture()">Start Video Recording</button>
+    <button onclick="stopCapture()">Stop Video Recording</button>
+</div>
+<script>
+function startCapture() {
+    // TODO: Implement video capture start
+    alert("Video capture started");
+}
+
+function stopCapture() {
+    // TODO: Implement video capture stop
+    alert("Video capture stopped");
+}
+</script>
+{% endblock %}

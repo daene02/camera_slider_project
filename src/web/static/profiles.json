@@ -1,0 +1,148 @@
+{
+    "turntable": {
+        "position": 596,
+        "temperature": 31,
+        "current": 0,
+        "voltage": 120
+    },
+    "slider": {
+        "position": 1023,
+        "temperature": 36,
+        "current": 0,
+        "voltage": 119
+    },
+    "pan": {
+        "position": 2032,
+        "temperature": 35,
+        "current": 0,
+        "voltage": 118
+    },
+    "tilt": {
+        "position": 2070,
+        "temperature": 32,
+        "current": 65535,
+        "voltage": 119
+    },
+    "camera_zoom": {
+        "position": 3003,
+        "temperature": 28,
+        "current": 0,
+        "voltage": 121
+    },
+    "turntable_tilt": {
+        "position": 1141,
+        "temperature": 32,
+        "current": 0,
+        "voltage": 119
+    },
+    "fd": [
+        {
+            "1": {
+                "name": "turntable",
+                "position": 99.8
+            },
+            "2": {
+                "name": "slider",
+                "position": 0.0
+            },
+            "3": {
+                "name": "pan",
+                "position": -0.0
+            },
+            "4": {
+                "name": "tilt",
+                "position": -0.0
+            },
+            "5": {
+                "name": "camera_zoom",
+                "position": 28.8
+            },
+            "6": {
+                "name": "turntable_tilt",
+                "position": 0.0
+            }
+        },
+        {
+            "1": {
+                "name": "turntable",
+                "position": 299.9
+            },
+            "2": {
+                "name": "slider",
+                "position": 105.6
+            },
+            "3": {
+                "name": "pan",
+                "position": 19.7
+            },
+            "4": {
+                "name": "tilt",
+                "position": 0.1
+            },
+            "5": {
+                "name": "camera_zoom",
+                "position": 28.8
+            },
+            "6": {
+                "name": "turntable_tilt",
+                "position": 0.0
+            }
+        },
+        {
+            "1": {
+                "name": "turntable",
+                "position": 100.0
+            },
+            "2": {
+                "name": "slider",
+                "position": 393.6
+            },
+            "3": {
+                "name": "pan",
+                "position": 19.8
+            },
+            "4": {
+                "name": "tilt",
+                "position": -0.0
+            },
+            "5": {
+                "name": "camera_zoom",
+                "position": 199.9
+            },
+            "6": {
+                "name": "turntable_tilt",
+                "position": 0.0
+            }
+        }
+    ],
+    "Profile2": [
+        {
+            "1": {
+                "name": "turntable",
+                "position": 0.1
+            },
+            "2": {
+                "name": "slider",
+                "position": 0.0
+            },
+            "3": {
+                "name": "pan",
+                "position": 0.2
+            },
+            "4": {
+                "name": "tilt",
+                "position": 0.1
+            },
+            "5": {
+                "name": "camera_zoom",
+                "position": 199.9
+            },
+            "6": {
+                "name": "turntable_tilt",
+                "position": 200.0
+            },
+            "time": 1,
+            "acceleration": 500
+        }
+    ]
+}

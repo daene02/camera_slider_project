@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Photo Capture{% endblock %}
+
+{% block content %}
+<h1>Photo Capture</h1>
+<div>
+    <button onclick="takePhoto()">Take Photo</button>
+    <div id="preview">
+        <!-- Photo preview will be shown here -->
+    </div>
+</div>
+<script>
+function takePhoto() {
+    // TODO: Implement photo capture
+    alert("Photo captured");
+}
+</script>
+{% endblock %}

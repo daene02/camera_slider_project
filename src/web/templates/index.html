@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Slider Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: url('/static/background.jpg') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 20px;
+            font-size: 2.5rem;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .box {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            width: 220px;
+            text-align: left;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        h2 {
+            margin-bottom: 10px;
+            color: #FFD700;
+            font-size: 25px;
+            border-bottom: 2px solid #FFD700;
+            padding-bottom: 5px;
+        }
+
+        button {
+            margin: 5px 0;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #008CBA;
+            color: white;
+            font-size: 14px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        button:hover {
+            background-color: #005f6b;
+            transform: scale(1.05);
+        }
+
+        button.torque {
+            background-color: #FFD700;
+            color: black;
+        }
+
+        button.torque:hover {
+            background-color: #FFC107;
+        }
+
+        input[type="range"], input[type="number"] {
+            width: 70%;
+            margin: 10px 0;
+        }
+
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #FFD700;
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.8);
+        }
+
+        @media (max-width: 768px) {
+            .box {
+                width: 80%;
+            }
+        }
+
+        .button {
+            width: 200px;
+            height: 100px;
+            margin: 10px;
+            font-size: 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .emergency {
+            background-color: #f44336;
+        }
+        .emergency:hover {
+            background-color: #da190b;
+        }
+        .status {
+            margin: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <h1 class="animate__animated animate__fadeIn">Camera Slider Control</h1>
+        
+        <div class="main-controls animate__animated animate__fadeInUp">
+            <button class="control-button start" onclick="moveToStart()">
+                <span class="icon">⮐</span>
+                <span class="text">Start Position</span>
+            </button>
+            
+            <button class="control-button track" onclick="startFocusTracking()">
+                <span class="icon">◎</span>
+                <span class="text">Focus Tracking</span>
+            </button>
+            
+            <button class="control-button emergency" onclick="emergencyStop()">
+                <span class="icon">⬛</span>
+                <span class="text">EMERGENCY STOP</span>
+            </button>
+        </div>
+
+        <div class="object-position-controls animate__animated animate__fadeInUp">
+            <h2>Objekt Position</h2>
+            <div class="position-inputs">
+                <div class="input-group">
+                    <label for="object_x">X Position (mm):</label>
+                    <input type="number" id="object_x" value="-400" step="10">
+                </div>
+                <div class="input-group">
+                    <label for="object_y">Y Position (mm):</label>
+                    <input type="number" id="object_y" value="600" step="10">
+                </div>
+                <div class="input-group">
+                    <label for="object_z">Z Position (mm):</label>
+                    <input type="number" id="object_z" value="-300" step="10">
+                </div>
+                <button class="control-button update" onclick="updateObjectPosition()">
+                    <span class="icon">↻</span>
+                    <span class="text">Position Aktualisieren</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="motion-settings animate__animated animate__fadeInUp">
+            <h2>Bewegungseinstellungen</h2>
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <label for="interpolation_steps">Zwischenschritte:</label>
+                    <input type="number" id="interpolation_steps" value="100" min="10" max="1000" step="10">
+                    <span class="hint">Höhere Werte = weichere Bewegung</span>
+                </div>
+                <div class="setting-group">
+                    <label for="velocity_scale">Geschwindigkeits-Skalierung (%):</label>
+                    <input type="number" id="velocity_scale" value="80" min="10" max="100" step="5">
+                    <span class="hint">Reduziert die Geschwindigkeit für sanftere Bewegung</span>
+                </div>
+                <div class="setting-group">
+                    <label for="acceleration_scale">Beschleunigungs-Skalierung (%):</label>
+                    <input type="number" id="acceleration_scale" value="60" min="10" max="100" step="5">
+                    <span class="hint">Reduziert die Beschleunigung für sanftere Bewegung</span>
+                </div>
+                <button class="control-button update" onclick="updateMotionSettings()">
+                    <span class="icon">⚙️</span>
+                    <span class="text">Einstellungen Speichern</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="motor-grid animate__animated animate__fadeIn">
+            <div id="motor_controls"></div>
+        </div>
+
+        <div class="status-container">
+            <div id="statusDisplay" class="status animate__animated animate__fadeIn">
+                Status: Ready
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function saveProfile() {
+            const profileName = document.getElementById('profile_name').value;
+            if (!profileName) {
+                alert('Please enter a profile name.');
+                return;
+            }
+
+            const response = await fetch('/save_profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile_name: profileName })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                alert('Profile saved successfully.');
+                updateProfileList();
+            } else {
+                alert('Error saving profile: ' + data.message);
+            }
+        }
+
+        async function loadProfile() {
+            const profileName = document.getElementById('profile_list').value;
+            if (!profileName) {
+                alert('Please select a profile to load.');
+                return;
+            }
+
+            const response = await fetch('/load_profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile_name: profileName })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                alert('Profile loaded successfully.');
+            } else {
+                alert('Error loading profile: ' + data.message);
+            }
+        }
+
+        async function addPointToProfile() {
+            const profileName = document.getElementById('profile_name').value;
+            if (!profileName) {
+                alert('Please enter a profile name to save the point.');
+                return;
+            }
+
+            const response = await fetch('/add_point', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile_name: profileName })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                alert('Point added to profile successfully.');
+            } else {
+                alert('Error adding point to profile: ' + data.message);
+            }
+        }
+
+        async function playProfile() {
+            const profileName = document.getElementById('profile_list').value;
+            if (!profileName) {
+                alert('Please select a profile to play.');
+                return;
+            }
+
+            const response = await fetch('/play_profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile_name: profileName })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                alert('Profile playback started successfully.');
+            } else {
+                alert('Error playing profile: ' + data.message);
+            }
+        }
+
+        async function updateProfileList() {
+            const response = await fetch('/get_profiles');
+            const data = await response.json();
+            if (data.status === 'success') {
+                const profileList = document.getElementById('profile_list');
+                profileList.innerHTML = '';
+                data.profiles.forEach(profile => {
+                    const option = document.createElement('option');
+                    option.value = profile;
+                    option.textContent = profile;
+                    profileList.appendChild(option);
+                });
+            } else {
+                alert('Error fetching profiles: ' + data.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', updateProfileList);
+
+        function updateStatus(message) {
+            document.getElementById('statusDisplay').innerText = 'Status: ' + message;
+        }
+
+        function moveToStart() {
+            fetch('/move_to_start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateStatus('Startposition erreicht');
+                } else {
+                    updateStatus('Fehler: ' + data.message);
+                }
+            })
+            .catch(error => updateStatus('Fehler: ' + error));
+        }
+
+        function startFocusTracking() {
+            fetch('/start_focus_tracking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateStatus('Fokus-Tracking läuft');
+                } else {
+                    updateStatus('Fehler: ' + data.message);
+                }
+            })
+            .catch(error => updateStatus('Fehler: ' + error));
+        }
+
+        function emergencyStop() {
+            fetch('/emergency_stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateStatus('NOT-AUS aktiviert');
+                } else {
+                    updateStatus('Fehler: ' + data.message);
+                }
+            })
+            .catch(error => updateStatus('Fehler: ' + error));
+        }
+    </script>
+</body>
+</html>
