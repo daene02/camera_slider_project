@@ -1,22 +1,329 @@
 {% extends "base.html" %}
 
-{% block title %}Video Capture{% endblock %}
+{% block title %}Video Mode{% endblock %}
 
 {% block content %}
-<h1>Video Capture</h1>
-<div>
-    <button onclick="startCapture()">Start Video Recording</button>
-    <button onclick="stopCapture()">Stop Video Recording</button>
+<div class="control-section">
+    <h1>Video Mode</h1>
+    <div class="video-controls">
+        <h2>Camera Settings</h2>
+        <div class="control-panel">
+            <div class="setting-row">
+                <label>Recording Resolution:</label>
+                <select id="resolution">
+                    <option value="4k">4K (3840x2160)</option>
+                    <option value="1080p">1080p (1920x1080)</option>
+                    <option value="720p">720p (1280x720)</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>Frame Rate:</label>
+                <select id="framerate">
+                    <option value="60">60 fps</option>
+                    <option value="30">30 fps</option>
+                    <option value="24">24 fps</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="motion-controls">
+        <h2>Motion Settings</h2>
+        <div class="control-panel">
+            <div class="setting-row">
+                <label>Duration (seconds):</label>
+                <input type="number" id="duration" value="10" min="1" max="3600">
+            </div>
+            <div class="setting-row">
+                <label>Movement Profile:</label>
+                <select id="profile">
+                    <option value="">Select a profile...</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>Focus Mode:</label>
+                <select id="focus-mode">
+                    <option value="track">Track Focus Point</option>
+                    <option value="fixed">Fixed Focus</option>
+                    <option value="manual">Manual Focus</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <button id="start-record" class="btn">Start Recording</button>
+        <button id="stop-record" class="btn danger" disabled>Stop Recording</button>
+        <button id="preview" class="btn">Preview Movement</button>
+    </div>
+
+    <div class="status-panel" style="display: none;">
+        <h2>Recording Status</h2>
+        <div class="status-info">
+            <div class="info-row">
+                <label>Duration:</label>
+                <span id="time-elapsed">00:00</span> / <span id="time-total">00:00</span>
+            </div>
+            <div class="info-row">
+                <label>Status:</label>
+                <span id="recording-status">Ready</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
 </div>
-<script>
-function startCapture() {
-    // TODO: Implement video capture start
-    alert("Video capture started");
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+.video-controls, .motion-controls {
+    margin-bottom: 30px;
 }
 
-function stopCapture() {
-    // TODO: Implement video capture stop
-    alert("Video capture stopped");
+.setting-row {
+    display: flex;
+    align-items: center;
+    margin: 15px 0;
+    gap: 20px;
 }
+
+.setting-row label {
+    min-width: 150px;
+    font-weight: bold;
+}
+
+.setting-row select, .setting-row input {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    min-width: 200px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.status-panel {
+    margin-top: 30px;
+}
+
+.status-info {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.progress-bar {
+    height: 20px;
+    background: #eee;
+    border-radius: 10px;
+    margin-top: 20px;
+    overflow: hidden;
+}
+
+.progress {
+    height: 100%;
+    background: #2196F3;
+    transition: width 0.3s ease;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Load profiles
+    function loadProfiles() {
+        fetch('/profile/list')
+            .then(response => response.json())
+            .then(profiles => {
+                const select = document.getElementById('profile');
+                select.innerHTML = '<option value="">Select a profile...</option>';
+                
+                profiles.forEach(profile => {
+                    const option = document.createElement('option');
+                    option.value = profile;
+                    option.textContent = profile;
+                    select.appendChild(option);
+                });
+                console.log('Loaded profiles:', profiles); // Debug log
+            })
+            .catch(error => {
+                console.error('Error loading profiles:', error);
+                alert('Failed to load movement profiles');
+            });
+    }
+    
+    // Load profiles when page loads
+    loadProfiles();
+
+    let recordingInterval;
+    let startTime;
+    const statusPanel = document.querySelector('.status-panel');
+    const startButton = document.getElementById('start-record');
+    const stopButton = document.getElementById('stop-record');
+    const previewButton = document.getElementById('preview');
+    const timeElapsed = document.getElementById('time-elapsed');
+    const timeTotal = document.getElementById('time-total');
+    const progress = document.querySelector('.progress');
+    const recordingStatus = document.getElementById('recording-status');
+
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateProgress() {
+        const now = Date.now();
+        const elapsed = (now - startTime) / 1000;
+        const duration = parseInt(document.getElementById('duration').value);
+        const percent = Math.min((elapsed / duration) * 100, 100);
+        
+        timeElapsed.textContent = formatTime(elapsed);
+        progress.style.width = `${percent}%`;
+
+        if (elapsed >= duration) {
+            stopRecording();
+        }
+    }
+
+    async function startRecording() {
+        const profileName = document.getElementById('profile').value;
+        if (!profileName) {
+            alert('Please select a movement profile');
+            return;
+        }
+
+        try {
+            // Get profile data
+            const profileResponse = await fetch(`/profile/${profileName}`);
+            if (!profileResponse.ok) throw new Error('Failed to load profile');
+            const profileData = await profileResponse.json();
+
+            // Start recording sequence
+            const duration = parseInt(document.getElementById('duration').value);
+            timeTotal.textContent = formatTime(duration);
+            startTime = Date.now();
+            statusPanel.style.display = 'block';
+            recordingStatus.textContent = 'Recording';
+
+            // Setup playback settings
+            const settings = {
+                velocity: 100, // Default motor velocity
+                acceleration: 50, // Default motor acceleration
+                continuous_focus: true,
+                focus_update_rate: 50,
+                duration: duration,
+                focus_mode: document.getElementById('focus-mode').value
+            };
+
+            // Start profile playback
+            const playResponse = await fetch('/profile/play', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    profile: profileData,
+                    settings: settings
+                })
+            });
+
+            if (!playResponse.ok) throw new Error('Failed to start profile playback');
+
+            // Update UI
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            previewButton.disabled = true;
+            recordingInterval = setInterval(updateProgress, 100);
+
+            console.log('Recording started with profile:', profileName); // Debug log
+        } catch (error) {
+            console.error('Error starting recording:', error);
+            alert('Failed to start recording: ' + error.message);
+            stopRecording(); // Clean up if something went wrong
+        }
+    }
+
+    function stopRecording() {
+        clearInterval(recordingInterval);
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        previewButton.disabled = false;
+        recordingStatus.textContent = 'Completed';
+        
+        fetch('/profile/stop', { method: 'POST' });
+    }
+
+    async function previewMovement() {
+        const profileName = document.getElementById('profile').value;
+        if (!profileName) {
+            alert('Please select a movement profile');
+            return;
+        }
+
+        try {
+            console.log('Loading profile for preview:', profileName); // Debug log
+            
+            // Get profile data
+            const profileResponse = await fetch(`/profile/${profileName}`);
+            if (!profileResponse.ok) throw new Error('Failed to load profile');
+            const profileData = await profileResponse.json();
+
+            console.log('Profile data loaded:', profileData); // Debug log
+
+            // Setup playback settings
+            const settings = {
+                velocity: 100, // Default motor velocity
+                acceleration: 50, // Default motor acceleration
+                continuous_focus: true,
+                focus_update_rate: 50,
+                duration: parseInt(document.getElementById('duration').value),
+                focus_mode: document.getElementById('focus-mode').value
+            };
+
+            console.log('Starting preview with settings:', settings); // Debug log
+
+            // Start profile playback
+            const playResponse = await fetch('/profile/play', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    profile: profileData,
+                    settings: settings
+                })
+            });
+
+            if (!playResponse.ok) {
+                const errorData = await playResponse.json();
+                throw new Error(errorData.error || 'Failed to start preview');
+            }
+
+            console.log('Preview started successfully'); // Debug log
+        } catch (error) {
+            console.error('Error during preview:', error);
+            alert('Failed to start preview: ' + error.message);
+        }
+    }
+
+    startButton.addEventListener('click', startRecording);
+    stopButton.addEventListener('click', stopRecording);
+    previewButton.addEventListener('click', previewMovement);
+});
 </script>
 {% endblock %}

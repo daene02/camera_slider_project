@@ -1,66 +1,64 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Camera Slider Control</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .nav-menu {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            padding: 20px;
-        }
+{% extends "base.html" %}
 
-        .nav-item {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            text-decoration: none;
-            color: #333;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s;
-        }
+{% block title %}Camera Slider Control{% endblock %}
 
-        .nav-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
+{% block extra_styles %}
+<style>
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        padding: 20px;
+    }
 
-        .nav-item i {
-            display: block;
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Camera Slider Control</h1>
-        
-        <nav class="nav-menu">
-            <a href="{{ url_for('motor') }}" class="nav-item">
-                <i>🎮</i>
-                Motor Control
-            </a>
-            <a href="{{ url_for('focus') }}" class="nav-item">
-                <i>🎯</i>
-                Focus Control
-            </a>
-            <a href="{{ url_for('profiles') }}" class="nav-item">
-                <i>📋</i>
-                Motion Profiles
-            </a>
-            <a href="{{ url_for('video') }}" class="nav-item">
-                <i>🎥</i>
-                Video Mode
-            </a>
-            <a href="{{ url_for('photo') }}" class="nav-item">
-                <i>📷</i>
-                Photo Mode
-            </a>
-        </nav>
-    </div>
-</body>
-</html>
+    .feature-item {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        text-decoration: none;
+        color: #333;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+
+    .feature-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .feature-item i {
+        display: block;
+        font-size: 2em;
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Camera Slider Control</h1>
+
+<div class="feature-grid">
+    <a href="{{ url_for('motor') }}" class="feature-item">
+        <i>🎮</i>
+        Motor Control
+    </a>
+    <a href="{{ url_for('focus') }}" class="feature-item">
+        <i>🎯</i>
+        Focus Control
+    </a>
+    <a href="{{ url_for('profiles') }}" class="feature-item">
+        <i>📋</i>
+        Motion Profiles
+    </a>
+    <a href="{{ url_for('video') }}" class="feature-item">
+        <i>🎥</i>
+        Video Mode
+    </a>
+    <a href="{{ url_for('photo') }}" class="feature-item">
+        <i>📷</i>
+        Photo Mode
+    </a>
+</div>
+{% endblock %}

@@ -17,15 +17,15 @@ function createProfile() {
 }
 
 function saveProfile() {
-    if (!currentProfile.name || currentProfile.points.length === 0) {
-        alert('Please create a profile and add points first');
+    if (!currentProfile.name) {
+        alert('Please create or load a profile first');
         return;
     }
     
     fetch('/profile/save', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify(currentProfile)
     })
@@ -33,65 +33,85 @@ function saveProfile() {
     .then(data => {
         if (data.success) {
             alert('Profile saved successfully');
-            location.reload(); // Refresh to update profile list
+            // Refresh the page to update the profile list
+            location.reload();
         } else {
-            alert('Error saving profile');
+            throw new Error(data.error || 'Failed to save profile');
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => {
+        console.error('Error saving profile:', error);
+        alert('Failed to save profile');
+    });
 }
 
 function loadProfile() {
     const select = document.getElementById('profileSelect');
     const profileName = select.value;
+    
     if (!profileName) {
         alert('Please select a profile');
         return;
     }
-
-    fetch(`/profile/${encodeURIComponent(profileName)}`)
-        .then(response => response.json())
+    
+    console.log('Loading profile:', profileName); // Debug log
+    
+    fetch(`/profile/${profileName}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Profile data received:', data); // Debug log
             currentProfile = data;
+            document.getElementById('profileName').value = data.name;
             updatePointsList();
         })
-        .catch(error => console.error('Error:', error));
+        .catch(error => {
+            console.error('Error loading profile:', error);
+            alert('Failed to load profile: ' + error.message);
+        });
 }
 
-function capturePoint() {
-    fetch('/motors/positions')
-        .then(response => response.json())
-        .then(data => {
-            const point = {
-                positions: data,
-                timestamp: Date.now()
-            };
-            currentProfile.points.push(point);
-            updatePointsList();
-        })
-        .catch(error => console.error('Error:', error));
+async function capturePoint() {
+    if (!currentProfile.name) {
+        alert('Please create or load a profile first');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/motors/positions');
+        if (!response.ok) throw new Error('Failed to get motor positions');
+        
+        const positions = await response.json();
+        const point = {
+            positions: positions,
+            timestamp: Date.now()
+        };
+        
+        currentProfile.points.push(point);
+        updatePointsList();
+    } catch (error) {
+        console.error('Error capturing point:', error);
+        alert('Failed to capture point');
+    }
 }
 
 function updatePointsList() {
-    const container = document.getElementById('pointsList');
-    container.innerHTML = '';
-
+    const list = document.getElementById('pointsList');
+    list.innerHTML = '';
+    
     currentProfile.points.forEach((point, index) => {
         const div = document.createElement('div');
         div.className = 'point-item';
-        
-        let positionsText = '';
-        Object.entries(point.positions).forEach(([motorId, position]) => {
-            positionsText += `Motor ${motorId}: ${position}, `;
-        });
-        positionsText = positionsText.slice(0, -2); // Remove last comma and space
-
         div.innerHTML = `
             <strong>Point ${index + 1}</strong>
-            <div>${positionsText}</div>
-            <button onclick="removePoint(${index})">Remove</button>
+            <button onclick="removePoint(${index})" style="float: right;">Remove</button>
+            <pre>${JSON.stringify(point.positions, null, 2)}</pre>
         `;
-        container.appendChild(div);
+        list.appendChild(div);
     });
 }
 
@@ -100,84 +120,60 @@ function removePoint(index) {
     updatePointsList();
 }
 
-let isPlaying = false;
-
 function startPlayback() {
-    if (isPlaying) {
-        alert('Playback already in progress');
+    if (!currentProfile.name || currentProfile.points.length === 0) {
+        alert('Please load a profile with points first');
         return;
     }
     
-    if (currentProfile.points.length === 0) {
-        alert('No points to play');
-        return;
-    }
-
-    const velocity = parseInt(document.getElementById('playbackVelocity').value);
-    const acceleration = parseInt(document.getElementById('playbackAcceleration').value);
-    const focusMode = document.getElementById('focusMode').checked;
-
-    isPlaying = true;
-    document.querySelector('button[onclick="startPlayback()"]').style.backgroundColor = 'rgba(0,255,0,0.2)';
+    const settings = {
+        velocity: parseInt(document.getElementById('playbackVelocity').value),
+        acceleration: parseInt(document.getElementById('playbackAcceleration').value),
+        continuous_focus: document.getElementById('focusMode').checked,
+        focus_update_rate: 50  // Default 50ms update rate
+    };
     
     fetch('/profile/play', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             profile: currentProfile,
-            settings: {
-                velocity: velocity,
-                acceleration: acceleration,
-                focusMode: focusMode
-            }
+            settings: settings
         })
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (!data.success) {
-            throw new Error('Server returned error status');
+            throw new Error(data.error || 'Failed to start playback');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error starting playback: ' + error.message);
-        isPlaying = false;
-        document.querySelector('button[onclick="startPlayback()"]').style.backgroundColor = '';
+        console.error('Error starting playback:', error);
+        alert('Failed to start playback');
     });
 }
 
 function stopPlayback() {
-    if (!isPlaying) {
-        return;
-    }
-
     fetch('/profile/stop', {
         method: 'POST'
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (!data.success) {
-            throw new Error('Server returned error status');
+            throw new Error(data.error || 'Failed to stop playback');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error stopping playback: ' + error.message);
-    })
-    .finally(() => {
-        isPlaying = false;
-        document.querySelector('button[onclick="startPlayback()"]').style.backgroundColor = '';
+        console.error('Error stopping playback:', error);
+        alert('Failed to stop playback');
     });
 }
+
+// Debug: Log profile loading on page load
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Profiles page loaded');
+    const select = document.getElementById('profileSelect');
+    console.log('Available profiles:', Array.from(select.options).map(opt => opt.value));
+});

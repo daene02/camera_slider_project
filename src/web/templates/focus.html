@@ -1,260 +1,257 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Focus Control</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <div class="container">
-        <h1>Focus Control</h1>
-        
-        <div class="focus-mode-selector">
-            <h2>Focus Mode</h2>
-            <div class="mode-buttons">
-                <button id="manual-mode" class="mode-btn active">Manual Control</button>
-                <button id="tracking-mode" class="mode-btn">Focus Tracking</button>
-            </div>
-        </div>
+{% extends "base.html" %}
 
-        <div id="manual-controls" class="control-section">
-            <h2>Manual Focus Settings</h2>
-            <div class="control-panel">
-                <div class="slider-value">
-                    <label>Pan:</label>
-                    <input type="range" id="pan-slider" min="760" max="3900" value="2330">
-                    <span id="pan-value">0°</span>
-                    <span class="steps" id="pan-steps">(0 steps)</span>
-                </div>
-                <div class="slider-value">
-                    <label>Tilt:</label>
-                    <input type="range" id="tilt-slider" min="1360" max="2800" value="2080">
-                    <span id="tilt-value">0°</span>
-                    <span class="steps" id="tilt-steps">(0 steps)</span>
-                </div>
-                <div class="slider-value">
-                    <label>Focus:</label>
-                    <input type="range" id="focus-slider" min="0" max="4096" value="2048">
-                    <span id="focus-value">0°</span>
-                    <span class="steps" id="focus-steps">(0 steps)</span>
-                </div>
-            </div>
-        </div>
+{% block title %}Focus Control{% endblock %}
 
-        <div id="tracking-controls" class="control-section" style="display: none;">
-            <h2>Focus Point Tracking</h2>
-            <div class="target-coordinates">
-                <div class="coordinate-input">
-                    <label>X Position:</label>
-                    <input type="number" id="target-x" value="400"> mm
-                </div>
-                <div class="coordinate-input">
-                    <label>Y Position:</label>
-                    <input type="number" id="target-y" value="600"> mm
-                </div>
-                <div class="coordinate-input">
-                    <label>Z Position:</label>
-                    <input type="number" id="target-z" value="-300"> mm
-                </div>
-            </div>
-            <div class="tracking-buttons">
-                <button id="save-point">Save Focus Point</button>
-                <button id="start-tracking">Start Tracking</button>
-                <button id="stop-tracking" disabled>Stop Tracking</button>
-            </div>
-        </div>
+{% block content %}
+<h1>Focus Control</h1>
 
-        <div class="saved-points">
-            <h2>Saved Focus Points</h2>
-            <div id="points-list">
-                <!-- Points will be added here dynamically -->
-            </div>
+<div class="focus-mode-selector">
+    <h2>Focus Mode</h2>
+    <div class="mode-buttons">
+        <button id="manual-mode" class="mode-btn active">Manual Control</button>
+        <button id="tracking-mode" class="mode-btn">Focus Tracking</button>
+    </div>
+</div>
+
+<div id="manual-controls" class="control-section">
+    <h2>Manual Focus Settings</h2>
+    <div class="control-panel">
+        <div class="slider-value">
+            <label>Pan:</label>
+            <input type="range" id="pan-slider" min="760" max="3900" value="2330">
+            <span id="pan-value">0°</span>
+            <span class="steps" id="pan-steps">(0 steps)</span>
+        </div>
+        <div class="slider-value">
+            <label>Tilt:</label>
+            <input type="range" id="tilt-slider" min="1360" max="2800" value="2080">
+            <span id="tilt-value">0°</span>
+            <span class="steps" id="tilt-steps">(0 steps)</span>
+        </div>
+        <div class="slider-value">
+            <label>Focus:</label>
+            <input type="range" id="focus-slider" min="0" max="4096" value="2048">
+            <span id="focus-value">0°</span>
+            <span class="steps" id="focus-steps">(0 steps)</span>
         </div>
     </div>
+</div>
 
-    <script>
-        // Constants from settings.py
-        const CONVERSION_FACTORS = {
-            slider: 64 / 4096,     // 1 rotation = 64mm
-            pan: 360 / 4096,       // 1 rotation = 360 degrees
-            tilt: 360 / 4096,      // 1 rotation = 360 degrees
-            focus: 360 / 4096      // 1 rotation = 360 degrees
-        };
+<div id="tracking-controls" class="control-section" style="display: none;">
+    <h2>Focus Point Tracking</h2>
+    <div class="target-coordinates">
+        <div class="coordinate-input">
+            <label>X Position:</label>
+            <input type="number" id="target-x" value="400"> mm
+        </div>
+        <div class="coordinate-input">
+            <label>Y Position:</label>
+            <input type="number" id="target-y" value="600"> mm
+        </div>
+        <div class="coordinate-input">
+            <label>Z Position:</label>
+            <input type="number" id="target-z" value="-300"> mm
+        </div>
+    </div>
+    <div class="tracking-buttons">
+        <button id="save-point">Save Focus Point</button>
+        <button id="start-tracking">Start Tracking</button>
+        <button id="stop-tracking" disabled>Stop Tracking</button>
+    </div>
+</div>
 
-        // Motor offsets from settings.py
-        const MOTOR_OFFSETS = {
-            pan: 180,
-            tilt: 180
-        };
+<div class="saved-points">
+    <h2>Saved Focus Points</h2>
+    <div id="points-list">
+        <!-- Points will be added here dynamically -->
+    </div>
+</div>
+{% endblock %}
 
-        function stepsToUnits(steps, motor) {
-            const value = steps * CONVERSION_FACTORS[motor];
-            if (motor in MOTOR_OFFSETS) {
-                return value - MOTOR_OFFSETS[motor];
-            }
-            return value;
+{% block scripts %}
+<script>
+    // Constants from settings.py
+    const CONVERSION_FACTORS = {
+        slider: 64 / 4096,     // 1 rotation = 64mm
+        pan: 360 / 4096,       // 1 rotation = 360 degrees
+        tilt: 360 / 4096,      // 1 rotation = 360 degrees
+        focus: 360 / 4096      // 1 rotation = 360 degrees
+    };
+
+    // Motor offsets from settings.py
+    const MOTOR_OFFSETS = {
+        pan: 180,
+        tilt: 180
+    };
+
+    function stepsToUnits(steps, motor) {
+        const value = steps * CONVERSION_FACTORS[motor];
+        if (motor in MOTOR_OFFSETS) {
+            return value - MOTOR_OFFSETS[motor];
         }
+        return value;
+    }
 
-        function unitsToSteps(units, motor) {
-            if (motor in MOTOR_OFFSETS) {
-                units += MOTOR_OFFSETS[motor];
-            }
-            return Math.round(units / CONVERSION_FACTORS[motor]);
+    function unitsToSteps(units, motor) {
+        if (motor in MOTOR_OFFSETS) {
+            units += MOTOR_OFFSETS[motor];
         }
+        return Math.round(units / CONVERSION_FACTORS[motor]);
+    }
 
-        // Mode switching
-        document.getElementById('manual-mode').addEventListener('click', () => {
-            document.getElementById('manual-controls').style.display = 'block';
-            document.getElementById('tracking-controls').style.display = 'none';
-            document.getElementById('manual-mode').classList.add('active');
-            document.getElementById('tracking-mode').classList.remove('active');
-        });
+    // Mode switching
+    document.getElementById('manual-mode').addEventListener('click', () => {
+        document.getElementById('manual-controls').style.display = 'block';
+        document.getElementById('tracking-controls').style.display = 'none';
+        document.getElementById('manual-mode').classList.add('active');
+        document.getElementById('tracking-mode').classList.remove('active');
+    });
 
-        document.getElementById('tracking-mode').addEventListener('click', () => {
-            document.getElementById('manual-controls').style.display = 'none';
-            document.getElementById('tracking-controls').style.display = 'block';
-            document.getElementById('manual-mode').classList.remove('active');
-            document.getElementById('tracking-mode').classList.add('active');
-        });
+    document.getElementById('tracking-mode').addEventListener('click', () => {
+        document.getElementById('manual-controls').style.display = 'none';
+        document.getElementById('tracking-controls').style.display = 'block';
+        document.getElementById('manual-mode').classList.remove('active');
+        document.getElementById('tracking-mode').classList.add('active');
+    });
 
-        // Motor IDs mapping
-        const MOTOR_IDS = {
-            'turntable': 1,
-            'slider': 2,
-            'pan': 3,
-            'tilt': 4,
-            'zoom': 5,
-            'focus': 6
-        };
+    // Motor IDs mapping
+    const MOTOR_IDS = {
+        'turntable': 1,
+        'slider': 2,
+        'pan': 3,
+        'tilt': 4,
+        'zoom': 5,
+        'focus': 6
+    };
 
-        // Manual control sliders
-        ['pan', 'tilt', 'focus'].forEach(motor => {
-            const slider = document.getElementById(`${motor}-slider`);
-            const valueDisplay = document.getElementById(`${motor}-value`);
-            const stepsDisplay = document.getElementById(`${motor}-steps`);
+    // Manual control sliders
+    ['pan', 'tilt', 'focus'].forEach(motor => {
+        const slider = document.getElementById(`${motor}-slider`);
+        const valueDisplay = document.getElementById(`${motor}-value`);
+        const stepsDisplay = document.getElementById(`${motor}-steps`);
 
-            slider.addEventListener('input', () => {
-                const steps = parseInt(slider.value);
-                const units = stepsToUnits(steps, motor);
-                valueDisplay.textContent = `${units.toFixed(1)}°`;
-                stepsDisplay.textContent = `(${steps} steps)`;
+        slider.addEventListener('input', () => {
+            const steps = parseInt(slider.value);
+            const units = stepsToUnits(steps, motor);
+            valueDisplay.textContent = `${units.toFixed(1)}°`;
+            stepsDisplay.textContent = `(${steps} steps)`;
 
-                // Send updated position to server
-                fetch(`/motor/${MOTOR_IDS[motor]}/position`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        position: steps
-                    })
-                });
-            });
-        });
-
-        // Focus point saving and tracking
-        document.getElementById('save-point').addEventListener('click', () => {
-            const point = {
-                x: parseFloat(document.getElementById('target-x').value),
-                y: parseFloat(document.getElementById('target-y').value),
-                z: parseFloat(document.getElementById('target-z').value)
-            };
-
-            fetch('/focus/save_point', {
+            // Send updated position to server
+            fetch(`/motor/${MOTOR_IDS[motor]}/position`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(point)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateSavedPoints();
-                }
+                body: JSON.stringify({
+                    position: steps
+                })
             });
         });
+    });
 
-        // Start/Stop tracking
-        document.getElementById('start-tracking').addEventListener('click', () => {
-            const point = {
-                x: parseFloat(document.getElementById('target-x').value),
-                y: parseFloat(document.getElementById('target-y').value),
-                z: parseFloat(document.getElementById('target-z').value)
-            };
+    // Focus point saving and tracking
+    document.getElementById('save-point').addEventListener('click', () => {
+        const point = {
+            x: parseFloat(document.getElementById('target-x').value),
+            y: parseFloat(document.getElementById('target-y').value),
+            z: parseFloat(document.getElementById('target-z').value)
+        };
 
-            fetch('/focus/start_tracking', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(point)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('start-tracking').disabled = true;
-                    document.getElementById('stop-tracking').disabled = false;
-                }
+        fetch('/focus/save_point', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(point)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateSavedPoints();
+            }
+        });
+    });
+
+    // Start/Stop tracking
+    document.getElementById('start-tracking').addEventListener('click', () => {
+        const point = {
+            x: parseFloat(document.getElementById('target-x').value),
+            y: parseFloat(document.getElementById('target-y').value),
+            z: parseFloat(document.getElementById('target-z').value)
+        };
+
+        fetch('/focus/start_tracking', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(point)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('start-tracking').disabled = true;
+                document.getElementById('stop-tracking').disabled = false;
+            }
+        });
+    });
+
+    document.getElementById('stop-tracking').addEventListener('click', () => {
+        fetch('/focus/stop_tracking', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('start-tracking').disabled = false;
+                document.getElementById('stop-tracking').disabled = true;
+            }
+        });
+    });
+
+    function updateSavedPoints() {
+        fetch('/focus/points')
+        .then(response => response.json())
+        .then(points => {
+            const pointsList = document.getElementById('points-list');
+            pointsList.innerHTML = '';
+            
+            points.forEach((point, index) => {
+                const pointElement = document.createElement('div');
+                pointElement.className = 'saved-point';
+                pointElement.innerHTML = `
+                    <span>Point ${index + 1}: X=${point.x}mm, Y=${point.y}mm, Z=${point.z}mm</span>
+                    <button onclick="loadPoint(${index})">Load</button>
+                    <button onclick="deletePoint(${index})">Delete</button>
+                `;
+                pointsList.appendChild(pointElement);
             });
         });
+    }
 
-        document.getElementById('stop-tracking').addEventListener('click', () => {
-            fetch('/focus/stop_tracking', {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('start-tracking').disabled = false;
-                    document.getElementById('stop-tracking').disabled = true;
-                }
-            });
+    function loadPoint(index) {
+        fetch(`/focus/point/${index}`)
+        .then(response => response.json())
+        .then(point => {
+            document.getElementById('target-x').value = point.x;
+            document.getElementById('target-y').value = point.y;
+            document.getElementById('target-z').value = point.z;
         });
+    }
 
-        function updateSavedPoints() {
-            fetch('/focus/points')
-            .then(response => response.json())
-            .then(points => {
-                const pointsList = document.getElementById('points-list');
-                pointsList.innerHTML = '';
-                
-                points.forEach((point, index) => {
-                    const pointElement = document.createElement('div');
-                    pointElement.className = 'saved-point';
-                    pointElement.innerHTML = `
-                        <span>Point ${index + 1}: X=${point.x}mm, Y=${point.y}mm, Z=${point.z}mm</span>
-                        <button onclick="loadPoint(${index})">Load</button>
-                        <button onclick="deletePoint(${index})">Delete</button>
-                    `;
-                    pointsList.appendChild(pointElement);
-                });
-            });
-        }
+    function deletePoint(index) {
+        fetch(`/focus/point/${index}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateSavedPoints();
+            }
+        });
+    }
 
-        function loadPoint(index) {
-            fetch(`/focus/point/${index}`)
-            .then(response => response.json())
-            .then(point => {
-                document.getElementById('target-x').value = point.x;
-                document.getElementById('target-y').value = point.y;
-                document.getElementById('target-z').value = point.z;
-            });
-        }
-
-        function deletePoint(index) {
-            fetch(`/focus/point/${index}`, {
-                method: 'DELETE'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateSavedPoints();
-                }
-            });
-        }
-
-        // Initialize
-        updateSavedPoints();
-    </script>
-</body>
-</html>
+    // Initialize
+    updateSavedPoints();
+</script>
+{% endblock %}

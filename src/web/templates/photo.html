@@ -1,19 +1,287 @@
 {% extends "base.html" %}
 
-{% block title %}Photo Capture{% endblock %}
+{% block title %}Photo Mode{% endblock %}
 
 {% block content %}
-<h1>Photo Capture</h1>
-<div>
-    <button onclick="takePhoto()">Take Photo</button>
-    <div id="preview">
-        <!-- Photo preview will be shown here -->
+<div class="control-section">
+    <h1>Photo Mode</h1>
+    
+    <div class="photo-controls">
+        <h2>Camera Settings</h2>
+        <div class="control-panel">
+            <div class="setting-row">
+                <label>Photo Resolution:</label>
+                <select id="resolution">
+                    <option value="raw">RAW</option>
+                    <option value="jpeg-high">JPEG High (20MP)</option>
+                    <option value="jpeg-med">JPEG Medium (12MP)</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>Interval (seconds):</label>
+                <input type="number" id="interval" value="2" min="1" max="3600">
+            </div>
+            <div class="setting-row">
+                <label>Number of Photos:</label>
+                <input type="number" id="photo-count" value="10" min="1" max="1000">
+            </div>
+            <div class="setting-row">
+                <label>Delay Before Start:</label>
+                <input type="number" id="start-delay" value="3" min="0" max="60">
+            </div>
+        </div>
+    </div>
+
+    <div class="motion-controls">
+        <h2>Motion Settings</h2>
+        <div class="control-panel">
+            <div class="setting-row">
+                <label>Movement Profile:</label>
+                <select id="profile">
+                    <option value="">Select a profile...</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>Focus Mode:</label>
+                <select id="focus-mode">
+                    <option value="track">Track Focus Point</option>
+                    <option value="fixed">Fixed Focus</option>
+                    <option value="manual">Manual Focus</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <label>Movement Type:</label>
+                <select id="movement-type">
+                    <option value="continuous">Continuous</option>
+                    <option value="step">Step-by-Step</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <button id="start-sequence" class="btn">Start Photo Sequence</button>
+        <button id="stop-sequence" class="btn danger" disabled>Stop Sequence</button>
+        <button id="preview" class="btn">Preview Movement</button>
+    </div>
+
+    <div class="status-panel" style="display: none;">
+        <h2>Sequence Status</h2>
+        <div class="status-info">
+            <div class="info-row">
+                <label>Photos:</label>
+                <span id="photos-taken">0</span> / <span id="total-photos">0</span>
+            </div>
+            <div class="info-row">
+                <label>Next Photo:</label>
+                <span id="next-photo-time">--:--</span>
+            </div>
+            <div class="info-row">
+                <label>Status:</label>
+                <span id="sequence-status">Ready</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress" style="width: 0%"></div>
+            </div>
+            <div class="photo-grid" id="photo-thumbnails">
+                <!-- Thumbnails will be added here -->
+            </div>
+        </div>
     </div>
 </div>
-<script>
-function takePhoto() {
-    // TODO: Implement photo capture
-    alert("Photo captured");
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+.photo-controls, .motion-controls {
+    margin-bottom: 30px;
 }
+
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.photo-thumbnail {
+    position: relative;
+    padding-bottom: 100%;
+    background: #eee;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.photo-thumbnail img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-thumbnail .number {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.8em;
+}
+
+@media (max-width: 768px) {
+    .photo-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Load profiles
+    fetch('/profiles')
+        .then(response => response.json())
+        .then(profiles => {
+            const select = document.getElementById('profile');
+            profiles.forEach(profile => {
+                const option = document.createElement('option');
+                option.value = profile;
+                option.textContent = profile;
+                select.appendChild(option);
+            });
+        });
+
+    let sequenceInterval;
+    let photoCount = 0;
+    let nextPhotoTime;
+    const statusPanel = document.querySelector('.status-panel');
+    const startButton = document.getElementById('start-sequence');
+    const stopButton = document.getElementById('stop-sequence');
+    const previewButton = document.getElementById('preview');
+    const photosTaken = document.getElementById('photos-taken');
+    const totalPhotos = document.getElementById('total-photos');
+    const nextPhotoTimer = document.getElementById('next-photo-time');
+    const progress = document.querySelector('.progress');
+    const sequenceStatus = document.getElementById('sequence-status');
+    const thumbnailsGrid = document.getElementById('photo-thumbnails');
+
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateNextPhotoTime() {
+        const now = Date.now();
+        const remainingSeconds = Math.max(0, (nextPhotoTime - now) / 1000);
+        nextPhotoTimer.textContent = formatTime(remainingSeconds);
+    }
+
+    function addThumbnail(number) {
+        const thumbnail = document.createElement('div');
+        thumbnail.className = 'photo-thumbnail';
+        thumbnail.innerHTML = `
+            <div class="number">#${number}</div>
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=" alt="Photo ${number}">
+        `;
+        thumbnailsGrid.appendChild(thumbnail);
+    }
+
+    function startSequence() {
+        const totalCount = parseInt(document.getElementById('photo-count').value);
+        const interval = parseInt(document.getElementById('interval').value) * 1000;
+        const startDelay = parseInt(document.getElementById('start-delay').value) * 1000;
+
+        photoCount = 0;
+        totalPhotos.textContent = totalCount;
+        statusPanel.style.display = 'block';
+        startButton.disabled = true;
+        stopButton.disabled = false;
+        previewButton.disabled = true;
+        sequenceStatus.textContent = 'Starting...';
+        thumbnailsGrid.innerHTML = '';
+        
+        setTimeout(() => {
+            sequenceStatus.textContent = 'Running';
+            nextPhotoTime = Date.now() + interval;
+            
+            sequenceInterval = setInterval(() => {
+                if (photoCount >= totalCount) {
+                    stopSequence();
+                    return;
+                }
+
+                photoCount++;
+                photosTaken.textContent = photoCount;
+                const percent = (photoCount / totalCount) * 100;
+                progress.style.width = `${percent}%`;
+                addThumbnail(photoCount);
+                nextPhotoTime = Date.now() + interval;
+            }, interval);
+
+            // Update countdown timer
+            setInterval(updateNextPhotoTime, 100);
+        }, startDelay);
+    }
+
+    function stopSequence() {
+        clearInterval(sequenceInterval);
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        previewButton.disabled = false;
+        sequenceStatus.textContent = 'Completed';
+        nextPhotoTimer.textContent = '--:--';
+        
+        fetch('/profile/stop', { method: 'POST' });
+    }
+
+    function previewMovement() {
+        const profile = document.getElementById('profile').value;
+        if (profile) {
+            fetch(`/profile/${profile}`)
+                .then(response => response.json())
+                .then(profileData => {
+                    const settings = {
+                        ...profileData.settings,
+                        movement_type: document.getElementById('movement-type').value,
+                        focus_mode: document.getElementById('focus-mode').value
+                    };
+                    return fetch('/profile/play', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            profile: profileData,
+                            settings: settings
+                        })
+                    });
+                });
+        }
+    }
+
+    startButton.addEventListener('click', startSequence);
+    stopButton.addEventListener('click', stopSequence);
+    previewButton.addEventListener('click', previewMovement);
+
+    // Update movement type UI
+    document.getElementById('movement-type').addEventListener('change', (e) => {
+        const interval = document.getElementById('interval');
+        if (e.target.value === 'step') {
+            interval.min = '0';
+            interval.value = '0';
+            interval.disabled = true;
+        } else {
+            interval.min = '1';
+            interval.value = '2';
+            interval.disabled = false;
+        }
+    });
+});
 </script>
 {% endblock %}

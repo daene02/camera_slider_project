@@ -133,8 +133,8 @@ function createMotorBox(motorId, motorName) {
 
         <label for="goal_position_input_${motorId}">Zielposition:</label>
         <input type="number" id="goal_position_input_${motorId}" min="0" max="4096" step="1" value="0">
-        <label for="duration_${motorId}">Dauer (Sek.):</label>
-        <input type="number" id="duration_${motorId}" min="0.1" step="0.1" value="1">
+        <inbel for="duration_${motorId}">Dauer (Sek.):</label>
+        <input type="number" id="duration_${motorId}" min="1" , max="32000" ,step="1" value="5000">
         <button onclick="setMotor(${motorId})">Setzen</button>
       `;
 

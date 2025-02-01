@@ -1,52 +1,89 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>{% block title %}Camera Slider{% endblock %}</title>
+    <title>{% block title %}Camera Slider Control{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-            font-family: Arial, sans-serif;
-            background: url('/static/background.jpg') no-repeat center center fixed;
-            background-size: cover;
-            color: white;
+        /* Navigation Bar */
+        .nav-bar {
+            background: #333;
+            padding: 10px 0;
+            margin-bottom: 30px;
         }
-        .navbar {
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .navbar a {
+
+        .nav-menu {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-link {
             color: white;
             text-decoration: none;
-            margin-right: 20px;
             padding: 8px 16px;
             border-radius: 4px;
-            background-color: rgba(255, 255, 255, 0.1);
+            transition: background-color 0.3s;
         }
-        .navbar a:hover {
-            background-color: rgba(255, 255, 255, 0.2);
+
+        .nav-link:hover {
+            background-color: #444;
         }
-        .content {
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 20px;
-            border-radius: 8px;
+
+        .nav-link.active {
+            background-color: #2196F3;
+        }
+
+        /* Page Background */
+        .page-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-size: cover;
+            background-position: center;
+            opacity: 0.9;
+            z-index: -1;
+        }
+
+        /* Content Container */
+        .content-container {
+            position: relative;
+            z-index: 1;
         }
     </style>
+    {% block extra_styles %}{% endblock %}
 </head>
 <body>
-    <div class="navbar">
-        <a href="/">Home</a>
-        <a href="/motor">Motor Settings</a>
-        <a href="/video">Video Capture</a>
-        <a href="/photo">Photo Capture</a>
-    </div>
+    <div class="page-background" style="background-image: url('{{ url_for('static', filename=background_image) }}')"></div>
     
-    <div class="content">
-        {% block content %}{% endblock %}
+    <nav class="nav-bar">
+        <div class="nav-container">
+            <div class="nav-menu">
+                <a href="{{ url_for('home') }}" class="nav-link {{ 'active' if request.endpoint == 'home' }}">Home</a>
+                <a href="{{ url_for('motor') }}" class="nav-link {{ 'active' if request.endpoint == 'motor' }}">Motor Control</a>
+                <a href="{{ url_for('focus') }}" class="nav-link {{ 'active' if request.endpoint == 'focus' }}">Focus Control</a>
+                <a href="{{ url_for('profiles') }}" class="nav-link {{ 'active' if request.endpoint == 'profiles' }}">Motion Profiles</a>
+                <a href="{{ url_for('video') }}" class="nav-link {{ 'active' if request.endpoint == 'video' }}">Video Mode</a>
+                <a href="{{ url_for('photo') }}" class="nav-link {{ 'active' if request.endpoint == 'photo' }}">Photo Mode</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="content-container">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
     </div>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>
