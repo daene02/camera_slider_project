@@ -176,7 +176,11 @@ def save_focus_point():
 
 @app.route('/focus/start_tracking', methods=['POST'])
 def start_focus_tracking():
-    success, error = focus_controller.start_tracking(request.json)
+    point_data = request.json
+    if not point_data or not all(k in point_data for k in ['x', 'y', 'z']):
+        return jsonify({"error": "Invalid point data"}), 400
+
+    success, error = focus_controller.start_tracking(point_data)
     if success:
         return jsonify({"success": True})
     return jsonify({"error": error}), 400

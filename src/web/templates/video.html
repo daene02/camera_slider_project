@@ -31,8 +31,9 @@
         <h2>Motion Settings</h2>
         <div class="control-panel">
             <div class="setting-row">
-                <label>Duration (seconds):</label>
+                <label>Velocity (from Duration):</label>
                 <input type="number" id="duration" value="10" min="1" max="3600">
+                <span class="hint">seconds (lower = faster)</span>
             </div>
             <div class="setting-row">
                 <label>Movement Profile:</label>
@@ -40,13 +41,11 @@
                     <option value="">Select a profile...</option>
                 </select>
             </div>
-            <div class="setting-row">
-                <label>Focus Mode:</label>
-                <select id="focus-mode">
-                    <option value="track">Track Focus Point</option>
-                    <option value="fixed">Fixed Focus</option>
-                    <option value="manual">Manual Focus</option>
-                </select>
+            <div class="focus-control-panel">
+                <h3>Focus Control</h3>
+                <div class="setting-row">
+                    <button id="focus-tracking" class="btn">Start Focus Tracking</button>
+                </div>
             </div>
         </div>
     </div>
@@ -101,6 +100,25 @@
     min-width: 200px;
 }
 
+.setting-row .hint {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.9em;
+}
+
+.focus-control-panel {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+}
+
+#focus-settings {
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+}
+
 .action-buttons {
     display: flex;
     gap: 10px;
@@ -138,6 +156,44 @@
     background: #2196F3;
     transition: width 0.3s ease;
 }
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    background: rgba(255,255,255,0.2);
+    transform: scale(1.05);
+}
+
+.btn.danger {
+    background: rgba(255,0,0,0.3);
+}
+
+.btn.active {
+    background: #2196F3;
+    color: white;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+#focus-tracking {
+    min-width: 200px;
+}
+
+#focus-tracking.active {
+    background: #4CAF50;
+}
 </style>
 {% endblock %}
 
@@ -158,12 +214,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     option.textContent = profile;
                     select.appendChild(option);
                 });
-                console.log('Loaded profiles:', profiles); // Debug log
+                console.log('Loaded profiles:', profiles);
             })
             .catch(error => {
                 console.error('Error loading profiles:', error);
                 alert('Failed to load movement profiles');
             });
+    }
+    
+    // Duration to velocity conversion
+    function durationToVelocity(duration) {
+        // Convert duration to velocity (inverse relationship)
+        // Longer duration = slower velocity
+        // Scale to motor velocity range (0-1023)
+        const minDuration = 1;  // 1 second
+        const maxDuration = 3600;  // 1 hour
+        const minVelocity = 50;  // minimum safe velocity
+        const maxVelocity = 1023;  // maximum velocity
+        
+        // Invert and scale
+        const velocity = Math.round(
+            maxVelocity - ((duration - minDuration) / (maxDuration - minDuration)) * (maxVelocity - minVelocity)
+        );
+        
+        return Math.min(Math.max(velocity, minVelocity), maxVelocity);
     }
     
     // Load profiles when page loads
@@ -200,6 +274,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Focus tracking toggle
+    let isTracking = false;
+    const focusTrackingBtn = document.getElementById('focus-tracking');
+
+    async function toggleFocusTracking() {
+        if (!isTracking) {
+            try {
+                // Get saved focus settings
+                const settings = JSON.parse(localStorage.getItem('focusSettings'));
+                if (!settings || !settings.x || !settings.y || !settings.z) {
+                    alert('Please set focus point in Focus Control page first');
+                    return;
+                }
+
+                const point = {
+                    x: parseFloat(settings.x),
+                    y: parseFloat(settings.y),
+                    z: parseFloat(settings.z)
+                };
+
+                const response = await fetch('/focus/start_tracking', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(point)
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    isTracking = true;
+                    focusTrackingBtn.textContent = 'Stop Focus Tracking';
+                    focusTrackingBtn.classList.add('active');
+                    window.activePoint = point;
+                } else {
+                    throw new Error(data.error || 'Failed to start focus tracking');
+                }
+            } catch (error) {
+                console.error('Error starting focus tracking:', error);
+                alert('Failed to start focus tracking');
+            }
+        } else {
+            try {
+                const response = await fetch('/focus/stop_tracking', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    isTracking = false;
+                    focusTrackingBtn.textContent = 'Start Focus Tracking';
+                    focusTrackingBtn.classList.remove('active');
+                }
+            } catch (error) {
+                console.error('Error stopping focus tracking:', error);
+                alert('Failed to stop focus tracking');
+            }
+        }
+    }
+
+    focusTrackingBtn.addEventListener('click', toggleFocusTracking);
+
     async function startRecording() {
         const profileName = document.getElementById('profile').value;
         if (!profileName) {
@@ -222,12 +357,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Setup playback settings
             const settings = {
-                velocity: 100, // Default motor velocity
-                acceleration: 50, // Default motor acceleration
-                continuous_focus: true,
-                focus_update_rate: 50,
-                duration: duration,
-                focus_mode: document.getElementById('focus-mode').value
+                velocity: durationToVelocity(duration),
+                acceleration: 50,
+                focus: isTracking && window.activePoint ? {
+                    point: window.activePoint,
+                    offset: 0
+                } : null,
+                duration: duration
             };
 
             // Start profile playback
@@ -250,22 +386,27 @@ document.addEventListener('DOMContentLoaded', () => {
             previewButton.disabled = true;
             recordingInterval = setInterval(updateProgress, 100);
 
-            console.log('Recording started with profile:', profileName); // Debug log
+            console.log('Recording started with profile:', profileName);
         } catch (error) {
             console.error('Error starting recording:', error);
             alert('Failed to start recording: ' + error.message);
-            stopRecording(); // Clean up if something went wrong
+            stopRecording();
         }
     }
 
-    function stopRecording() {
-        clearInterval(recordingInterval);
-        startButton.disabled = false;
-        stopButton.disabled = true;
-        previewButton.disabled = false;
-        recordingStatus.textContent = 'Completed';
-        
-        fetch('/profile/stop', { method: 'POST' });
+    async function stopRecording() {
+        try {
+            await fetch('/profile/stop', { method: 'POST' });
+            
+            clearInterval(recordingInterval);
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            previewButton.disabled = false;
+            recordingStatus.textContent = 'Completed';
+        } catch (error) {
+            console.error('Error stopping recording:', error);
+            alert('Error stopping recording');
+        }
     }
 
     async function previewMovement() {
@@ -276,26 +417,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            console.log('Loading profile for preview:', profileName); // Debug log
-            
             // Get profile data
             const profileResponse = await fetch(`/profile/${profileName}`);
             if (!profileResponse.ok) throw new Error('Failed to load profile');
             const profileData = await profileResponse.json();
 
-            console.log('Profile data loaded:', profileData); // Debug log
-
             // Setup playback settings
+            const duration = parseInt(document.getElementById('duration').value);
             const settings = {
-                velocity: 100, // Default motor velocity
-                acceleration: 50, // Default motor acceleration
-                continuous_focus: true,
-                focus_update_rate: 50,
-                duration: parseInt(document.getElementById('duration').value),
-                focus_mode: document.getElementById('focus-mode').value
+                velocity: durationToVelocity(duration),
+                acceleration: 50,
+                focus: isTracking && window.activePoint ? {
+                    point: window.activePoint,
+                    offset: 0
+                } : null,
+                duration: duration
             };
-
-            console.log('Starting preview with settings:', settings); // Debug log
 
             // Start profile playback
             const playResponse = await fetch('/profile/play', {
@@ -310,11 +447,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!playResponse.ok) {
-                const errorData = await playResponse.json();
-                throw new Error(errorData.error || 'Failed to start preview');
+                throw new Error('Failed to start preview');
             }
 
-            console.log('Preview started successfully'); // Debug log
+            console.log('Preview started successfully');
         } catch (error) {
             console.error('Error during preview:', error);
             alert('Failed to start preview: ' + error.message);

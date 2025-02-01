@@ -3,6 +3,7 @@ import json
 from threading import Thread, Event
 import time
 from .motor_controller import motor_controller, MOTOR_IDS
+from src.focus import FocusController
 
 class ProfileController:
     def __init__(self):
@@ -59,12 +60,26 @@ class ProfileController:
 
     def run_profile(self, profile, settings):
         try:
-            # Set velocity and acceleration for all motors
+            # Set velocity and acceleration
             velocity_dict = {motor_id: int(settings['velocity']) for motor_id in motor_controller.dxl.dxl_ids}
             accel_dict = {motor_id: int(settings['acceleration']) for motor_id in motor_controller.dxl.dxl_ids}
             
             motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, velocity_dict)
             motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_acceleration, accel_dict)
+
+            # Initialize focus controller if focus settings are provided
+            focus_settings = settings.get('focus')
+            if focus_settings:
+                point = focus_settings['point']
+                offset = focus_settings.get('offset', 0)  # Get offset or default to 0
+                point['x'] += offset  # Apply the offset
+                
+                if self.focus_controller is None:
+                    self.focus_controller = FocusController(object_position=(point['x'], point['y'], point['z']))
+                else:
+                    self.focus_controller.object_x = point['x']
+                    self.focus_controller.object_y = point['y']
+                    self.focus_controller.object_z = point['z']
 
             # Process each point in sequence
             for point in profile['points']:
@@ -73,6 +88,19 @@ class ProfileController:
 
                 # Convert positions to motor steps
                 positions = {int(motor_id): int(pos) for motor_id, pos in point['positions'].items()}
+                
+                # Get current slider position
+                slider_pos = motor_controller.steps_to_units(positions[MOTOR_IDS['slider']], 'slider')
+                
+                # If focus tracking is enabled, calculate focus positions
+                if focus_settings and self.focus_controller:
+                    motor_positions = self.focus_controller.get_motor_positions(slider_pos)
+                    focus_positions = {
+                        MOTOR_IDS['pan']: motor_controller.units_to_steps(motor_positions['pan'], 'pan'),
+                        MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt'),
+                        MOTOR_IDS['focus']: motor_controller.units_to_steps(motor_positions['focus'], 'focus')
+                    }
+                    positions.update(focus_positions)
                 
                 # Move to position
                 motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, positions)
@@ -88,13 +116,22 @@ class ProfileController:
                     all_reached = True
                     for motor_id, target_pos in positions.items():
                         if motor_id in [MOTOR_IDS['pan'], MOTOR_IDS['tilt'], MOTOR_IDS['focus']]:
-                            continue  # Skip focus-related motors
+                            continue  # Skip focus-related motors in position check
                         current_pos = current_positions.get(motor_id, 0)
                         if abs(current_pos - target_pos) >= 5:
                             all_reached = False
                             break
                     
-                    if all_reached:
+                    # Update focus positions if tracking is enabled
+                    if all_reached and focus_settings and self.focus_controller:
+                        slider_pos = motor_controller.steps_to_units(current_positions[MOTOR_IDS['slider']], 'slider')
+                        motor_positions = self.focus_controller.get_motor_positions(slider_pos)
+                        focus_positions = {
+                            MOTOR_IDS['pan']: motor_controller.units_to_steps(motor_positions['pan'], 'pan'),
+                            MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt'),
+                            MOTOR_IDS['focus']: motor_controller.units_to_steps(motor_positions['focus'], 'focus')
+                        }
+                        motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, focus_positions)
                         break
                     
                     time.sleep(0.05)
