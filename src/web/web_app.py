@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, send_from_directory, jsonify
 from src.dxl_manager import DynamixelManager
+from src.focus import FocusController
 import time
 import os
 import json
@@ -7,20 +8,53 @@ from threading import Thread, Event, Lock
 
 app = Flask(__name__)
 
-# Globale Variablen für den Playback-Status
+# Globale Variablen
 playback_stop_event = Event()
+tracking_stop_event = Event()
 current_playback_thread = None
+current_tracking_thread = None
 dxl_lock = Lock()  # Lock für thread-sichere DXL Operationen
+
+# Focus control
+focus_points = []
+focus_controller = None
 
 @app.route('/')
 def home():
     return render_template('home.html')
 
+@app.route('/focus')
+def focus():
+    return render_template('focus.html')
+
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
 
-# Motor Namen zuordnen
+# Conversion factors
+CONVERSION_FACTORS = {
+    "slider": 64 / 4096,     # 1 rotation = 64mm
+    "pan": 360 / 4096,       # 1 rotation = 360 degrees
+    "tilt": 360 / 4096,      # 1 rotation = 360 degrees
+    "focus": 360 / 4096      # 1 rotation = 360 degrees
+}
+
+# Motor offsets
+MOTOR_OFFSETS = {
+    "pan": 180,
+    "tilt": 180
+}
+
+# Motor IDs und Namen
+MOTOR_IDS = {
+    "turntable": 1,
+    "slider": 2,
+    "pan": 3,
+    "tilt": 4,
+    "zoom": 5,
+    "focus": 6
+}
+
 MOTOR_NAMES = {
     1: "Turntable",
     2: "Slider",
@@ -260,6 +294,109 @@ def stop_profile():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# Focus control routes
+@app.route('/focus/points', methods=['GET'])
+def get_focus_points():
+    return jsonify(focus_points)
+
+@app.route('/focus/point/<int:index>', methods=['GET', 'DELETE'])
+def manage_focus_point(index):
+    if request.method == 'GET':
+        if 0 <= index < len(focus_points):
+            return jsonify(focus_points[index])
+        return jsonify({"error": "Point not found"}), 404
+    elif request.method == 'DELETE':
+        if 0 <= index < len(focus_points):
+            focus_points.pop(index)
+            return jsonify({"success": True})
+        return jsonify({"error": "Point not found"}), 404
+
+@app.route('/focus/save_point', methods=['POST'])
+def save_focus_point():
+    point = request.json
+    if all(k in point for k in ('x', 'y', 'z')):
+        focus_points.append(point)
+        return jsonify({"success": True})
+    return jsonify({"error": "Invalid point data"}), 400
+
+def steps_to_units(steps, motor):
+    """Convert motor steps to real units (mm or degrees)"""
+    value = steps * CONVERSION_FACTORS[motor]
+    if motor in MOTOR_OFFSETS:
+        return value - MOTOR_OFFSETS[motor]
+    return value
+
+def units_to_steps(units, motor):
+    """Convert real units (mm or degrees) to motor steps"""
+    if motor in MOTOR_OFFSETS:
+        units += MOTOR_OFFSETS[motor]
+    return round(units / CONVERSION_FACTORS[motor])
+
+def track_focus_point(point):
+    """Background task for focus tracking"""
+    global focus_controller
+    
+    if focus_controller is None:
+        focus_controller = FocusController(object_position=(point['x'], point['y'], point['z']))
+    else:
+        focus_controller.object_x = point['x']
+        focus_controller.object_y = point['y']
+        focus_controller.object_z = point['z']
+    
+    try:
+        safe_dxl_operation(dxl.enable_torque)
+        
+        while not tracking_stop_event.is_set():
+            positions = safe_dxl_operation(dxl.bulk_read_positions)
+            if not positions:
+                time.sleep(0.1)
+                continue
+                
+            # Get current slider position in mm
+            slider_pos = steps_to_units(positions[MOTOR_IDS['slider']], 'slider')
+            
+            # Calculate motor positions for current slider position
+            motor_positions = focus_controller.get_motor_positions(slider_pos)
+            
+            # Convert angles to steps
+            target_positions = {
+                MOTOR_IDS['pan']: units_to_steps(motor_positions['pan'], 'pan'),
+                MOTOR_IDS['tilt']: units_to_steps(motor_positions['tilt'], 'tilt'),
+                MOTOR_IDS['focus']: units_to_steps(motor_positions['focus'], 'focus')
+            }
+            
+            safe_dxl_operation(dxl.bulk_write_goal_positions, target_positions)
+            time.sleep(0.05)  # 50ms update interval
+            
+    except Exception as e:
+        print(f"Error during focus tracking: {str(e)}")
+    finally:
+        tracking_stop_event.clear()
+        if not playback_stop_event.is_set():  # Only disable if not in playback mode
+            safe_dxl_operation(dxl.disable_torque)
+
+@app.route('/focus/start_tracking', methods=['POST'])
+def start_focus_tracking():
+    global current_tracking_thread
+    
+    if current_tracking_thread and current_tracking_thread.is_alive():
+        return jsonify({"error": "Tracking already in progress"}), 400
+    
+    point = request.json
+    if not all(k in point for k in ('x', 'y', 'z')):
+        return jsonify({"error": "Invalid point data"}), 400
+    
+    tracking_stop_event.clear()
+    current_tracking_thread = Thread(target=track_focus_point, args=(point,))
+    current_tracking_thread.start()
+    
+    return jsonify({"success": True})
+
+@app.route('/focus/stop_tracking', methods=['POST'])
+def stop_focus_tracking():
+    tracking_stop_event.set()
+    return jsonify({"success": True})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
