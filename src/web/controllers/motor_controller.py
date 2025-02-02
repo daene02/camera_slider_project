@@ -7,7 +7,9 @@ CONVERSION_FACTORS = {
     "slider": 64 / 4096,     # 1 rotation = 64mm
     "pan": 360 / 4096,       # 1 rotation = 360 degrees
     "tilt": 360 / 4096,      # 1 rotation = 360 degrees
-    "focus": 360 / 4096      # 1 rotation = 360 degrees
+    "focus": 360 / 4096,     # 1 rotation = 360 degrees
+    "turntable": 360 / 4096, # 1 rotation = 360 degrees
+    "zoom": 360 / 4096       # 1 rotation = 360 degrees
 }
 
 MOTOR_OFFSETS = {

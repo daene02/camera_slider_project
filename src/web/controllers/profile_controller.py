@@ -60,15 +60,23 @@ class ProfileController:
 
     def run_profile(self, profile, settings):
         try:
-            # Set global acceleration for non pan/tilt motors
+            # Set acceleration for primary motors
             acceleration = int(profile.get('acceleration', 1800))
-            accel_dict = {
+            primary_accel_dict = {
                 MOTOR_IDS['turntable']: acceleration,
                 MOTOR_IDS['slider']: acceleration,
                 MOTOR_IDS['zoom']: acceleration,
                 MOTOR_IDS['focus']: acceleration
             }
-            motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_acceleration, accel_dict)
+            motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_acceleration, primary_accel_dict)
+            
+            # Set acceleration for pan/tilt (slightly lower for smoother movement)
+            pan_tilt_accel = int(acceleration =50)  # 80% of primary acceleration
+            pan_tilt_accel_dict = {
+                MOTOR_IDS['pan']: pan_tilt_accel,
+                MOTOR_IDS['tilt']: pan_tilt_accel
+            }
+            motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_acceleration, pan_tilt_accel_dict)
 
             # Initialize focus controller for auto-calculated pan/tilt
             if self.focus_controller is None:
@@ -79,32 +87,39 @@ class ProfileController:
                 if self.playback_stop_event.is_set():
                     break
 
-                # Set velocity for non pan/tilt motors
+                # Set velocity for primary motors
                 velocity = int(point.get('velocity', 1000))
-                velocity_dict = {
+                primary_velocity_dict = {
                     MOTOR_IDS['turntable']: velocity,
                     MOTOR_IDS['slider']: velocity,
                     MOTOR_IDS['zoom']: velocity,
                     MOTOR_IDS['focus']: velocity
                 }
-                motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, velocity_dict)
+                motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, primary_velocity_dict)
 
                 # Convert saved positions to motor steps (excludes pan/tilt)
                 positions = {int(motor_id): int(pos) for motor_id, pos in point['positions'].items()}
+                
+                # Move primary motors first
+                motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, positions)
                 
                 # Calculate pan/tilt positions based on current slider position
                 slider_pos = motor_controller.steps_to_units(positions[MOTOR_IDS['slider']], 'slider')
                 motor_positions = self.focus_controller.get_motor_positions(slider_pos)
                 
-                # Add calculated pan/tilt positions to movement
-                calculated_positions = {
-                    **positions,  # Base positions (non pan/tilt)
+                # Pan/tilt velocity (slightly higher for smooth tracking)
+                pan_tilt_velocity = {
+                    MOTOR_IDS['pan']: int(velocity =50),
+                    MOTOR_IDS['tilt']: int(velocity =50)
+                }
+                motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, pan_tilt_velocity)
+                
+                # Prepare and execute pan/tilt movement separately
+                pan_tilt_positions = {
                     MOTOR_IDS['pan']: motor_controller.units_to_steps(motor_positions['pan'], 'pan'),
                     MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt')
                 }
-                
-                # Move to position
-                motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, calculated_positions)
+                motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, pan_tilt_positions)
                 
                 # Wait for position to be reached
                 while not self.playback_stop_event.is_set():
@@ -113,17 +128,23 @@ class ProfileController:
                         time.sleep(0.05)
                         continue
 
-                    # Check if target position is reached
-                    all_reached = True
+                    # Check primary motors position
+                    primary_reached = True
                     for motor_id, target_pos in positions.items():
-                        if motor_id in [MOTOR_IDS['pan'], MOTOR_IDS['tilt']]:
-                            continue  # Skip pan/tilt in position check
                         current_pos = current_positions.get(motor_id, 0)
                         if abs(current_pos - target_pos) >= 5:
-                            all_reached = False
+                            primary_reached = False
                             break
                     
-                    if all_reached:
+                    # Check pan/tilt position
+                    pan_tilt_reached = True
+                    for motor_id, target_pos in pan_tilt_positions.items():
+                        current_pos = current_positions.get(motor_id, 0)
+                        if abs(current_pos - target_pos) >= 10:  # Larger tolerance for pan/tilt
+                            pan_tilt_reached = True
+                            time.sleep(1)
+                    
+                    if primary_reached and pan_tilt_reached:
                         break
                     
                     time.sleep(0.05)

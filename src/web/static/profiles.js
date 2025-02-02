@@ -1,3 +1,46 @@
+// Import conversion functions
+const CONVERSION_FACTORS = {
+    1: 360 / 4096,    // Turntable: 1 rotation = 360 degrees
+    2: 64 / 4096,     // Slider: 1 rotation = 64mm
+    3: 360 / 4096,    // Pan: 1 rotation = 360 degrees
+    4: 360 / 4096,    // Tilt: 1 rotation = 360 degrees
+    5: 360 / 4096,    // Zoom: 1 rotation = 360 degrees
+    6: 360 / 4096     // Focus: 1 rotation = 360 degrees
+};
+
+const MOTOR_TYPES = {
+    1: "turntable",
+    2: "slider",
+    3: "pan",
+    4: "tilt",
+    5: "zoom",
+    6: "focus"
+};
+
+// Get the unit for a motor
+function getMotorUnit(motorId) {
+    return motorId === 2 ? "mm" : "°";  // Only slider uses mm, all others use degrees
+}
+
+// Convert steps to units (mm or degrees)
+function stepsToUnits(steps, motorId) {
+    if (!CONVERSION_FACTORS[motorId]) return steps;
+    let value = steps * CONVERSION_FACTORS[motorId];
+    if (motorId === 3 || motorId === 4) { // Pan or Tilt
+        value = value - 180; // Apply offset
+    }
+    return Math.round(value * 100) / 100; // Round to 2 decimal places
+}
+
+// Convert units (mm or degrees) to steps
+function unitsToSteps(units, motorId) {
+    if (!CONVERSION_FACTORS[motorId]) return units;
+    if (motorId === 3 || motorId === 4) { // Pan or Tilt
+        units = parseFloat(units) + 180; // Apply offset
+    }
+    return Math.round(units / CONVERSION_FACTORS[motorId]);
+}
+
 let currentProfile = {
     name: '',
     points: [],
@@ -92,15 +135,16 @@ async function capturePoint() {
         const allPositions = await response.json();
         
         // Filter out pan/tilt motors (IDs 3 and 4)
+        // Convert positions to steps before saving
         const positions = {};
         Object.entries(allPositions).forEach(([id, value]) => {
             if (!['3', '4'].includes(id)) {
-                positions[id] = value;
+                positions[id] = value; // Store original step values
             }
         });
 
         const point = {
-            positions: positions,
+            positions: positions, // Store in steps
             velocity: 1000,  // Default velocity
             timestamp: Date.now()
         };
@@ -132,15 +176,17 @@ function updatePointsList() {
         
         let positionsHtml = '';
         for (const [motorId, name] of Object.entries(motorNames)) {
-            const value = point.positions[motorId] || 0;
-            positionsHtml += `
+                const steps = point.positions[motorId] || 0;
+                const unitValue = stepsToUnits(steps, parseInt(motorId));
+                const unit = getMotorUnit(parseInt(motorId));
+                positionsHtml += `
                 <div class="position-row">
                     <label>${name}:</label>
                     <input type="number" 
-                           value="${value}"
+                           value="${unitValue}"
                            onchange="updatePointPosition(${index}, '${motorId}', this.value)"
                            class="position-input">
-                    <span class="unit">steps</span>
+                    <span class="unit">${unit}</span>
                 </div>
             `;
         }
@@ -174,7 +220,8 @@ function updatePointsList() {
 }
 
 function updatePointPosition(index, motorId, value) {
-    currentProfile.points[index].positions[motorId] = parseInt(value);
+    const steps = unitsToSteps(parseFloat(value), parseInt(motorId));
+    currentProfile.points[index].positions[motorId] = steps;
     saveToLocalStorage();
 }
 

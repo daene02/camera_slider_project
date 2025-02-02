@@ -49,7 +49,7 @@
             </div>
         </div>
         <div style="margin-bottom: 20px;">
-            <div>Position: <span class="position-value">{{ motor.position }}</span></div>
+            <div>Position: <span class="position-value" data-motor-id="{{ motor.id }}">{{ motor.position }}</span>{% if motor.id == 2 %}mm{% else %}°{% endif %}</div>
             <div>Temperature: <span class="temperature-value">{{ motor.temperature }}</span>°C</div>
             <div>Voltage: <span class="voltage-value">{{ motor.voltage }}</span>V</div>
             <div>Current: <span class="current-value">{{ motor.current }}</span>A</div>
@@ -59,12 +59,13 @@
         
         <div style="margin-top: 15px;">
             <div class="control-group">
-                <label for="position_{{ motor.id }}">Position:</label>
+                <label for="position_{{ motor.id }}">Position ({% if motor.id == 2 %}mm{% else %}°{% endif %}):</label>
                 <input type="number" 
                        id="position_{{ motor.id }}"
                        value="{{ motor.position }}"
-                       min="0"
-                       max="32000"
+                       min="{% if motor.id in [3, 4] %}-180{% elif motor.id == 2 %}0{% else %}0{% endif %}"
+                       max="{% if motor.id in [3, 4] %}180{% elif motor.id == 2 %}800{% else %}360{% endif %}"
+                       step="0.1"
                        style="width: 80px;">
                 <button onclick="updateMotorPosition({{ motor.id }})">Set</button>
             </div>
@@ -75,7 +76,7 @@
                        id="velocity_{{ motor.id }}"
                        value="100"
                        min="0"
-                       max="1023"
+                       max="32000"
                        style="width: 80px;">
                 <button onclick="updateMotorVelocity({{ motor.id }})">Set</button>
             </div>
@@ -86,7 +87,7 @@
                        id="acceleration_{{ motor.id }}"
                        value="50"
                        min="0"
-                       max="1023"
+                       max="32000"
                        style="width: 80px;">
                 <button onclick="updateMotorAcceleration({{ motor.id }})">Set</button>
             </div>
@@ -96,4 +97,20 @@
 </div>
 
 <script src="/static/main.js"></script>
+<script>
+// Initialize position inputs with converted values
+document.addEventListener('DOMContentLoaded', function() {
+    {% for motor in motors %}
+        const position{{ motor.id }} = stepsToUnits({{ motor.position }}, {{ motor.id }});
+        const input{{ motor.id }} = document.getElementById('position_{{ motor.id }}');
+        if (input{{ motor.id }}) {
+            input{{ motor.id }}.value = position{{ motor.id }};
+        }
+        const display{{ motor.id }} = document.querySelector('.position-value[data-motor-id="{{ motor.id }}"]');
+        if (display{{ motor.id }}) {
+            display{{ motor.id }}.textContent = position{{ motor.id }};
+        }
+    {% endfor %}
+});
+</script>
 {% endblock %}

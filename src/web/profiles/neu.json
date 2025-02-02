@@ -1,0 +1,16 @@
+{
+  "name": "neu",
+  "points": [
+    {
+      "positions": {
+        "1": 1025,
+        "2": 1,
+        "5": 549,
+        "6": 567
+      },
+      "velocity": 1000,
+      "timestamp": 1738509230662
+    }
+  ],
+  "acceleration": 1800
+}
