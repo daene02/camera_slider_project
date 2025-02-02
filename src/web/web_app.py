@@ -176,20 +176,47 @@ def save_focus_point():
 
 @app.route('/focus/start_tracking', methods=['POST'])
 def start_focus_tracking():
-    point_data = request.json
-    if not point_data or not all(k in point_data for k in ['x', 'y', 'z']):
-        return jsonify({"error": "Invalid point data"}), 400
+    try:
+        point_data = request.json
+        if not point_data:
+            return jsonify({"error": "No point data provided"}), 400
+            
+        required_fields = ['x', 'y', 'z']
+        if not all(k in point_data for k in required_fields):
+            missing_fields = [k for k in required_fields if k not in point_data]
+            return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+            
+        # Validate coordinate values
+        try:
+            for field in required_fields:
+                point_data[field] = float(point_data[field])
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid coordinate values. Must be numbers."}), 400
 
-    success, error = focus_controller.start_tracking(point_data)
-    if success:
-        return jsonify({"success": True})
-    return jsonify({"error": error}), 400
+        success, error = focus_controller.start_tracking(point_data)
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "Focus tracking started successfully",
+                "point": point_data
+            })
+        return jsonify({"error": error}), 400
+    except Exception as e:
+        print(f"Error in start_focus_tracking: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/focus/stop_tracking', methods=['POST'])
 def stop_focus_tracking():
-    if focus_controller.stop_tracking():
-        return jsonify({"success": True})
-    return jsonify({"error": "Failed to stop tracking"}), 500
+    try:
+        if focus_controller.stop_tracking():
+            return jsonify({
+                "success": True,
+                "message": "Focus tracking stopped successfully"
+            })
+        return jsonify({"error": "Failed to stop tracking"}), 500
+    except Exception as e:
+        print(f"Error in stop_focus_tracking: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':
     print("Starting Camera Slider Web Interface...")

@@ -7,6 +7,18 @@
     <h1>Focus Control</h1>
     
     <div class="focus-control-panel">
+        <div class="visualization-panel">
+            <h2>Focus Point Visualization</h2>
+            <div class="visualization-container">
+                <canvas id="focusVisualization"></canvas>
+                <div class="axis-labels">
+                    <span class="x-axis">X Axis</span>
+                    <span class="y-axis">Y Axis</span>
+                    <span class="z-axis">Z Axis</span>
+                </div>
+            </div>
+        </div>
+        
         <div class="tracking-setup">
             <h2>Profile Selection</h2>
             <div class="setting-row">
@@ -48,6 +60,58 @@
 </div>
 
 <style>
+.visualization-panel {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.visualization-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+
+#focusVisualization {
+    width: 100%;
+    height: 100%;
+}
+
+.axis-labels {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.axis-labels span {
+    position: absolute;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+}
+
+.x-axis {
+    bottom: 5px;
+    right: 5px;
+}
+
+.y-axis {
+    top: 5px;
+    right: 5px;
+}
+
+.z-axis {
+    top: 5px;
+    left: 5px;
+}
+
 .control-section {
     padding: 20px;
 }
@@ -218,6 +282,65 @@ h2 {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('focusVisualization');
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+
+    function resizeCanvas() {
+        const container = canvas.parentElement;
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+    }
+
+    function drawPoint(x, y, z) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Convert 3D coordinates to 2D visualization
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const scale = 0.2;  // Scale factor to fit within canvas
+        
+        // Simple isometric projection
+        const isoX = centerX + (x - y) * scale;
+        const isoY = centerY + ((x + y) * scale / 2 - z * scale);
+        
+        // Draw target point
+        ctx.beginPath();
+        ctx.arc(isoX, isoY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = 'red';
+        ctx.fill();
+        
+        // Draw guidelines
+        ctx.beginPath();
+        ctx.moveTo(isoX, isoY);
+        ctx.lineTo(isoX, canvas.height - 10);  // Vertical line to ground
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.stroke();
+        
+        // Draw axis indicators
+        ctx.font = '12px Arial';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.fillText(`X: ${x}mm`, 10, 20);
+        ctx.fillText(`Y: ${y}mm`, 10, 40);
+        ctx.fillText(`Z: ${z}mm`, 10, 60);
+    }
+
+    function updateVisualization() {
+        const x = parseFloat(xInput.value);
+        const y = parseFloat(yInput.value);
+        const z = parseFloat(zInput.value);
+        
+        if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+            drawPoint(x, y, z);
+        }
+        
+        animationFrameId = requestAnimationFrame(updateVisualization);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    updateVisualization();
+
     const startButton = document.getElementById('startTracking');
     const stopButton = document.getElementById('stopTracking');
     const saveButton = document.getElementById('savePoint');
