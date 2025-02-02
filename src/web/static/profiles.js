@@ -16,6 +16,7 @@ function createProfile() {
         acceleration: parseInt(document.getElementById('playbackAcceleration').value) || 1800
     };
     updatePointsList();
+    saveToLocalStorage();
 }
 
 function saveProfile() {
@@ -70,6 +71,7 @@ function loadProfile() {
             currentProfile = data;
             document.getElementById('profileName').value = data.name;
             updatePointsList();
+            saveToLocalStorage();
         })
         .catch(error => {
             console.error('Error loading profile:', error);
@@ -87,7 +89,16 @@ async function capturePoint() {
         const response = await fetch('/motors/positions');
         if (!response.ok) throw new Error('Failed to get motor positions');
         
-        const positions = await response.json();
+        const allPositions = await response.json();
+        
+        // Filter out pan/tilt motors (IDs 3 and 4)
+        const positions = {};
+        Object.entries(allPositions).forEach(([id, value]) => {
+            if (!['3', '4'].includes(id)) {
+                positions[id] = value;
+            }
+        });
+
         const point = {
             positions: positions,
             velocity: 1000,  // Default velocity
@@ -103,25 +114,11 @@ async function capturePoint() {
     }
 }
 
-function createProfile() {
-    const name = document.getElementById('profileName').value.trim();
-    if (!name) {
-        alert('Please enter a profile name');
-        return;
-    }
-    currentProfile = {
-        name: name,
-        points: [],
-        acceleration: parseInt(document.getElementById('playbackAcceleration').value) || 1800
-    };
-    updatePointsList();
-    saveToLocalStorage();
-}
-
 function updatePointsList() {
     const list = document.getElementById('pointsList');
     list.innerHTML = '';
     
+    // Only show motors we want to save in profiles (no pan/tilt)
     const motorNames = {
         "1": "Turntable",
         "2": "Slider",
@@ -178,21 +175,25 @@ function updatePointsList() {
 
 function updatePointPosition(index, motorId, value) {
     currentProfile.points[index].positions[motorId] = parseInt(value);
+    saveToLocalStorage();
 }
 
 function updatePointVelocity(index, value) {
     currentProfile.points[index].velocity = parseInt(value);
+    saveToLocalStorage();
 }
 
 function movePoint(fromIndex, toIndex) {
     const point = currentProfile.points.splice(fromIndex, 1)[0];
     currentProfile.points.splice(toIndex, 0, point);
     updatePointsList();
+    saveToLocalStorage();
 }
 
 function removePoint(index) {
     currentProfile.points.splice(index, 1);
     updatePointsList();
+    saveToLocalStorage();
 }
 
 function startPlayback() {
@@ -265,30 +266,6 @@ function loadFromLocalStorage() {
         const select = document.getElementById('profileSelect');
         select.value = lastProfileName;
     }
-}
-
-// Auto-save when points or settings change
-function updatePointPosition(index, motorId, value) {
-    currentProfile.points[index].positions[motorId] = parseInt(value);
-    saveToLocalStorage();
-}
-
-function updatePointVelocity(index, value) {
-    currentProfile.points[index].velocity = parseInt(value);
-    saveToLocalStorage();
-}
-
-function movePoint(fromIndex, toIndex) {
-    const point = currentProfile.points.splice(fromIndex, 1)[0];
-    currentProfile.points.splice(toIndex, 0, point);
-    updatePointsList();
-    saveToLocalStorage();
-}
-
-function removePoint(index) {
-    currentProfile.points.splice(index, 1);
-    updatePointsList();
-    saveToLocalStorage();
 }
 
 // Initialize on page load

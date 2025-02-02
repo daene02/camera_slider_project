@@ -89,22 +89,22 @@ class ProfileController:
                 }
                 motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, velocity_dict)
 
-                # Convert positions to motor steps
+                # Convert saved positions to motor steps (excludes pan/tilt)
                 positions = {int(motor_id): int(pos) for motor_id, pos in point['positions'].items()}
                 
-                # Get current slider position and calculate focus positions
+                # Calculate pan/tilt positions based on current slider position
                 slider_pos = motor_controller.steps_to_units(positions[MOTOR_IDS['slider']], 'slider')
                 motor_positions = self.focus_controller.get_motor_positions(slider_pos)
                 
-                # Update positions with calculated pan/tilt
-                focus_positions = {
+                # Add calculated pan/tilt positions to movement
+                calculated_positions = {
+                    **positions,  # Base positions (non pan/tilt)
                     MOTOR_IDS['pan']: motor_controller.units_to_steps(motor_positions['pan'], 'pan'),
                     MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt')
                 }
-                positions.update(focus_positions)
                 
                 # Move to position
-                motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, positions)
+                motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, calculated_positions)
                 
                 # Wait for position to be reached
                 while not self.playback_stop_event.is_set():
