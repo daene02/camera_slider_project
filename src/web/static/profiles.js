@@ -1,6 +1,7 @@
 let currentProfile = {
     name: '',
-    points: []
+    points: [],
+    acceleration: 1800
 };
 
 function createProfile() {
@@ -11,7 +12,8 @@ function createProfile() {
     }
     currentProfile = {
         name: name,
-        points: []
+        points: [],
+        acceleration: parseInt(document.getElementById('playbackAcceleration').value) || 1800
     };
     updatePointsList();
 }
@@ -88,31 +90,104 @@ async function capturePoint() {
         const positions = await response.json();
         const point = {
             positions: positions,
+            velocity: 1000,  // Default velocity
             timestamp: Date.now()
         };
         
         currentProfile.points.push(point);
         updatePointsList();
+        saveToLocalStorage();
     } catch (error) {
         console.error('Error capturing point:', error);
         alert('Failed to capture point');
     }
 }
 
+function createProfile() {
+    const name = document.getElementById('profileName').value.trim();
+    if (!name) {
+        alert('Please enter a profile name');
+        return;
+    }
+    currentProfile = {
+        name: name,
+        points: [],
+        acceleration: parseInt(document.getElementById('playbackAcceleration').value) || 1800
+    };
+    updatePointsList();
+    saveToLocalStorage();
+}
+
 function updatePointsList() {
     const list = document.getElementById('pointsList');
     list.innerHTML = '';
     
+    const motorNames = {
+        "1": "Turntable",
+        "2": "Slider",
+        "5": "Zoom",
+        "6": "Focus"
+    };
+
     currentProfile.points.forEach((point, index) => {
         const div = document.createElement('div');
         div.className = 'point-item';
+        
+        let positionsHtml = '';
+        for (const [motorId, name] of Object.entries(motorNames)) {
+            const value = point.positions[motorId] || 0;
+            positionsHtml += `
+                <div class="position-row">
+                    <label>${name}:</label>
+                    <input type="number" 
+                           value="${value}"
+                           onchange="updatePointPosition(${index}, '${motorId}', this.value)"
+                           class="position-input">
+                    <span class="unit">steps</span>
+                </div>
+            `;
+        }
+
         div.innerHTML = `
-            <strong>Point ${index + 1}</strong>
-            <button onclick="removePoint(${index})" style="float: right;">Remove</button>
-            <pre>${JSON.stringify(point.positions, null, 2)}</pre>
+            <div class="point-header">
+                <strong>Point ${index + 1}</strong>
+                <div class="point-controls">
+                    ${index > 0 ? `<button onclick="movePoint(${index}, ${index-1})" title="Move Up">↑</button>` : ''}
+                    ${index < currentProfile.points.length-1 ? `<button onclick="movePoint(${index}, ${index+1})" title="Move Down">↓</button>` : ''}
+                    <button onclick="removePoint(${index})" class="remove-btn" title="Remove Point">×</button>
+                </div>
+            </div>
+            <div class="point-content">
+                <div class="motor-positions">
+                    ${positionsHtml}
+                </div>
+                <div class="velocity-control">
+                    <label>Velocity:</label>
+                    <input type="number" 
+                           value="${point.velocity}"
+                           min="0" 
+                           max="1023" 
+                           onchange="updatePointVelocity(${index}, this.value)"
+                           class="velocity-input">
+                </div>
+            </div>
         `;
         list.appendChild(div);
     });
+}
+
+function updatePointPosition(index, motorId, value) {
+    currentProfile.points[index].positions[motorId] = parseInt(value);
+}
+
+function updatePointVelocity(index, value) {
+    currentProfile.points[index].velocity = parseInt(value);
+}
+
+function movePoint(fromIndex, toIndex) {
+    const point = currentProfile.points.splice(fromIndex, 1)[0];
+    currentProfile.points.splice(toIndex, 0, point);
+    updatePointsList();
 }
 
 function removePoint(index) {
@@ -126,12 +201,10 @@ function startPlayback() {
         return;
     }
     
-    const settings = {
-        velocity: parseInt(document.getElementById('playbackVelocity').value),
-        acceleration: parseInt(document.getElementById('playbackAcceleration').value),
-        continuous_focus: document.getElementById('focusMode').checked,
-        focus_update_rate: 50  // Default 50ms update rate
-    };
+    // Update global acceleration from input
+    currentProfile.acceleration = parseInt(document.getElementById('playbackAcceleration').value);
+    
+    const settings = {}; // No settings needed, acceleration is in profile
     
     fetch('/profile/play', {
         method: 'POST',
@@ -171,9 +244,61 @@ function stopPlayback() {
     });
 }
 
-// Debug: Log profile loading on page load
+// Local storage functions
+function saveToLocalStorage() {
+    localStorage.setItem('currentProfile', JSON.stringify(currentProfile));
+    localStorage.setItem('lastProfileName', currentProfile.name);
+}
+
+function loadFromLocalStorage() {
+    const savedProfile = localStorage.getItem('currentProfile');
+    if (savedProfile) {
+        currentProfile = JSON.parse(savedProfile);
+        document.getElementById('profileName').value = currentProfile.name;
+        document.getElementById('playbackAcceleration').value = currentProfile.acceleration || 1800;
+        updatePointsList();
+    }
+
+    // Load last profile name
+    const lastProfileName = localStorage.getItem('lastProfileName');
+    if (lastProfileName) {
+        const select = document.getElementById('profileSelect');
+        select.value = lastProfileName;
+    }
+}
+
+// Auto-save when points or settings change
+function updatePointPosition(index, motorId, value) {
+    currentProfile.points[index].positions[motorId] = parseInt(value);
+    saveToLocalStorage();
+}
+
+function updatePointVelocity(index, value) {
+    currentProfile.points[index].velocity = parseInt(value);
+    saveToLocalStorage();
+}
+
+function movePoint(fromIndex, toIndex) {
+    const point = currentProfile.points.splice(fromIndex, 1)[0];
+    currentProfile.points.splice(toIndex, 0, point);
+    updatePointsList();
+    saveToLocalStorage();
+}
+
+function removePoint(index) {
+    currentProfile.points.splice(index, 1);
+    updatePointsList();
+    saveToLocalStorage();
+}
+
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Profiles page loaded');
-    const select = document.getElementById('profileSelect');
-    console.log('Available profiles:', Array.from(select.options).map(opt => opt.value));
+    loadFromLocalStorage();
+});
+
+// Add auto-save to acceleration changes
+document.getElementById('playbackAcceleration').addEventListener('change', (e) => {
+    currentProfile.acceleration = parseInt(e.target.value);
+    saveToLocalStorage();
 });

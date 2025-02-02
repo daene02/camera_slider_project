@@ -4,20 +4,21 @@
 Improving web interface consistency and implementing missing features for comprehensive motion and focus control.
 
 ## Technical Requirements
-1. Web Interface Consistency
+1. Motion Profile System (Priority)
+   - Standard velocity parameter for all motors except pan/tilt
+   - Fixed acceleration values per motor type
+   - Velocity storage per focus point
+   - Pan/tilt angles auto-calculated from focus points
+
+2. Web Interface Consistency
    - Unified design system
    - Consistent component styling
    - Standardized layout patterns
 
-2. Motion Control Features
-   - Velocity control implementation
-   - Acceleration parameters
-   - Profile management system
-
 3. Focus System Enhancement
    - Multiple focus point storage
    - Focus point integration with motion profiles
-   - Variable focus point sequencing
+   - Variable focus point sequencing with velocity control
 
 ## Recent Changes
 - Identified web interface inconsistencies
