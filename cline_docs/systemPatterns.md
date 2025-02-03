@@ -1,9 +1,62 @@
 # Camera Slider Project - System Architecture & Patterns
 
+## Settings Architecture (Added March 2025)
+
+### Centralized Configuration Pattern
+```python
+"""
+Global settings and configuration for the camera slider project.
+All constants and configuration parameters are defined here.
+"""
+from typing import Dict, List, Union
+
+class SettingsArchitecture:
+    # Communication Settings
+    DEVICE_NAME: str
+    BAUD_RATE: int
+    PROTOCOL_VERSION: float
+    
+    # Motor Configuration
+    MOTOR_IDS: Dict[str, int]
+    MOTOR_LIMITS: Dict[str, Dict[str, int]]
+    
+    # Movement Parameters
+    DEFAULT_VELOCITY: int
+    DEFAULT_ACCELERATION: int
+    PAN_TILT_VELOCITY: int
+    
+    # Focus Settings
+    FOCUS_ENABLED: bool
+    MIN_FOCUS_DISTANCE: int
+```
+
+### Settings Usage Pattern
+```python
+from src.settings import (
+    MOTOR_IDS, CONVERSION_FACTORS,
+    DEFAULT_VELOCITY, DEFAULT_ACCELERATION
+)
+
+class MotorController:
+    def __init__(self):
+        self.motor_ids = MOTOR_IDS
+        self.conversion_factors = CONVERSION_FACTORS
+
+    def move_motors(self, positions, velocity=DEFAULT_VELOCITY):
+        # Implementation using settings
+```
+
 ## System Architecture
 
 ### Core Components
-1. **Motor Control System**
+1. **Settings Management**
+   - settings.py
+     * Central configuration hub
+     * Type-annotated constants
+     * Categorized settings
+     * Documentation for all parameters
+
+2. **Motor Control System**
    - DynamixelManager (dxl_manager.py)
      * Low-level motor communication
      * Hardware interaction layer
@@ -14,19 +67,19 @@
      * Motor state management
      * Position/velocity control
 
-2. **Profile Management**
+3. **Profile Management**
    - ProfileController (profile_controller.py)
      * Profile storage and retrieval
      * Movement sequence execution
      * Motor synchronization
 
-3. **Focus System**
+4. **Focus System**
    - FocusController (focus.py)
      * Pan/tilt calculations
      * Position tracking
      * Auto-focus management
 
-4. **Web Interface**
+5. **Web Interface**
    - Flask Application (web_app.py)
      * REST API endpoints
      * Real-time updates
@@ -36,82 +89,53 @@
 
 #### 1. Unit Conversion System
 ```python
-class MotorController:
-    CONVERSION_FACTORS = {
-        "slider": 64 / 4096,     # mm per step
-        "pan": 360 / 4096,       # degrees per step
-        "tilt": 360 / 4096,      # degrees per step
-        "turntable": 360 / 4096, # degrees per step
-        "zoom": 360 / 4096,      # degrees per step
-        "focus": 360 / 4096      # degrees per step
-    }
+# settings.py
+CONVERSION_FACTORS: Dict[str, float] = {
+    "slider": 64 / 4096,     # mm per step
+    "pan": 360 / 4096,       # degrees per step
+    "tilt": 360 / 4096,      # degrees per step
+    "turntable": 360 / 4096, # degrees per step
+    "zoom": 360 / 4096,      # degrees per step
+    "focus": 360 / 4096      # degrees per step
+}
 
-    def steps_to_units(self, steps, motor):
-        value = steps * CONVERSION_FACTORS[motor]
-        if motor in MOTOR_OFFSETS:
-            return value - MOTOR_OFFSETS[motor]
-        return value
+# motor_controller.py
+from src.settings import CONVERSION_FACTORS, MOTOR_OFFSETS
+
+def steps_to_units(self, steps, motor):
+    value = steps * CONVERSION_FACTORS[motor]
+    if motor in MOTOR_OFFSETS:
+        return value - MOTOR_OFFSETS[motor]
+    return value
 ```
 
 #### 2. Motor Movement Patterns
 
 1. **Primary Motors (Slider, Turntable, Zoom, Focus)**
    ```python
-   # Velocity/Acceleration Control
-   primary_velocity_dict = {
-       MOTOR_IDS['turntable']: velocity,
-       MOTOR_IDS['slider']: velocity,
-       MOTOR_IDS['zoom']: velocity,
-       MOTOR_IDS['focus']: velocity
-   }
-   motor_controller.safe_dxl_operation(
-       motor_controller.dxl.bulk_write_profile_velocity, 
-       primary_velocity_dict
+   # Using consolidated settings
+   from src.settings import (
+       MOTOR_IDS, DEFAULT_VELOCITY, DEFAULT_ACCELERATION
    )
    
-   # Position Control
-   positions = {int(motor_id): int(pos) for motor_id, pos in point['positions'].items()}
-   motor_controller.safe_dxl_operation(
-       motor_controller.dxl.bulk_write_goal_positions, 
-       positions
-   )
+   primary_velocity_dict = {
+       MOTOR_IDS['turntable']: DEFAULT_VELOCITY,
+       MOTOR_IDS['slider']: DEFAULT_VELOCITY,
+       MOTOR_IDS['zoom']: DEFAULT_VELOCITY,
+       MOTOR_IDS['focus']: DEFAULT_VELOCITY
+   }
    ```
 
 2. **Pan/Tilt Control**
    ```python
-   # Optimized Parameters
-   pan_tilt_velocity = {
-       MOTOR_IDS['pan']: int(velocity * 1.2),  # Higher velocity for tracking
-       MOTOR_IDS['tilt']: int(velocity * 1.2)
-   }
-   pan_tilt_accel = int(acceleration * 0.8)  # Lower acceleration for smoothness
-   
-   # Separate Movement Control
-   pan_tilt_positions = {
-       MOTOR_IDS['pan']: motor_controller.units_to_steps(motor_positions['pan'], 'pan'),
-       MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt')
-   }
-   motor_controller.safe_dxl_operation(
-       motor_controller.dxl.bulk_write_goal_positions, 
-       pan_tilt_positions
+   from src.settings import (
+       MOTOR_IDS, PAN_TILT_VELOCITY, PAN_TILT_ACCELERATION
    )
-   ```
-
-3. **Position Monitoring**
-   ```python
-   # Primary Motors (±5 steps tolerance)
-   for motor_id, target_pos in positions.items():
-       current_pos = current_positions.get(motor_id, 0)
-       if abs(current_pos - target_pos) >= 5:
-           primary_reached = False
-           break
    
-   # Pan/Tilt Motors (±10 steps tolerance)
-   for motor_id, target_pos in pan_tilt_positions.items():
-       current_pos = current_positions.get(motor_id, 0)
-       if abs(current_pos - target_pos) >= 10:
-           pan_tilt_reached = False
-           break
+   pan_tilt_velocity = {
+       MOTOR_IDS['pan']: PAN_TILT_VELOCITY,
+       MOTOR_IDS['tilt']: PAN_TILT_VELOCITY
+   }
    ```
 
 ### Movement Profile System
@@ -136,70 +160,51 @@ class MotorController:
 }
 ```
 
-#### 2. Movement Coordination
-1. Primary Motor Movement
-   - Position setting
-   - Speed/acceleration control
-   - Position monitoring
-
-2. Pan/Tilt Updates
-   - Focus point calculation
-   - Position adjustment
-   - Real-time tracking
-
 ### Design Patterns
 
-#### 1. Motor Control Abstraction
+#### 1. Settings Access Pattern
 ```python
-class MotorController:
-    def safe_dxl_operation(self, operation, params):
-        """Thread-safe motor operations with error handling"""
-        try:
-            with self.dxl.lock:
-                return operation(params)
-        except Exception as e:
-            print(f"Motor operation error: {e}")
-            return None
+from src.settings import (
+    MOTOR_IDS, CONVERSION_FACTORS,
+    DEFAULT_VELOCITY, DEFAULT_ACCELERATION,
+    PAN_TILT_VELOCITY, PAN_TILT_ACCELERATION
+)
+
+class Controller:
+    def __init__(self):
+        # Import all needed settings at initialization
+        self.motor_ids = MOTOR_IDS
+        self.conversion_factors = CONVERSION_FACTORS
+        self.default_velocity = DEFAULT_VELOCITY
 ```
 
 #### 2. Movement Coordination
 ```python
-def execute_movement(positions, velocity):
-    # 1. Set parameters for primary motors
+def execute_movement(positions, velocity=None):
+    # Use default values from settings if not specified
+    velocity = velocity or DEFAULT_VELOCITY
+    
+    # Set parameters using settings-based values
     set_primary_motor_params(velocity)
+    set_pan_tilt_params(PAN_TILT_VELOCITY)
     
-    # 2. Move primary motors
-    move_primary_motors(positions)
-    
-    # 3. Calculate pan/tilt positions
-    pan_tilt = calculate_pan_tilt_positions(positions)
-    
-    # 4. Set parameters for pan/tilt
-    set_pan_tilt_params(velocity)
-    
-    # 5. Move pan/tilt motors
-    move_pan_tilt_motors(pan_tilt)
-    
-    # 6. Monitor all positions
-    wait_for_movement_completion()
+    # Execute movement with proper parameters
+    move_motors(positions)
 ```
-
-#### 3. Profile Management
-- JSON profile storage
-- Real-time state updates
-- Position tracking
 
 ## Implementation Guidelines
 
-### 1. Motor Operations
-- Use separate bulk_write for pan/tilt
-- Maintain independent control paths
-- Monitor positions separately
+### 1. Settings Usage
+- Import only needed settings
+- Use type hints for clarity
+- Reference settings.py for documentation
+- Use default values when appropriate
 
-### 2. Profile Execution
-- Sequence primary motor movements
-- Calculate pan/tilt positions
-- Implement smooth transitions
+### 2. Configuration Management
+- All constants in settings.py
+- Clear categorization
+- Comprehensive documentation
+- Type annotations
 
 ### 3. Error Handling
 - Hardware communication errors
@@ -207,7 +212,9 @@ def execute_movement(positions, velocity):
 - Movement timeout checks
 
 ## Future Considerations
-1. Enhanced synchronization
-2. Advanced motion profiles
-3. Expanded error recovery
-4. Performance optimization
+1. Settings validation system
+2. Hot-reload capability
+3. Dynamic parameter adjustment
+4. Configuration persistence
+5. Settings backup/restore
+6. Environment-specific settings

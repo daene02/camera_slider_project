@@ -3,7 +3,10 @@ import json
 from threading import Thread, Event
 import time
 from src.focus import FocusController as BaseFocusController
-from .motor_controller import motor_controller, MOTOR_IDS
+from .motor_controller import motor_controller
+from src.settings import (
+    MOTOR_IDS, UPDATE_INTERVAL, FOCUS_ENABLED
+)
 
 class FocusController:
     def __init__(self):
@@ -68,6 +71,10 @@ class FocusController:
         return True
 
     def track_focus_point(self, point):
+        if not FOCUS_ENABLED:
+            print("Focus tracking is disabled in settings")
+            return
+
         if self.focus_controller is None:
             self.focus_controller = BaseFocusController(object_position=(point['x'], point['y'], point['z']))
         else:
@@ -78,13 +85,12 @@ class FocusController:
         try:
             motor_controller.toggle_torque(enable=True)
             last_update_time = 0
-            update_interval = 0.02  # 50Hz update rate
             
             while not self.tracking_stop_event.is_set():
                 current_time = time.time()
                 
                 # Throttle updates to prevent overwhelming the motors
-                if current_time - last_update_time < update_interval:
+                if current_time - last_update_time < UPDATE_INTERVAL:
                     time.sleep(0.001)  # Small sleep to prevent CPU hogging
                     continue
                 
@@ -135,6 +141,9 @@ class FocusController:
             motor_controller.toggle_torque(enable=False)
 
     def start_tracking(self, point):
+        if not FOCUS_ENABLED:
+            return False, "Focus tracking is disabled in settings"
+
         if self.current_tracking_thread and self.current_tracking_thread.is_alive():
             return False, "Tracking already in progress"
 

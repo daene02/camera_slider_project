@@ -1,6 +1,9 @@
 import numpy as np
 from math import atan2, degrees, radians, sqrt, cos, sin
-from src.settings import MOTOR_LIMITS, CONVERSION_FACTORS
+from src.settings import (
+    MOTOR_LIMITS, CONVERSION_FACTORS, MIN_FOCUS_DISTANCE, MAX_FOCUS_DISTANCE,
+    DEFAULT_VELOCITY, DEFAULT_ACCELERATION, DEFAULT_DURATION
+)
 
 class FocusController:
     def __init__(self, object_position=(-400, 600, -300)):
@@ -43,11 +46,8 @@ class FocusController:
         focus_max = MOTOR_LIMITS["focus"]["max"]
         focus_range = focus_max - focus_min
         
-        # Map distance to focus value (adjust these values based on calibration)
-        min_distance = 100  # mm
-        max_distance = 2000  # mm
-        
-        focus_value = ((distance - min_distance) / (max_distance - min_distance)) * focus_range + focus_min
+        # Map distance to focus value using settings
+        focus_value = ((distance - MIN_FOCUS_DISTANCE) / (MAX_FOCUS_DISTANCE - MIN_FOCUS_DISTANCE)) * focus_range + focus_min
         return int(focus_value)
 
     def get_motor_positions(self, slider_pos):
@@ -112,12 +112,13 @@ if __name__ == "__main__":
         print("Middle position:", movement_sequence[len(movement_sequence)//2])
         print("Final position:", movement_sequence[-1])
         
-        # Execute the movement sequence
-        velocity = 100  # Adjust as needed
-        acceleration = 1800  # Adjust as needed
-        duration = 50  # Total duration in seconds
-        
-        camera_slider.move_motors(movement_sequence, velocity, acceleration, duration)
+        # Execute the movement sequence using default settings
+        camera_slider.move_motors(
+            movement_sequence, 
+            velocity=DEFAULT_VELOCITY,
+            acceleration=DEFAULT_ACCELERATION,
+            duration=DEFAULT_DURATION
+        )
         
         # Read and print final positions
         final_positions = camera_slider.read_positions()

@@ -1,4 +1,10 @@
+"""
+Global settings and configuration for the camera slider project.
+All constants and configuration parameters should be defined here.
+"""
+
 import logging
+from typing import Dict, List, Union
 
 ########################################
 # Logging-Konfiguration
@@ -8,15 +14,24 @@ logging.basicConfig(level=logging.DEBUG)
 ########################################
 # Kommunikations- und Hardware-Einstellungen
 ########################################
-DEVICE_NAME = "/dev/ttyUSB0"  # Ehemals DEVICENAME
-BAUD_RATE = 57600           # Ehemals BAUDRATE
-PROTOCOL_VERSION = 2.0
+DEVICE_NAME = "/dev/ttyUSB0"  # Serial device for Dynamixel communication
+BAUD_RATE = 57600            # Communication speed with Dynamixel motors
+PROTOCOL_VERSION = 2.0       # Dynamixel protocol version
+
+########################################
+# Dynamixel Register Addresses
+########################################
+MODEL_NUMBER_ADDR = 0        # Address for reading Model Number (most X-Series servos)
+MODEL_NUMBER_LEN = 2         # Length of Model Number data
+OPERATING_MODE = 3           # 3 = Position Control Mode (X-Series)
+                            # 1 = Velocity Mode
+                            # See Robotis eManual for other modes
 
 ########################################
 # Motor-Konfiguration
 ########################################
-MOTOR_IDS = {
-    # Name → ID
+MOTOR_IDS: Dict[str, int] = {
+    # Name → ID mapping
     "turntable": 1,
     "slider": 2,
     "pan": 3,
@@ -25,8 +40,8 @@ MOTOR_IDS = {
     "focus": 6
 }
 
-MOTOR_NAMES = {
-    # ID → Name
+MOTOR_NAMES: Dict[int, str] = {
+    # ID → Name mapping (reverse of MOTOR_IDS)
     1: "turntable",
     2: "slider",
     3: "pan",
@@ -35,12 +50,12 @@ MOTOR_NAMES = {
     6: "focus"
 }
 
-DXL_IDS = [1, 2, 3, 4, 5, 6]  # Gesamte Liste aller verwendeten Motor-IDs
+DXL_IDS: List[int] = [1, 2, 3, 4, 5, 6]  # List of all motor IDs in use
 
 ########################################
 # Positions- und Geschwindigkeitseinstellungen
 ########################################
-MOTOR_LIMITS = {
+MOTOR_LIMITS: Dict[str, Dict[str, int]] = {
     "turntable": {"min": 0, "max": 4096},
     "slider": {"min": 0, "max": 89600},
     "pan": {"min": 760, "max": 3900},
@@ -49,7 +64,7 @@ MOTOR_LIMITS = {
     "focus": {"min": 0, "max": 4096}
 }
 
-VELOCITY_LIMITS = {
+VELOCITY_LIMITS: Dict[str, int] = {
     "turntable": 1800,
     "slider": 2000,
     "pan": 1800,
@@ -58,27 +73,47 @@ VELOCITY_LIMITS = {
     "focus": 1800
 }
 
-CONVERSION_FACTORS = {
-    "turntable": 360 / 4096,      # 1 Umdrehung = 360 Grad
-    "slider": 64 / 4096,         # 1 Umdrehung = 64 mm
-    "pan": 360 / 4096,           # 1 Umdrehung = 360 Grad
-    "tilt": 360 / 4096,          # 1 Umdrehung = 360 Grad
-    "zoom": 360 / 4096,   # 1 Umdrehung = 360 Grad
-    "focus": 360 / 4096 # 1 Umdrehung = 360 Grad
+########################################
+# Bewegungsparameter
+########################################
+DEFAULT_VELOCITY = 10000          # Default velocity in units/s
+DEFAULT_ACCELERATION = 1800       # Default acceleration in units/s²
+DEFAULT_DURATION = 10           # Default movement duration in seconds
+
+# Position verification settings
+POSITION_CHECK_INTERVAL = 0.05   # Interval for checking position updates (seconds)
+POSITION_CHECK_TIMEOUT = 30      # Timeout for position checking (seconds)
+POSITION_TOLERANCE = 10          # Position tolerance in steps
+MAX_POSITION_RETRIES = 100      # Maximum retries for position verification
+
+# Pan/Tilt spezifische Einstellungen
+PAN_TILT_VELOCITY = 0          # Specific velocity for pan/tilt movements
+PAN_TILT_ACCELERATION = 1500      # Specific acceleration for pan/tilt movements
+UPDATE_INTERVAL = 0.02          # Pan/tilt update rate (50Hz)
+PAN_TILT_TOLERANCE = 20         # Position tolerance for pan/tilt movements
+
+########################################
+# Konvertierungsfaktoren
+########################################
+CONVERSION_FACTORS: Dict[str, float] = {
+    "turntable": 360 / 4096,    # 1 Umdrehung = 360 Grad
+    "slider": 64 / 4096,        # 1 Umdrehung = 64 mm
+    "pan": 360 / 4096,          # 1 Umdrehung = 360 Grad
+    "tilt": 360 / 4096,         # 1 Umdrehung = 360 Grad
+    "zoom": 360 / 4096,         # 1 Umdrehung = 360 Grad
+    "focus": 360 / 4096         # 1 Umdrehung = 360 Grad
 }
-
-
 
 ########################################
 # Homing-Einstellungen
 ########################################
-CURRENT_THRESHOLD = 80      # Schwellenwert für Strom in mA
-MAX_HOMING_VELOCITY = 50    # Maximale Geschwindigkeit während des Homings
+CURRENT_THRESHOLD = 80          # Schwellenwert für Strom in mA
+MAX_HOMING_VELOCITY = 50        # Maximale Geschwindigkeit während des Homings
 
 ########################################
 # Sicherheitsabschaltung: maximale Stromgrenzen
 ########################################
-MAX_CURRENT_LIMITS = {
+MAX_CURRENT_LIMITS: Dict[str, int] = {
     "turntable": 300,
     "slider": 300,
     "pan": 300,
@@ -88,28 +123,59 @@ MAX_CURRENT_LIMITS = {
 }
 
 ########################################
-# Drehteller Fokus-Parameter
+# Fokus-Einstellungen
 ########################################
-TURNTABLE_POSITION = {
-    "x": 260,    # Horizontaler Versatz in mm
-    "y": 600,    # Abstand entlang der Slider-Achse in mm
-    "z": -295,   # Vertikaler Versatz in mm
-    "DREHTELLER_OFFSET": 0  # Beispielwert
-}
+FOCUS_ENABLED = True           # Global focus control enable/disable
+MIN_FOCUS_DISTANCE = 100      # Minimum focus distance in mm
+MAX_FOCUS_DISTANCE = 2000     # Maximum focus distance in mm
 
 ########################################
-# Offset-Werte
+# Kamera-Position und Offset-Einstellungen
 ########################################
-MOTOR_OFFSETS = {
-    "pan": 180,   # Offset für Pan in Grad
-    "tilt": 180,  # Offset für Tilt in Grad
+TURNTABLE_POSITION: Dict[str, Union[int, float]] = {
+    "x": -260,                # Horizontaler Versatz in mm
+    "y": 600,               # Abstand entlang der Slider-Achse in mm
+    "z": -295,              # Vertikaler Versatz in mm
+    "DREHTELLER_OFFSET": 0  # Drehteller-Offset
+}
+
+MOTOR_OFFSETS: Dict[str, int] = {
+    "pan": 180,              # Offset für Pan in Grad
+    "tilt": 180,            # Offset für Tilt in Grad
     "camera_to_tilt_pivot": 0
+}
+
+CAMERA_OFFSET_Z = 0         # Vertikaler Kamera-Offset
+
+########################################
+# Movement Sequence Settings
+########################################
+MOVEMENT_SETTINGS = {
+    "primary_motors": {
+        "position_tolerance": 20,     # Steps tolerance for position verification
+        "max_retries": 200,          # Maximum position check retries
+        "check_interval": 0.05,      # Seconds between position checks
+    },
+    "pan_tilt": {
+        "position_tolerance": 10,     # Larger tolerance for pan/tilt
+        "update_rate": 0.02,         # Update rate for pan/tilt movements
+        "independent_movement": True  # Allow pan/tilt to move independently
+    }
 }
 
 # Export settings for use in other modules
 __all__ = [
-    "DEVICE_NAME", "BAUD_RATE", "PROTOCOL_VERSION", "MOTOR_IDS", "MOTOR_NAMES",
-    "DXL_IDS", "MOTOR_LIMITS", "VELOCITY_LIMITS", "CONVERSION_FACTORS",
-    "CURRENT_THRESHOLD", "MAX_HOMING_VELOCITY", "MAX_CURRENT_LIMITS",
-    "TURNTABLE_POSITION", "MOTOR_OFFSETS"
+    "DEVICE_NAME", "BAUD_RATE", "PROTOCOL_VERSION",
+    "MODEL_NUMBER_ADDR", "MODEL_NUMBER_LEN", "OPERATING_MODE",
+    "MOTOR_IDS", "MOTOR_NAMES", "DXL_IDS",
+    "MOTOR_LIMITS", "VELOCITY_LIMITS", "CONVERSION_FACTORS",
+    "DEFAULT_VELOCITY", "DEFAULT_ACCELERATION", "DEFAULT_DURATION",
+    "POSITION_CHECK_INTERVAL", "POSITION_CHECK_TIMEOUT",
+    "POSITION_TOLERANCE", "MAX_POSITION_RETRIES",
+    "PAN_TILT_VELOCITY", "PAN_TILT_ACCELERATION", "UPDATE_INTERVAL",
+    "PAN_TILT_TOLERANCE", "CURRENT_THRESHOLD", "MAX_HOMING_VELOCITY",
+    "MAX_CURRENT_LIMITS", "FOCUS_ENABLED",
+    "MIN_FOCUS_DISTANCE", "MAX_FOCUS_DISTANCE",
+    "TURNTABLE_POSITION", "MOTOR_OFFSETS", "CAMERA_OFFSET_Z",
+    "MOVEMENT_SETTINGS"
 ]

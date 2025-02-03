@@ -1,39 +1,9 @@
 from threading import Lock
 from flask import jsonify
 from src.dxl_manager import DynamixelManager
-
-# Constants
-CONVERSION_FACTORS = {
-    "slider": 64 / 4096,     # 1 rotation = 64mm
-    "pan": 360 / 4096,       # 1 rotation = 360 degrees
-    "tilt": 360 / 4096,      # 1 rotation = 360 degrees
-    "focus": 360 / 4096,     # 1 rotation = 360 degrees
-    "turntable": 360 / 4096, # 1 rotation = 360 degrees
-    "zoom": 360 / 4096       # 1 rotation = 360 degrees
-}
-
-MOTOR_OFFSETS = {
-    "pan": 180,
-    "tilt": 180
-}
-
-MOTOR_IDS = {
-    "turntable": 1,
-    "slider": 2,
-    "pan": 3,
-    "tilt": 4,
-    "zoom": 5,
-    "focus": 6
-}
-
-MOTOR_NAMES = {
-    1: "Turntable",
-    2: "Slider",
-    3: "Pan",
-    4: "Tilt",
-    5: "Zoom",
-    6: "Focus"
-}
+from src.settings import (
+    CONVERSION_FACTORS, MOTOR_OFFSETS, MOTOR_IDS, MOTOR_NAMES
+)
 
 class MotorController:
     def __init__(self):

@@ -1,18 +1,18 @@
 from src.dxl_manager import DynamixelManager
-from src.settings import MOTOR_IDS, CONVERSION_FACTORS, VELOCITY_LIMITS, MOTOR_OFFSETS
+from src.settings import (
+    MOTOR_IDS, CONVERSION_FACTORS, MOTOR_OFFSETS,
+    DEVICE_NAME, BAUD_RATE, PROTOCOL_VERSION,
+    DEFAULT_VELOCITY, DEFAULT_ACCELERATION
+)
 import time
 
 # Initialisiere den DynamixelManager
 manager = DynamixelManager(
-    device="/dev/ttyUSB0",
-    baud=57600,
-    protocol=2.0,
+    device=DEVICE_NAME,
+    baud=BAUD_RATE,
+    protocol=PROTOCOL_VERSION,
     dxl_ids=list(MOTOR_IDS.values())
 )
-
-# Feste Profile Velocity und Profile Acceleration
-PROFILE_VELOCITY = 20000
-PROFILE_ACCELERATION = 10000
 
 def apply_offsets(positions):
     adjusted_positions = {}
@@ -36,8 +36,8 @@ def move_to_positions(manager, positions):
 
         print(f"Sende Zielpositionen: {target_positions}")
         manager.bulk_write_goal_positions(target_positions)
-        manager.bulk_write_profile_velocity({motor_id: PROFILE_VELOCITY for motor_id in MOTOR_IDS.values()})
-        manager.bulk_write_profile_acceleration({motor_id: PROFILE_ACCELERATION for motor_id in MOTOR_IDS.values()})
+        manager.bulk_write_profile_velocity({motor_id: DEFAULT_VELOCITY for motor_id in MOTOR_IDS.values()})
+        manager.bulk_write_profile_acceleration({motor_id: DEFAULT_ACCELERATION for motor_id in MOTOR_IDS.values()})
 
         wait_until_positions_reached(manager, target_positions)
         print("-- Punkt erreicht --")

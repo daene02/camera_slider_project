@@ -2,16 +2,14 @@ import os
 import json
 from threading import Thread, Event
 import time
-from .motor_controller import motor_controller, MOTOR_IDS
+from .motor_controller import motor_controller
 from src.focus import FocusController
+from src.settings import (
+    MOTOR_IDS, PAN_TILT_VELOCITY, PAN_TILT_ACCELERATION,
+    MOVEMENT_SETTINGS, DEFAULT_ACCELERATION
+)
 
 class ProfileController:
-    # Constants for pan/tilt control
-    PAN_TILT_VELOCITY = 20
-    PAN_TILT_ACCELERATION = 20
-    POSITION_CHECK_TIMEOUT = 30  # seconds - increased from 10s to 30s
-    POSITION_CHECK_INTERVAL = 0.05  # seconds
-
     def __init__(self):
         self.playback_stop_event = Event()
         self.current_playback_thread = None
@@ -75,31 +73,53 @@ class ProfileController:
             print(f"Error saving profile: {str(e)}")
             return False
 
-    def wait_for_time(self, duration):
-        """Wait for specified time while checking for stop event."""
-        start_time = time.time()
-        while not self.playback_stop_event.is_set():
-            if time.time() - start_time >= duration:
+    def verify_motor_positions(self, target_positions, tolerance=None):
+        """
+        Verify if motors have reached their target positions.
+        Uses different tolerances for primary motors and pan/tilt.
+        """
+        if tolerance is None:
+            tolerance = MOVEMENT_SETTINGS['primary_motors']['position_tolerance']
+            
+        retry_count = 0
+        max_retries = MOVEMENT_SETTINGS['primary_motors']['max_retries']
+        check_interval = MOVEMENT_SETTINGS['primary_motors']['check_interval']
+        
+        while not self.playback_stop_event.is_set() and retry_count < max_retries:
+            current_positions = motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_read_positions)
+            if not current_positions:
+                time.sleep(check_interval)
+                retry_count += 1
+                continue
+
+            all_reached = True
+            for motor_id, target in target_positions.items():
+                # Skip if motor_id is pan or tilt if they're in the target positions
+                if motor_id in [MOTOR_IDS['pan'], MOTOR_IDS['tilt']]:
+                    continue
+                    
+                current = current_positions.get(motor_id, None)
+                if current is None or abs(current - target) > tolerance:
+                    all_reached = False
+                    print(f"Motor {motor_id} not in position: current={current}, target={target}")
+                    break
+
+            if all_reached:
+                print("Motors reached target positions")
                 return True
-            time.sleep(self.POSITION_CHECK_INTERVAL)
+
+            time.sleep(check_interval)
+            retry_count += 1
+            if retry_count % 20 == 0:  # Log progress every 20 retries
+                print(f"Still waiting for motors to reach position... (attempt {retry_count}/{max_retries})")
+
+        print("Position verification timed out or stopped")
         return False
 
     def run_profile(self, profile, settings):
         try:
-            # Set drive mode to time-based profile (write value 4 to address 10)
-            drive_mode_dict = {
-                MOTOR_IDS['turntable']: 4,
-                MOTOR_IDS['slider']: 4,
-                MOTOR_IDS['zoom']: 4,
-                MOTOR_IDS['focus']: 4,
-                MOTOR_IDS['pan']: 4,
-                MOTOR_IDS['tilt']: 4
-            }
-            if not motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_drive_mode, drive_mode_dict):
-                raise Exception("Failed to set drive mode")
-
             # Set acceleration for primary motors
-            acceleration = int(profile.get('acceleration', 1800))
+            acceleration = int(profile.get('acceleration', DEFAULT_ACCELERATION))
             primary_accel_dict = {
                 MOTOR_IDS['turntable']: acceleration,
                 MOTOR_IDS['slider']: acceleration,
@@ -110,13 +130,13 @@ class ProfileController:
             
             # Set fixed acceleration for pan/tilt
             pan_tilt_accel_dict = {
-                MOTOR_IDS['pan']: self.PAN_TILT_ACCELERATION,
-                MOTOR_IDS['tilt']: self.PAN_TILT_ACCELERATION
+                MOTOR_IDS['pan']: PAN_TILT_ACCELERATION,
+                MOTOR_IDS['tilt']: PAN_TILT_ACCELERATION
             }
             motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_acceleration, pan_tilt_accel_dict)
 
             # Initialize/reinitialize focus controller
-            self.focus_controller = FocusController(object_position=(400, 600, -300))
+            self.focus_controller = FocusController(object_position=(-260, 600, -300))
 
             # Process each point in sequence
             for i, point in enumerate(profile['points']):
@@ -145,12 +165,12 @@ class ProfileController:
                     if not motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, positions):
                         raise Exception(f"Failed to move primary motors at point {i+1}")
 
-                    print(f"Moving to point {i+1}, duration: {duration}")  # Debug info
-                    print(f"Primary positions: {positions}")  # Debug info
+                    print(f"Moving to point {i+1}, duration: {duration}")
+                    print(f"Primary positions: {positions}")
 
-                    # Wait for the specified duration
-                    if not self.wait_for_time(duration/1000.0):  # Convert to seconds
-                        raise Exception(f"Movement stopped during point {i+1}")
+                    # Wait for primary motors to reach their positions
+                    if not self.verify_motor_positions(positions):
+                        print(f"Primary motors didn't reach target positions at point {i+1}, continuing...")
 
                     # Calculate and verify pan/tilt positions
                     try:
@@ -162,21 +182,17 @@ class ProfileController:
                             MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt')
                         }
                         
-                        print(f"Pan/tilt positions: {pan_tilt_positions}")  # Debug info
+                        print(f"Pan/tilt positions: {pan_tilt_positions}")
                         
-                        # Set velocity and move pan/tilt motors
+                        # Set velocity and move pan/tilt motors using settings
                         pan_tilt_velocity = {
-                            MOTOR_IDS['pan']: 50,  # Use same duration as primary motors
-                            MOTOR_IDS['tilt']: 50
+                            MOTOR_IDS['pan']: PAN_TILT_VELOCITY,
+                            MOTOR_IDS['tilt']: PAN_TILT_VELOCITY
                         }
                         motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, pan_tilt_velocity)
                         if not motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, pan_tilt_positions):
-                            raise Exception(f"Failed to move pan/tilt motors at point {i+1}")
+                            print(f"Failed to move pan/tilt motors at point {i+1}, continuing with sequence...")
                         
-                        # Wait for the specified duration
-                       # if not self.wait_for_time(duration/1000.0):  # Convert to seconds
-                           # raise Exception(f"Pan/tilt movement stopped during point {i+1}")
-                            
                     except Exception as e:
                         print(f"Focus tracking error at point {i+1}: {str(e)}")
                         # Continue with next point even if focus tracking fails
