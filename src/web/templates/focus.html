@@ -1,566 +1,232 @@
 {% extends "base.html" %}
 
-{% block title %}Focus Control{% endblock %}
-
-{% block content %}
-<div class="control-section">
-    <h1>Focus Control</h1>
-    
-    <div class="focus-control-panel">
-        <div class="visualization-panel">
-            <h2>Focus Point Visualization</h2>
-            <div class="visualization-container">
-                <canvas id="focusVisualization"></canvas>
-                <div class="axis-labels">
-                    <span class="x-axis">X Axis</span>
-                    <span class="y-axis">Y Axis</span>
-                    <span class="z-axis">Z Axis</span>
-                </div>
-            </div>
-        </div>
-        
-        <div class="tracking-setup">
-            <h2>Profile Selection</h2>
-            <div class="setting-row">
-                <label>Focus Profile:</label>
-                <select id="focus-profile" class="form-control">
-                    <option value="">Select a profile...</option>
-                </select>
-                <button id="loadProfile" class="btn">Load Profile</button>
-            </div>
-
-            <h2>Focus Point Settings</h2>
-            <div class="coordinates">
-                <div class="coordinate-input">
-                    <label>X Position (mm):</label>
-                    <input type="number" id="x-pos" value="400" class="form-control">
-                </div>
-                <div class="coordinate-input">
-                    <label>Y Position (mm):</label>
-                    <input type="number" id="y-pos" value="600" class="form-control">
-                </div>
-                <div class="coordinate-input">
-                    <label>Z Position (mm):</label>
-                    <input type="number" id="z-pos" value="-300" class="form-control">
-                </div>
-            </div>
-
-            <div class="action-buttons">
-                <button id="startTracking" class="btn">Start Tracking</button>
-                <button id="stopTracking" class="btn danger" disabled>Stop Tracking</button>
-                <button id="savePoint" class="btn">Save Point</button>
-            </div>
-        </div>
-
-        <div class="saved-points">
-            <h2>Saved Focus Points</h2>
-            <div id="pointsList"></div>
-        </div>
-    </div>
-</div>
-
+{% block styles %}
 <style>
-.visualization-panel {
-    background: rgba(0, 0, 0, 0.4);
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-}
-
-.visualization-container {
-    position: relative;
-    width: 100%;
-    height: 300px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
-    margin: 10px 0;
-    overflow: hidden;
-}
-
-#focusVisualization {
-    width: 100%;
-    height: 100%;
-}
-
-.axis-labels {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-}
-
-.axis-labels span {
-    position: absolute;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 12px;
-}
-
-.x-axis {
-    bottom: 5px;
-    right: 5px;
-}
-
-.y-axis {
-    top: 5px;
-    right: 5px;
-}
-
-.z-axis {
-    top: 5px;
-    left: 5px;
-}
-
-.control-section {
-    padding: 20px;
-}
-
-.focus-control-panel {
-    padding: 20px;
-    background: rgba(0, 0, 0, 0.6);
-    border-radius: 8px;
-    margin: 20px 0;
-    backdrop-filter: blur(5px);
-}
-
-.tracking-setup, .saved-points {
-    background: rgba(0, 0, 0, 0.4);
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-}
-
-.setting-row {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin-bottom: 15px;
-}
-
-.setting-row label {
-    min-width: 120px;
-    font-weight: bold;
+body {
+    background-color: #1a1a2e;
     color: white;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.focus-controls {
+    display: grid;
+    gap: 20px;
 }
 
 .form-control {
-    padding: 8px 12px;
-    border-radius: 4px;
-    border: 1px solid rgba(255,255,255,0.2);
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
-    font-size: 14px;
-    min-width: 200px;
-}
-
-.form-control:focus {
-    outline: none;
-    border-color: rgba(255,255,255,0.5);
-    background: rgba(255,255,255,0.15);
-}
-
-.coordinates {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin: 20px 0;
-}
-
-.coordinate-input {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.coordinate-input label {
-    color: white;
-    font-weight: bold;
-}
-
-.coordinate-input input {
-    padding: 8px;
-    border-radius: 4px;
-    border: 1px solid rgba(255,255,255,0.2);
-    background: rgba(255,255,255,0.1);
-    color: white;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 10px;
-    margin: 20px 0;
 }
 
 .btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    background: rgba(255,255,255,0.1);
+    background-color: #4a4e69;
     color: white;
-    transition: all 0.3s ease;
-    min-width: 120px;
-    font-weight: bold;
+    border: none;
 }
 
-.btn:hover {
-    background: rgba(255,255,255,0.2);
-    transform: scale(1.05);
+.btn-primary {
+    background-color: #22577a;
 }
 
-.btn.danger {
-    background: rgba(255,0,0,0.3);
+.btn-danger {
+    background-color: #8b0000;
 }
 
-.btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.saved-points {
-    margin-top: 30px;
-}
-
-#pointsList {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 15px;
-    margin-top: 15px;
+.points-list {
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .point-card {
-    background: rgba(255,255,255,0.1);
-    padding: 15px;
-    border-radius: 4px;
-    position: relative;
-    backdrop-filter: blur(5px);
-    transition: all 0.3s ease;
-}
-
-.point-card:hover {
-    background: rgba(255,255,255,0.15);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
-
-.point-card h3 {
-    margin: 0 0 10px 0;
-    color: white;
-}
-
-.point-card .coordinates {
-    font-size: 0.9em;
-    margin: 5px 0;
-    color: rgba(255,255,255,0.9);
-}
-
-.point-card button {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    padding: 5px;
-    background: rgba(255,0,0,0.3);
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
-    color: white;
-}
-
-h1, h2 {
-    color: white;
-    margin-bottom: 20px;
-}
-
-h2 {
-    font-size: 1.5em;
-    border-bottom: 1px solid rgba(255,255,255,0.2);
-    padding-bottom: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 </style>
+{% endblock %}
 
+{% block content %}
+<div class="container">
+    <h2>Focus Point Control</h2>
+    
+    <div class="focus-controls">
+        <div class="row">
+            <div class="col-md-6">
+                <input type="text" id="point-name" class="form-control mb-2" placeholder="Point Name">
+                <div class="input-group mb-2">
+                    <input type="number" id="x-pos" class="form-control" placeholder="X">
+                    <input type="number" id="y-pos" class="form-control" placeholder="Y">
+                    <input type="number" id="z-pos" class="form-control" placeholder="Z">
+                </div>
+                <div class="d-flex mb-2">
+                    <input type="color" id="point-color" class="form-control" value="#4a9eff">
+                    <button id="savePoint" class="btn btn-primary ml-2">Save</button>
+                </div>
+                <div class="btn-group w-100">
+                    <button id="startTracking" class="btn btn-success">Start</button>
+                    <button id="stopTracking" class="btn btn-danger" disabled>Stop</button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="points-list" id="pointsList"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="text-right mt-3">
+        <a href="/focus/visualization" target="_blank" class="btn btn-secondary">
+            3D Visualization
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const canvas = document.getElementById('focusVisualization');
-    const ctx = canvas.getContext('2d');
-    let animationFrameId;
-
-    function resizeCanvas() {
-        const container = canvas.parentElement;
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
-    }
-
-    function drawPoint(x, y, z) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Convert 3D coordinates to 2D visualization
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const scale = 0.2;  // Scale factor to fit within canvas
-        
-        // Simple isometric projection
-        const isoX = centerX + (x - y) * scale;
-        const isoY = centerY + ((x + y) * scale / 2 - z * scale);
-        
-        // Draw target point
-        ctx.beginPath();
-        ctx.arc(isoX, isoY, 5, 0, Math.PI * 2);
-        ctx.fillStyle = 'red';
-        ctx.fill();
-        
-        // Draw guidelines
-        ctx.beginPath();
-        ctx.moveTo(isoX, isoY);
-        ctx.lineTo(isoX, canvas.height - 10);  // Vertical line to ground
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.stroke();
-        
-        // Draw axis indicators
-        ctx.font = '12px Arial';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.fillText(`X: ${x}mm`, 10, 20);
-        ctx.fillText(`Y: ${y}mm`, 10, 40);
-        ctx.fillText(`Z: ${z}mm`, 10, 60);
-    }
-
-    function updateVisualization() {
-        const x = parseFloat(xInput.value);
-        const y = parseFloat(yInput.value);
-        const z = parseFloat(zInput.value);
-        
-        if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
-            drawPoint(x, y, z);
-        }
-        
-        animationFrameId = requestAnimationFrame(updateVisualization);
-    }
-
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-    updateVisualization();
-
+    const saveButton = document.getElementById('savePoint');
     const startButton = document.getElementById('startTracking');
     const stopButton = document.getElementById('stopTracking');
-    const saveButton = document.getElementById('savePoint');
-    const loadProfileButton = document.getElementById('loadProfile');
+    const pointNameInput = document.getElementById('point-name');
+    const pointColorInput = document.getElementById('point-color');
     const xInput = document.getElementById('x-pos');
     const yInput = document.getElementById('y-pos');
     const zInput = document.getElementById('z-pos');
     const pointsList = document.getElementById('pointsList');
-    const profileSelect = document.getElementById('focus-profile');
 
-    function loadProfiles() {
-        fetch('/profile/list')
-            .then(response => response.json())
-            .then(profiles => {
-                profileSelect.innerHTML = '<option value="">Select a profile...</option>';
-                profiles.forEach(profile => {
-                    const option = document.createElement('option');
-                    option.value = profile;
-                    option.textContent = profile;
-                    profileSelect.appendChild(option);
-                });
-            })
-            .catch(error => {
-                console.error('Error loading profiles:', error);
-                alert('Failed to load profiles');
-            });
-    }
+    let currentPointId = null;
+    let savedPoints = [];
 
-    function getFocusPoint() {
-        const x = parseFloat(xInput.value);
-        const y = parseFloat(yInput.value);
-        const z = parseFloat(zInput.value);
-
-        if (isNaN(x) || isNaN(y) || isNaN(z)) {
-            throw new Error('Invalid coordinate values');
-        }
-
-        return { x, y, z };
-    }
-
-    function updateButtonStates(tracking) {
-        startButton.disabled = tracking;
-        stopButton.disabled = !tracking;
-        saveButton.disabled = tracking;
-        loadProfileButton.disabled = tracking;
-        profileSelect.disabled = tracking;
-    }
-
-    function saveToLocalStorage() {
-        const settings = {
-            x: xInput.value,
-            y: yInput.value,
-            z: zInput.value,
-            profile: profileSelect.value
-        };
-        localStorage.setItem('focusSettings', JSON.stringify(settings));
-    }
-
-    function loadFromLocalStorage() {
-        const settings = JSON.parse(localStorage.getItem('focusSettings'));
-        if (settings) {
-            xInput.value = settings.x;
-            yInput.value = settings.y;
-            zInput.value = settings.z;
-            if (settings.profile) {
-                profileSelect.value = settings.profile;
-            }
-        }
-    }
-
-    async function loadSavedPoints() {
+    async function loadFocusPoints() {
         try {
             const response = await fetch('/focus/points');
-            const points = await response.json();
-            
-            pointsList.innerHTML = points.map((point, index) => `
-                <div class="point-card" onclick="loadPoint(${JSON.stringify(point).replace(/"/g, '&quot;')})">
-                    <h3>Point ${index + 1}</h3>
-                    <div class="coordinates">X: ${point.x}mm</div>
-                    <div class="coordinates">Y: ${point.y}mm</div>
-                    <div class="coordinates">Z: ${point.z}mm</div>
-                    <button class="delete-btn" onclick="event.stopPropagation(); deletePoint(${index})">×</button>
-                </div>
-            `).join('');
-
-            document.querySelectorAll('.point-card').forEach(card => {
-                card.style.cursor = 'pointer';
-            });
+            savedPoints = await response.json();
+            renderPointsList();
         } catch (error) {
-            console.error('Error loading focus points:', error);
+            console.error('Error loading points:', error);
         }
     }
 
-    window.loadPoint = function(point) {
-        xInput.value = point.x;
-        yInput.value = point.y;
-        zInput.value = point.z;
-        saveToLocalStorage();
-    };
+    function renderPointsList() {
+        pointsList.innerHTML = savedPoints.map(point => `
+            <div class="point-card">
+                <div>
+                    <strong>${point.name}</strong>
+                    <div>X: ${point.x}, Y: ${point.y}, Z: ${point.z}</div>
+                </div>
+                <div>
+                    <input type="color" value="${point.color}" disabled>
+                    <button onclick="usePoint(${point.id})" class="btn btn-sm btn-primary">Use</button>
+                    <button onclick="deletePoint(${point.id})" class="btn btn-sm btn-danger">×</button>
+                </div>
+            </div>
+        `).join('');
+    }
 
-    window.deletePoint = async function(index) {
+    window.usePoint = async function(pointId) {
         try {
-            const response = await fetch(`/focus/point/${index}`, {
-                method: 'DELETE'
-            });
-            if (response.ok) {
-                loadSavedPoints();
-            }
+            const response = await fetch(`/focus/point/${pointId}`);
+            const point = await response.json();
+            pointNameInput.value = point.name;
+            xInput.value = point.x;
+            yInput.value = point.y;
+            zInput.value = point.z;
+            pointColorInput.value = point.color;
         } catch (error) {
-            console.error('Error deleting point:', error);
+            console.error('Error:', error);
         }
     };
 
-    loadProfileButton.addEventListener('click', async () => {
-        const profileName = profileSelect.value;
-        if (!profileName) {
-            alert('Please select a profile');
+    window.deletePoint = async function(pointId) {
+        if (pointId === undefined || pointId === null) {
+            console.error('Invalid point ID');
             return;
         }
 
         try {
-            const response = await fetch(`/profile/${profileName}`);
-            if (!response.ok) throw new Error('Failed to load profile');
+            const response = await fetch(`/focus/point/${pointId}`, { 
+                method: 'DELETE'
+            });
             
-            const profileData = await response.json();
-            if (profileData.points && profileData.points.length > 0) {
-                // Use the first point's positions for focus settings
-                const firstPoint = profileData.points[0];
-                xInput.value = firstPoint.x || 400;
-                yInput.value = firstPoint.y || 600;
-                zInput.value = firstPoint.z || -300;
-                saveToLocalStorage();
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to delete point');
             }
+
+            await loadFocusPoints();
         } catch (error) {
-            console.error('Error loading profile:', error);
-            alert('Failed to load profile settings');
+            console.error('Error:', error);
+            alert(error.message || 'Failed to delete point');
+        }
+    };
+
+    saveButton.addEventListener('click', async () => {
+        const pointData = {
+            name: pointNameInput.value || `Point ${Date.now()}`,
+            color: pointColorInput.value,
+            x: parseFloat(xInput.value),
+            y: parseFloat(yInput.value),
+            z: parseFloat(zInput.value)
+        };
+
+        try {
+            await fetch('/focus/save_point', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pointData)
+            });
+            
+            await loadFocusPoints();
+            pointNameInput.value = '';
+            xInput.value = '';
+            yInput.value = '';
+            zInput.value = '';
+        } catch (error) {
+            console.error('Error:', error);
         }
     });
 
     startButton.addEventListener('click', async () => {
-        try {
-            let point;
-            try {
-                point = getFocusPoint();
-            } catch (e) {
-                alert('Please enter valid coordinate values');
-                return;
-            }
+        const point = {
+            x: parseFloat(xInput.value),
+            y: parseFloat(yInput.value),
+            z: parseFloat(zInput.value)
+        };
 
-            console.log('Starting tracking with point:', point);
-            const response = await fetch('/focus/start_tracking', {
+        try {
+            await fetch('/focus/start_tracking', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(point)
             });
 
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to start tracking');
-            }
-
-            updateButtonStates(true);
+            startButton.disabled = true;
+            stopButton.disabled = false;
         } catch (error) {
-            console.error('Error starting tracking:', error);
-            alert('Failed to start tracking');
+            console.error('Error:', error);
         }
     });
 
     stopButton.addEventListener('click', async () => {
         try {
-            console.log('Stopping tracking');
-            const response = await fetch('/focus/stop_tracking', {
-                method: 'POST'
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to stop tracking');
-            }
-
-            updateButtonStates(false);
+            await fetch('/focus/stop_tracking', { method: 'POST' });
+            startButton.disabled = false;
+            stopButton.disabled = true;
         } catch (error) {
-            console.error('Error stopping tracking:', error);
-            alert('Failed to stop tracking');
+            console.error('Error:', error);
         }
     });
 
-    saveButton.addEventListener('click', async () => {
-        try {
-            const point = getFocusPoint();
-            console.log('Saving focus point:', point);
-            const response = await fetch('/focus/save_point', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(point)
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to save point');
-            }
-
-            loadSavedPoints();
-        } catch (error) {
-            console.error('Error saving focus point:', error);
-            alert('Failed to save focus point');
-        }
-    });
-
-    // Save settings when inputs change
-    [xInput, yInput, zInput, profileSelect].forEach(input => {
-        input.addEventListener('change', saveToLocalStorage);
-    });
-
-    // Load initial data
-    loadProfiles();
-    loadSavedPoints();
-    loadFromLocalStorage();
+    loadFocusPoints();
 });
 </script>
 {% endblock %}

@@ -87,8 +87,8 @@ POSITION_TOLERANCE = 10          # Position tolerance in steps
 MAX_POSITION_RETRIES = 100      # Maximum retries for position verification
 
 # Pan/Tilt spezifische Einstellungen
-PAN_TILT_VELOCITY = 0          # Specific velocity for pan/tilt movements
-PAN_TILT_ACCELERATION = 1500      # Specific acceleration for pan/tilt movements
+PAN_TILT_VELOCITY = 500          # Specific velocity for pan/tilt movements
+PAN_TILT_ACCELERATION = 3000      # Specific acceleration for pan/tilt movements
 UPDATE_INTERVAL = 0.02          # Pan/tilt update rate (50Hz)
 PAN_TILT_TOLERANCE = 20         # Position tolerance for pan/tilt movements
 

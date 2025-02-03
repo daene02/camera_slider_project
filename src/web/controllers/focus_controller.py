@@ -7,6 +7,7 @@ from .motor_controller import motor_controller
 from src.settings import (
     MOTOR_IDS, UPDATE_INTERVAL, FOCUS_ENABLED
 )
+from datetime import datetime
 
 class FocusController:
     def __init__(self):
@@ -42,24 +43,88 @@ class FocusController:
             print(f"Error saving focus points: {str(e)}")
             return False
 
-    def add_focus_point(self, point):
-        if all(k in point for k in ('x', 'y', 'z')):
+    def add_focus_point(self, point_data):
+        """Add a new focus point with metadata"""
+        if all(k in point_data for k in ('x', 'y', 'z')):
+            point = {
+                'id': len(self.focus_points),
+                'name': point_data.get('name', f'Point {len(self.focus_points) + 1}'),
+                'description': point_data.get('description', ''),
+                'x': float(point_data['x']),
+                'y': float(point_data['y']),
+                'z': float(point_data['z']),
+                'color': point_data.get('color', '#4a9eff'),
+                'created_at': datetime.now().isoformat(),
+                'updated_at': datetime.now().isoformat()
+            }
             self.focus_points.append(point)
             self.save_focus_points()
-            return True
-        return False
+            return True, point
+        return False, None
 
-    def remove_focus_point(self, index):
-        if 0 <= index < len(self.focus_points):
-            self.focus_points.pop(index)
-            self.save_focus_points()
-            return True
-        return False
+    def update_focus_point(self, point_id, point_data):
+        """Update an existing focus point"""
+        try:
+            point_id = int(point_id)
+            for i, point in enumerate(self.focus_points):
+                if point['id'] == point_id:
+                    # Update only provided fields
+                    for key in ['name', 'description', 'x', 'y', 'z', 'color']:
+                        if key in point_data:
+                            point[key] = point_data[key]
+                    point['updated_at'] = datetime.now().isoformat()
+                    self.save_focus_points()
+                    return True, point
+            return False, "Point not found"
+        except Exception as e:
+            return False, str(e)
 
-    def get_focus_point(self, index):
-        if 0 <= index < len(self.focus_points):
-            return self.focus_points[index]
-        return None
+    def remove_focus_point(self, point_id):
+        """Remove a focus point by its ID"""
+        try:
+            point_id = int(point_id)
+        except (TypeError, ValueError):
+            print(f"Invalid point ID format: {point_id}")
+            return False, "Invalid point ID format"
+
+        try:
+            # Find point index
+            point_index = None
+            for i, p in enumerate(self.focus_points):
+                if p['id'] == point_id:
+                    point_index = i
+                    break
+
+            if point_index is None:
+                return False, "Point not found"
+
+            # Remove point
+            self.focus_points.pop(point_index)
+            
+            # Reindex remaining points
+            for i, point in enumerate(self.focus_points):
+                point['id'] = i
+
+            # Save changes
+            if self.save_focus_points():
+                return True, None
+            return False, "Failed to save points after deletion"
+            
+        except Exception as e:
+            error_msg = f"Error removing point: {str(e)}"
+            print(error_msg)
+            return False, error_msg
+
+    def get_focus_point(self, point_id):
+        """Get a focus point by its ID"""
+        try:
+            point_id = int(point_id)
+            for point in self.focus_points:
+                if point['id'] == point_id:
+                    return point
+            return None
+        except Exception:
+            return None
 
     def verify_motor_positions(self, target_positions, current_positions, tolerance=5):
         """Verify if motors reached their target positions within tolerance"""

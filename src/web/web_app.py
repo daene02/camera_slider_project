@@ -55,6 +55,10 @@ def video():
 def photo():
     return render_template('photo.html', background_image=get_background_image('photo'))
 
+@app.route('/focus/visualization')
+def focus_visualization():
+    return render_template('focus_visualization.html')
+
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
@@ -156,22 +160,29 @@ def stop_profile():
 def get_focus_points():
     return jsonify(focus_controller.focus_points)
 
-@app.route('/focus/point/<int:index>', methods=['GET', 'DELETE'])
-def manage_focus_point(index):
+@app.route('/focus/point/<int:point_id>', methods=['GET', 'PUT', 'DELETE'])
+def manage_focus_point(point_id):
     if request.method == 'GET':
-        point = focus_controller.get_focus_point(index)
+        point = focus_controller.get_focus_point(point_id)
         if point:
             return jsonify(point)
         return jsonify({"error": "Point not found"}), 404
+    elif request.method == 'PUT':
+        success, result = focus_controller.update_focus_point(point_id, request.json)
+        if success:
+            return jsonify(result)
+        return jsonify({"error": result}), 400
     elif request.method == 'DELETE':
-        if focus_controller.remove_focus_point(index):
+        success, error = focus_controller.remove_focus_point(point_id)
+        if success:
             return jsonify({"success": True})
-        return jsonify({"error": "Point not found"}), 404
+        return jsonify({"error": error}), 404
 
 @app.route('/focus/save_point', methods=['POST'])
 def save_focus_point():
-    if focus_controller.add_focus_point(request.json):
-        return jsonify({"success": True})
+    success, point = focus_controller.add_focus_point(request.json)
+    if success:
+        return jsonify({"success": True, "point": point})
     return jsonify({"error": "Invalid point data"}), 400
 
 @app.route('/focus/start_tracking', methods=['POST'])
