@@ -144,7 +144,11 @@ async function capturePoint() {
         });
 
         const point = {
+<<<<<<< HEAD
             positions: positions, // Store in steps
+=======
+            positions: positions,
+>>>>>>> b683a310 (Remove obsolete profile template and enhance motion profile system; update velocity settings and improve web interface consistency)
             velocity: 1000,  // Default velocity
             timestamp: Date.now()
         };
@@ -158,11 +162,29 @@ async function capturePoint() {
     }
 }
 
+function createProfile() {
+    const name = document.getElementById('profileName').value.trim();
+    if (!name) {
+        alert('Please enter a profile name');
+        return;
+    }
+    currentProfile = {
+        name: name,
+        points: [],
+        acceleration: parseInt(document.getElementById('playbackAcceleration').value) || 1800
+    };
+    updatePointsList();
+    saveToLocalStorage();
+}
+
 function updatePointsList() {
     const list = document.getElementById('pointsList');
     list.innerHTML = '';
     
+<<<<<<< HEAD
     // Only show motors we want to save in profiles (no pan/tilt)
+=======
+>>>>>>> b683a310 (Remove obsolete profile template and enhance motion profile system; update velocity settings and improve web interface consistency)
     const motorNames = {
         "1": "Turntable",
         "2": "Slider",
@@ -176,6 +198,7 @@ function updatePointsList() {
         
         let positionsHtml = '';
         for (const [motorId, name] of Object.entries(motorNames)) {
+<<<<<<< HEAD
                 const steps = point.positions[motorId] || 0;
                 const unitValue = stepsToUnits(steps, parseInt(motorId));
                 const unit = getMotorUnit(parseInt(motorId));
@@ -187,6 +210,17 @@ function updatePointsList() {
                            onchange="updatePointPosition(${index}, '${motorId}', this.value)"
                            class="position-input">
                     <span class="unit">${unit}</span>
+=======
+            const value = point.positions[motorId] || 0;
+            positionsHtml += `
+                <div class="position-row">
+                    <label>${name}:</label>
+                    <input type="number" 
+                           value="${value}"
+                           onchange="updatePointPosition(${index}, '${motorId}', this.value)"
+                           class="position-input">
+                    <span class="unit">steps</span>
+>>>>>>> b683a310 (Remove obsolete profile template and enhance motion profile system; update velocity settings and improve web interface consistency)
                 </div>
             `;
         }
@@ -220,21 +254,31 @@ function updatePointsList() {
 }
 
 function updatePointPosition(index, motorId, value) {
+<<<<<<< HEAD
     const steps = unitsToSteps(parseFloat(value), parseInt(motorId));
     currentProfile.points[index].positions[motorId] = steps;
     saveToLocalStorage();
+=======
+    currentProfile.points[index].positions[motorId] = parseInt(value);
+>>>>>>> b683a310 (Remove obsolete profile template and enhance motion profile system; update velocity settings and improve web interface consistency)
 }
 
 function updatePointVelocity(index, value) {
     currentProfile.points[index].velocity = parseInt(value);
+<<<<<<< HEAD
     saveToLocalStorage();
+=======
+>>>>>>> b683a310 (Remove obsolete profile template and enhance motion profile system; update velocity settings and improve web interface consistency)
 }
 
 function movePoint(fromIndex, toIndex) {
     const point = currentProfile.points.splice(fromIndex, 1)[0];
     currentProfile.points.splice(toIndex, 0, point);
     updatePointsList();
+<<<<<<< HEAD
     saveToLocalStorage();
+=======
+>>>>>>> b683a310 (Remove obsolete profile template and enhance motion profile system; update velocity settings and improve web interface consistency)
 }
 
 function removePoint(index) {
@@ -315,6 +359,33 @@ function loadFromLocalStorage() {
     }
 }
 
+<<<<<<< HEAD
+=======
+// Auto-save when points or settings change
+function updatePointPosition(index, motorId, value) {
+    currentProfile.points[index].positions[motorId] = parseInt(value);
+    saveToLocalStorage();
+}
+
+function updatePointVelocity(index, value) {
+    currentProfile.points[index].velocity = parseInt(value);
+    saveToLocalStorage();
+}
+
+function movePoint(fromIndex, toIndex) {
+    const point = currentProfile.points.splice(fromIndex, 1)[0];
+    currentProfile.points.splice(toIndex, 0, point);
+    updatePointsList();
+    saveToLocalStorage();
+}
+
+function removePoint(index) {
+    currentProfile.points.splice(index, 1);
+    updatePointsList();
+    saveToLocalStorage();
+}
+
+>>>>>>> b683a310 (Remove obsolete profile template and enhance motion profile system; update velocity settings and improve web interface consistency)
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Profiles page loaded');

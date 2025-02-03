@@ -75,35 +75,29 @@ class ProfileController:
             print(f"Error saving profile: {str(e)}")
             return False
 
-    def wait_for_positions(self, positions, tolerance=5):
-        """Wait for motors to reach their target positions with timeout."""
+    def wait_for_time(self, duration):
+        """Wait for specified time while checking for stop event."""
         start_time = time.time()
         while not self.playback_stop_event.is_set():
-            if time.time() - start_time > self.POSITION_CHECK_TIMEOUT:
-                print(f"Position check timeout after {self.POSITION_CHECK_TIMEOUT} seconds")
-                return False
-                
-            current_positions = motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_read_positions)
-            if not current_positions:
-                time.sleep(self.POSITION_CHECK_INTERVAL)
-                continue
-
-            all_reached = True
-            for motor_id, target_pos in positions.items():
-                current_pos = current_positions.get(motor_id, 0)
-                if abs(current_pos - target_pos) >= tolerance:
-                    all_reached = False
-                    print(f"Motor {motor_id} at {current_pos}, target {target_pos}")  # Debug info
-                    break
-
-            if all_reached:
+            if time.time() - start_time >= duration:
                 return True
-                
             time.sleep(self.POSITION_CHECK_INTERVAL)
         return False
 
     def run_profile(self, profile, settings):
         try:
+            # Set drive mode to time-based profile (write value 4 to address 10)
+            drive_mode_dict = {
+                MOTOR_IDS['turntable']: 4,
+                MOTOR_IDS['slider']: 4,
+                MOTOR_IDS['zoom']: 4,
+                MOTOR_IDS['focus']: 4,
+                MOTOR_IDS['pan']: 4,
+                MOTOR_IDS['tilt']: 4
+            }
+            if not motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_drive_mode, drive_mode_dict):
+                raise Exception("Failed to set drive mode")
+
             # Set acceleration for primary motors
             acceleration = int(profile.get('acceleration', 1800))
             primary_accel_dict = {
@@ -130,40 +124,33 @@ class ProfileController:
                     break
 
                 try:
-                    # Set velocity for primary motors
-                    velocity = int(point.get('velocity', 1000))
-                    primary_velocity_dict = {
-                        MOTOR_IDS['turntable']: velocity,
-                        MOTOR_IDS['slider']: velocity,
-                        MOTOR_IDS['zoom']: velocity,
-                        MOTOR_IDS['focus']: velocity
-                    }
-                    motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, primary_velocity_dict)
-
-                    # Set fixed velocity for pan/tilt
-                    pan_tilt_velocity = {
-                        MOTOR_IDS['pan']: self.PAN_TILT_VELOCITY,
-                        MOTOR_IDS['tilt']: self.PAN_TILT_VELOCITY
-                    }
-                    motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, pan_tilt_velocity)
-
+                    # Get the time-based velocity (duration) from the point
+                    duration = int(point.get('velocity', 1000))
+                    
                     # Convert saved positions to motor steps (explicitly exclude pan/tilt)
                     positions = {
                         int(motor_id): int(pos) 
                         for motor_id, pos in point['positions'].items() 
                         if str(motor_id) not in [str(MOTOR_IDS['pan']), str(MOTOR_IDS['tilt'])]
                     }
-                    
-                    print(f"Moving to point {i+1}")  # Debug info
-                    print(f"Primary positions: {positions}")  # Debug info
-                    
-                    # Move primary motors first
+
+                    # Set velocity and positions for primary motors together
+                    primary_velocity_dict = {
+                        MOTOR_IDS['turntable']: duration,
+                        MOTOR_IDS['slider']: duration,
+                        MOTOR_IDS['zoom']: duration,
+                        MOTOR_IDS['focus']: duration
+                    }
+                    motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, primary_velocity_dict)
                     if not motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, positions):
                         raise Exception(f"Failed to move primary motors at point {i+1}")
-                    
-                    # Wait for primary motors to reach position
-                    if not self.wait_for_positions(positions, tolerance=5):
-                        raise Exception(f"Primary motors failed to reach position at point {i+1}")
+
+                    print(f"Moving to point {i+1}, duration: {duration}")  # Debug info
+                    print(f"Primary positions: {positions}")  # Debug info
+
+                    # Wait for the specified duration
+                    if not self.wait_for_time(duration/1000.0):  # Convert to seconds
+                        raise Exception(f"Movement stopped during point {i+1}")
 
                     # Calculate and verify pan/tilt positions
                     try:
@@ -177,13 +164,18 @@ class ProfileController:
                         
                         print(f"Pan/tilt positions: {pan_tilt_positions}")  # Debug info
                         
-                        # Move pan/tilt motors
+                        # Set velocity and move pan/tilt motors
+                        pan_tilt_velocity = {
+                            MOTOR_IDS['pan']: 50,  # Use same duration as primary motors
+                            MOTOR_IDS['tilt']: 50
+                        }
+                        motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, pan_tilt_velocity)
                         if not motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, pan_tilt_positions):
                             raise Exception(f"Failed to move pan/tilt motors at point {i+1}")
                         
-                        # Wait for pan/tilt to reach position
-                        if not self.wait_for_positions(pan_tilt_positions, tolerance=10):
-                            raise Exception(f"Pan/tilt motors failed to reach position at point {i+1}")
+                        # Wait for the specified duration
+                       # if not self.wait_for_time(duration/1000.0):  # Convert to seconds
+                           # raise Exception(f"Pan/tilt movement stopped during point {i+1}")
                             
                     except Exception as e:
                         print(f"Focus tracking error at point {i+1}: {str(e)}")
