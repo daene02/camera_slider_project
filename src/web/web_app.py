@@ -3,6 +3,12 @@ from src.web.controllers.motor_controller import motor_controller
 from src.web.controllers.profile_controller import profile_controller
 from src.web.controllers.focus_controller import focus_controller
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, 
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -158,6 +164,8 @@ def stop_profile():
 # Focus control routes
 @app.route('/focus/points', methods=['GET'])
 def get_focus_points():
+    logger.debug("Fetching focus points")
+    logger.debug(f"Current focus points: {focus_controller.focus_points}")
     return jsonify(focus_controller.focus_points)
 
 @app.route('/focus/point/<int:point_id>', methods=['GET', 'PUT', 'DELETE'])
@@ -228,6 +236,13 @@ def stop_focus_tracking():
     except Exception as e:
         print(f"Error in stop_focus_tracking: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
+
+@app.route('/focus/motors/positions')
+def get_focus_motor_positions():
+    positions = motor_controller.get_motor_positions()
+    if positions is None:
+        return jsonify({"error": "Failed to read positions"}), 500
+    return jsonify(positions)
 
 if __name__ == '__main__':
     print("Starting Camera Slider Web Interface...")

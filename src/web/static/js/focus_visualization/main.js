@@ -1,140 +1,97 @@
 import { CanvasManager } from './canvas.js';
-import { AxisRenderer } from './renderer/axis.js';
 import { SliderRenderer } from './renderer/slider.js';
+import { AxisRenderer } from './renderer/axis.js';
 import { PointsRenderer } from './renderer/points.js';
 import { MotorPositionHandler } from './handlers/motor.js';
+import { TrackingHandler } from './handlers/tracking.js';
 import { PointHandler } from './handlers/point.js';
 
 export class FocusVisualization {
     constructor(canvasId) {
-        // Initialize canvas and renderers
+        console.log("\n=== Initializing FocusVisualization ===");
+        
+        // Initialize all components
+        // Initialize components
         this.canvasManager = new CanvasManager(canvasId);
-        this.axisRenderer = new AxisRenderer(this.canvasManager);
         this.sliderRenderer = new SliderRenderer(this.canvasManager);
-        this.pointsRenderer = new PointsRenderer(this.canvasManager);
-
-        // Initialize handlers
+        this.axisRenderer = new AxisRenderer(this.canvasManager);
         this.motorHandler = new MotorPositionHandler();
+        this.trackingHandler = new TrackingHandler();
         this.pointHandler = new PointHandler();
-
-        // Setup callbacks
-        this.setupCallbacks();
         
-        // Start animation and polling
-        this.startAnimation();
-        this.motorHandler.startPolling();
-        this.pointHandler.loadPoints();
-    }
-
-    setupCallbacks() {
-        // Motor position updates
-        this.motorHandler.setUpdateCallback(() => {
-            this.render();
+        // Initialize points renderer with all handlers
+        this.pointsRenderer = new PointsRenderer(
+            this.canvasManager,
+            this.motorHandler
+        );
+        
+        // Connect tracking handler to points renderer
+        this.pointsRenderer.setTrackingHandler(this.trackingHandler);
+        
+        // Set up draw callback
+        this.canvasManager.onDraw = () => this.draw();
+        
+        // Setup motor position updates
+        this.motorHandler.setUpdateCallback(positions => {
+            if (positions && positions.sliderPosition !== undefined) {
+                this.canvasManager.setCurrentPosition(0, positions.sliderPosition);
+            }
+            this.draw();
         });
-
-        // Point updates
+        
+        // Setup point updates
         this.pointHandler.setUpdateCallback(() => {
-            this.render();
-            this.updatePointList();
+            const points = this.pointHandler.getPoints();
+            this.canvasManager.setPoints(points);
+            this.draw();
+        });
+        
+        // Handle point selections from tracking updates
+        this.trackingHandler.setUpdateCallback(isTracking => {
+            this.draw();
         });
 
-        // Setup window resize handler
-        window.addEventListener('resize', () => {
-            this.render();
-        });
+        // Start motor position polling
+        this.motorHandler.startPolling();
+        
+        // Initial points load
+        this.loadPointsAndDraw();
     }
-
-    render() {
-        this.canvasManager.clear();
-        
-        // Draw axis
-        this.axisRenderer.draw();
-        
-        // Draw slider and motors
-        const { sliderPosition, panAngle, tiltAngle } = this.motorHandler.getCurrentPositions();
-        this.sliderRenderer.draw(sliderPosition, panAngle, tiltAngle);
-        
-        // Draw points
+    
+    async loadPointsAndDraw() {
+        console.log("\n=== Initial Points Load ===");
+        await this.pointHandler.loadPoints();
         const points = this.pointHandler.getPoints();
-        const currentPointId = this.pointHandler.getCurrentPointId();
-        const isTracking = this.pointHandler.isPointTracking();
-        this.pointsRenderer.draw(points, currentPointId, isTracking);
+        this.canvasManager.setPoints(points);
+        console.log("Loaded points:", points);
+        this.draw();
     }
-
-    startAnimation() {
-        const animate = () => {
-            this.render();
-            this.animationFrame = requestAnimationFrame(animate);
-        };
-        animate();
-    }
-
-    stopAnimation() {
-        if (this.animationFrame) {
-            cancelAnimationFrame(this.animationFrame);
-        }
-    }
-
-    updatePointList() {
-        const pointList = document.getElementById('pointList');
-        if (!pointList) return;
-
-        const points = this.pointHandler.getPoints();
-        const currentPointId = this.pointHandler.getCurrentPointId();
-        const isTracking = this.pointHandler.isPointTracking();
-
-        pointList.innerHTML = points.map(point => `
-            <div class="point-item ${point.id === currentPointId ? 'active' : ''}"
-                 title="${point.id === currentPointId && isTracking ? 'Currently tracking this point' : 'Click to track this point'}">
-                <div class="point-content" onclick="focusVis.handlePointClick(${point.id})">
-                    <div class="point-name">${point.name}</div>
-                    <div class="point-coordinates">
-                        Position: ${Math.round(point.y)}mm, Offset: ${point.x > 0 ? 'Right' : 'Left'} ${Math.abs(point.x)}
-                    </div>
-                </div>
-                <div class="point-controls">
-                    <input type="color" 
-                           value="${point.color || '#4a9eff'}" 
-                           onchange="focusVis.handleColorChange(${point.id}, this.value)">
-                    <button onclick="event.stopPropagation(); focusVis.handlePointDelete(${point.id})" 
-                            class="btn btn-sm btn-danger">×</button>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    // Event handlers exposed to HTML
-    async handlePointClick(pointId) {
+    
+    draw() {
         try {
-            await this.pointHandler.selectPoint(pointId);
+            // Clear canvas
+            this.canvasManager.clear();
+            
+            // Get current state
+            const positions = this.motorHandler.getCurrentPositions();
+            const points = this.pointHandler.getPoints();
+            const currentPointId = this.trackingHandler.getCurrentPointId();
+            const isTracking = this.trackingHandler.isTracking();
+            
+            // Draw layers in order (background to foreground)
+            this.axisRenderer.draw();
+            this.sliderRenderer.draw(
+                positions ? positions.sliderPosition : 0,
+                positions ? positions.panAngle : 0,
+                positions ? positions.tiltAngle : 0
+            );
+            this.pointsRenderer.draw(points, currentPointId, isTracking);
+            
+            // Draw points list overlay last (always on top)
+            this.canvasManager.drawPointsList(points, currentPointId);
+            
         } catch (error) {
-            alert(error.message || 'Failed to select point');
+            console.error("Error in draw cycle:", error);
         }
-    }
-
-    async handlePointDelete(pointId) {
-        try {
-            await this.pointHandler.deletePoint(pointId);
-        } catch (error) {
-            alert(error.message || 'Failed to delete point');
-        }
-    }
-
-    async handleColorChange(pointId, color) {
-        try {
-            await this.pointHandler.updatePointColor(pointId, color);
-        } catch (error) {
-            alert(error.message || 'Failed to update point color');
-        }
-    }
-
-    cleanup() {
-        this.stopAnimation();
-        this.motorHandler.stopPolling();
     }
 }
-
-// Initialize visualization when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.focusVis = new FocusVisualization('focusVisualization');
-});

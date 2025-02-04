@@ -8,9 +8,15 @@ from src.settings import (
     MOTOR_IDS, UPDATE_INTERVAL, FOCUS_ENABLED
 )
 from datetime import datetime
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 class FocusController:
     def __init__(self):
+        logger.info("=== Initializing FocusController ===")
         self.tracking_stop_event = Event()
         self.current_tracking_thread = None
         self.focus_controller = None
@@ -18,34 +24,72 @@ class FocusController:
         self.load_focus_points()
 
     def get_focus_points_path(self):
-        current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-        return os.path.join(current_dir, 'profiles', 'focus_points.json')
+        base_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+        path = os.path.join(base_dir, 'profiles', 'focus_points.json')
+        logger.debug(f"Focus points path: {path}")
+        return path
 
     def load_focus_points(self):
+        logger.info("=== Loading Focus Points ===")
         try:
             path = self.get_focus_points_path()
+            logger.debug(f"Loading focus points from: {path}")
+            
             if os.path.exists(path):
                 with open(path, 'r') as f:
-                    self.focus_points = json.load(f)
-            print("Loaded focus points:", self.focus_points)
+                    data = f.read()
+                    logger.debug(f"Raw file content: {data}")
+                    self.focus_points = json.loads(data)
+                
+                # Ensure all points have required fields
+                self.focus_points = [
+                    {
+                        'id': p.get('id', i),
+                        'name': p.get('name', f'Point {i + 1}'),
+                        'description': p.get('description', ''),
+                        'x': float(p.get('x', 0)),
+                        'y': float(p.get('y', 0)),
+                        'z': float(p.get('z', 0)),
+                        'color': p.get('color', '#4a9eff'),
+                        'created_at': p.get('created_at', datetime.now().isoformat()),
+                        'updated_at': p.get('updated_at', datetime.now().isoformat())
+                    }
+                    for i, p in enumerate(self.focus_points)
+                ]
+                
+                logger.info(f"Loaded {len(self.focus_points)} points: {self.focus_points}")
+            else:
+                logger.warning(f"Focus points file not found at {path}")
+                self.focus_points = []
         except Exception as e:
-            print(f"Error loading focus points: {str(e)}")
+            logger.error(f"Error loading focus points: {str(e)}")
+            import traceback
+            traceback.print_exc()
             self.focus_points = []
 
     def save_focus_points(self):
+        logger.info("=== Saving Focus Points ===")
         try:
             path = self.get_focus_points_path()
             os.makedirs(os.path.dirname(path), exist_ok=True)
+            logger.debug(f"Saving focus points to {path}: {self.focus_points}")
             with open(path, 'w') as f:
                 json.dump(self.focus_points, f, indent=2)
             return True
         except Exception as e:
-            print(f"Error saving focus points: {str(e)}")
+            logger.error(f"Error saving focus points: {str(e)}")
             return False
 
     def add_focus_point(self, point_data):
         """Add a new focus point with metadata"""
-        if all(k in point_data for k in ('x', 'y', 'z')):
+        logger.info(f"=== Adding Focus Point ===\n{point_data}")
+        
+        # Validate required fields
+        if not all(k in point_data for k in ('x', 'y', 'z')):
+            logger.error("Missing required coordinates")
+            return False, None
+
+        try:
             point = {
                 'id': len(self.focus_points),
                 'name': point_data.get('name', f'Point {len(self.focus_points) + 1}'),
@@ -57,13 +101,21 @@ class FocusController:
                 'created_at': datetime.now().isoformat(),
                 'updated_at': datetime.now().isoformat()
             }
+            
             self.focus_points.append(point)
-            self.save_focus_points()
-            return True, point
-        return False, None
+            logger.info(f"Added point: {point}")
+            
+            if self.save_focus_points():
+                return True, point
+            return False, "Failed to save points"
+            
+        except Exception as e:
+            logger.error(f"Error adding point: {str(e)}")
+            return False, str(e)
 
     def update_focus_point(self, point_id, point_data):
         """Update an existing focus point"""
+        logger.info(f"=== Updating Focus Point ===\nID: {point_id}\nData: {point_data}")
         try:
             point_id = int(point_id)
             for i, point in enumerate(self.focus_points):
@@ -73,22 +125,30 @@ class FocusController:
                         if key in point_data:
                             point[key] = point_data[key]
                     point['updated_at'] = datetime.now().isoformat()
-                    self.save_focus_points()
-                    return True, point
+                    
+                    if self.save_focus_points():
+                        logger.info(f"Updated point {point_id}: {point}")
+                        return True, point
+                    return False, "Failed to save points"
+            
+            logger.warning(f"Point not found: {point_id}")
             return False, "Point not found"
+            
         except Exception as e:
+            logger.error(f"Error updating point: {str(e)}")
             return False, str(e)
 
     def remove_focus_point(self, point_id):
         """Remove a focus point by its ID"""
+        logger.info(f"=== Removing Focus Point ===\nID: {point_id}")
         try:
             point_id = int(point_id)
         except (TypeError, ValueError):
-            print(f"Invalid point ID format: {point_id}")
+            logger.error(f"Invalid point ID format: {point_id}")
             return False, "Invalid point ID format"
 
         try:
-            # Find point index
+            # Find and remove point
             point_index = None
             for i, p in enumerate(self.focus_points):
                 if p['id'] == point_id:
@@ -96,6 +156,7 @@ class FocusController:
                     break
 
             if point_index is None:
+                logger.warning(f"Point not found: {point_id}")
                 return False, "Point not found"
 
             # Remove point
@@ -107,23 +168,26 @@ class FocusController:
 
             # Save changes
             if self.save_focus_points():
+                logger.info(f"Removed point {point_id}")
                 return True, None
             return False, "Failed to save points after deletion"
             
         except Exception as e:
             error_msg = f"Error removing point: {str(e)}"
-            print(error_msg)
+            logger.error(error_msg)
             return False, error_msg
 
     def get_focus_point(self, point_id):
         """Get a focus point by its ID"""
+        logger.debug(f"Getting point {point_id}")
         try:
             point_id = int(point_id)
             for point in self.focus_points:
                 if point['id'] == point_id:
                     return point
             return None
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error getting point: {str(e)}")
             return None
 
     def verify_motor_positions(self, target_positions, current_positions, tolerance=5):
@@ -137,7 +201,7 @@ class FocusController:
 
     def track_focus_point(self, point):
         if not FOCUS_ENABLED:
-            print("Focus tracking is disabled in settings")
+            logger.warning("Focus tracking is disabled in settings")
             return
 
         if self.focus_controller is None:
@@ -154,9 +218,9 @@ class FocusController:
             while not self.tracking_stop_event.is_set():
                 current_time = time.time()
                 
-                # Throttle updates to prevent overwhelming the motors
+                # Throttle updates
                 if current_time - last_update_time < UPDATE_INTERVAL:
-                    time.sleep(0.001)  # Small sleep to prevent CPU hogging
+                    time.sleep(0.001)
                     continue
                 
                 positions = motor_controller.get_motor_positions()
@@ -164,28 +228,23 @@ class FocusController:
                     time.sleep(0.01)
                     continue
                 
-                # Get current slider position in mm
                 try:
                     slider_pos = motor_controller.steps_to_units(positions[MOTOR_IDS['slider']], 'slider')
                 except KeyError:
-                    print("Error: Slider motor ID not found")
+                    logger.error("Error: Slider motor ID not found")
                     continue
                 except Exception as e:
-                    print(f"Error converting slider position: {str(e)}")
+                    logger.error(f"Error converting slider position: {str(e)}")
                     continue
                 
                 try:
-                    # Calculate motor positions for current slider position
                     motor_positions = self.focus_controller.get_motor_positions(slider_pos)
-                    
-                    # Convert angles to steps
                     target_positions = {
                         MOTOR_IDS['pan']: motor_controller.units_to_steps(motor_positions['pan'], 'pan'),
                         MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt'),
                         MOTOR_IDS['focus']: motor_controller.units_to_steps(motor_positions['focus'], 'focus')
                     }
                     
-                    # Verify current positions are within acceptable range
                     if not self.verify_motor_positions(target_positions, positions):
                         motor_controller.safe_dxl_operation(
                             motor_controller.dxl.bulk_write_goal_positions, 
@@ -195,12 +254,12 @@ class FocusController:
                     last_update_time = current_time
                     
                 except Exception as e:
-                    print(f"Error during position calculation: {str(e)}")
-                    time.sleep(0.1)  # Brief pause on error before retrying
+                    logger.error(f"Error during position calculation: {str(e)}")
+                    time.sleep(0.1)
                     continue
                 
         except Exception as e:
-            print(f"Error during focus tracking: {str(e)}")
+            logger.error(f"Error during focus tracking: {str(e)}")
         finally:
             self.tracking_stop_event.clear()
             motor_controller.toggle_torque(enable=False)

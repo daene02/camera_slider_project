@@ -1,123 +1,181 @@
-import { TrackingHandler } from './tracking.js';
-
 export class PointHandler {
     constructor() {
-        this.focusPoints = [];
-        this.currentPointId = null;
+        this.points = [];
         this.updateCallback = null;
-        this.trackingHandler = new TrackingHandler();
+        this.isLoading = false;
+        console.log("PointHandler initialized");
     }
 
     setUpdateCallback(callback) {
+        console.log("Setting update callback");
         this.updateCallback = callback;
     }
 
     async loadPoints() {
-        try {
-            const response = await fetch('/focus/points');
-            this.focusPoints = await response.json();
-            this.notifyUpdate();
-        } catch (error) {
-            console.error('Error loading focus points:', error);
-        }
-    }
-
-    async selectPoint(pointId) {
-        if (pointId === undefined || pointId === null) {
-            console.error('Invalid point ID');
+        console.log("=== loadPoints start ===");
+        if (this.isLoading) {
+            console.log("Already loading points, skipping");
             return;
         }
-
+        
+        this.isLoading = true;
+        console.log("Loading focus points...");
+        
         try {
-            if (this.currentPointId === pointId) {
-                // Stop tracking current point
-                await this.trackingHandler.stopTracking();
-                this.currentPointId = null;
-            } else {
-                // Start tracking new point
-                const point = this.focusPoints.find(p => p.id === pointId);
-                if (!point) throw new Error('Point not found');
-
-                if (this.trackingHandler.isPointTracking()) {
-                    await this.trackingHandler.stopTracking();
-                }
-
-                await this.trackingHandler.startTracking(point);
-                this.currentPointId = pointId;
-            }
-            this.notifyUpdate();
-        } catch (error) {
-            console.error('Error:', error);
-            throw error;
-        }
-    }
-
-    async deletePoint(pointId) {
-        try {
-            // If deleting currently tracked point, stop tracking first
-            if (this.trackingHandler.isPointTracking() && this.currentPointId === pointId) {
-                await this.trackingHandler.stopTracking();
-                this.currentPointId = null;
-            }
-
-            const response = await fetch(`/focus/point/${pointId}`, { 
-                method: 'DELETE'
-            });
+            const response = await fetch('/focus/points');
+            console.log("Response status:", response.status);
             
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to delete point');
-            }
-
-            await this.loadPoints();
-            if (this.currentPointId === pointId) {
-                this.currentPointId = null;
-            }
-            this.notifyUpdate();
-        } catch (error) {
-            console.error('Error:', error);
-            throw error;
-        }
-    }
-
-    async updatePointColor(pointId, color) {
-        const point = this.focusPoints.find(p => p.id === pointId);
-        if (point) {
-            point.color = color;
+            const text = await response.text();
+            console.log("Raw response:", text);
+            
+            let data;
             try {
-                const response = await fetch(`/focus/point/${pointId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(point)
+                data = JSON.parse(text);
+                console.log("Parsed data:", data);
+            } catch (e) {
+                console.error("Failed to parse JSON:", e);
+                throw e;
+            }
+            
+            // Reset points array
+            this.points = [];
+            
+            if (Array.isArray(data)) {
+                console.log(`Processing ${data.length} points`);
+                this.points = data.map((point, index) => {
+                    console.log(`Processing point ${index}:`, point);
+                    return {
+                        id: point.id,
+                        name: point.name || `Point ${point.id}`,
+                        x: parseFloat(point.x),
+                        y: parseFloat(point.y),
+                        z: parseFloat(point.z),
+                        color: point.color || '#4a9eff'
+                    };
                 });
-                if (!response.ok) throw new Error('Failed to update point color');
-                this.notifyUpdate();
-            } catch (error) {
-                console.error('Error updating point color:', error);
-                throw error;
+                console.log("Final processed points:", this.points);
+            } else {
+                console.error("Received non-array data:", data);
+            }
+            
+        } catch (error) {
+            console.error('Error loading points:', error);
+            this.points = [];
+        } finally {
+            this.isLoading = false;
+            console.log("Loading complete, points count:", this.points.length);
+            
+            if (this.updateCallback) {
+                console.log("Calling update callback");
+                this.updateCallback();
+            } else {
+                console.log("No update callback registered");
             }
         }
+        console.log("=== loadPoints end ===");
     }
 
     getPoints() {
-        return this.focusPoints;
+        console.log("getPoints called, returning:", this.points);
+        return this.points;
     }
 
-    getCurrentPointId() {
-        return this.currentPointId;
-    }
-
-    isPointTracking() {
-        return this.trackingHandler.isPointTracking();
-    }
-
-    notifyUpdate() {
-        if (this.updateCallback) {
-            this.updateCallback({
-                points: this.focusPoints,
-                currentPointId: this.currentPointId,
-                isTracking: this.trackingHandler.isPointTracking()
+    async addPoint(point) {
+        console.log("Adding point:", point);
+        try {
+            const response = await fetch('/focus/save_point', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(point)
             });
+
+            const text = await response.text();
+            console.log("Add point response text:", text);
+            
+            const result = JSON.parse(text);
+            console.log("Add point parsed response:", result);
+            
+            if (result.success && result.point) {
+                this.points.push(result.point);
+                console.log("Updated points array:", this.points);
+                
+                if (this.updateCallback) {
+                    console.log("Calling update callback after add");
+                    this.updateCallback();
+                }
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error adding point:', error);
+            return false;
+        }
+    }
+
+    async updatePoint(pointId, updates) {
+        console.log("Updating point:", pointId, updates);
+        try {
+            const response = await fetch(`/focus/point/${pointId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updates)
+            });
+
+            const text = await response.text();
+            console.log("Update point response text:", text);
+            
+            const updatedPoint = JSON.parse(text);
+            console.log("Update point parsed response:", updatedPoint);
+            
+            const index = this.points.findIndex(p => p.id === pointId);
+            if (index !== -1) {
+                this.points[index] = updatedPoint;
+                console.log("Updated points array:", this.points);
+                
+                if (this.updateCallback) {
+                    console.log("Calling update callback after update");
+                    this.updateCallback();
+                }
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error updating point:', error);
+            return false;
+        }
+    }
+
+    async removePoint(pointId) {
+        console.log("Removing point:", pointId);
+        try {
+            const response = await fetch(`/focus/point/${pointId}`, {
+                method: 'DELETE'
+            });
+
+            const text = await response.text();
+            console.log("Remove point response text:", text);
+            
+            const result = JSON.parse(text);
+            console.log("Remove point parsed response:", result);
+            
+            if (result.success) {
+                this.points = this.points.filter(p => p.id !== pointId);
+                console.log("Updated points array after remove:", this.points);
+                
+                if (this.updateCallback) {
+                    console.log("Calling update callback after remove");
+                    this.updateCallback();
+                }
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error removing point:', error);
+            return false;
         }
     }
 }

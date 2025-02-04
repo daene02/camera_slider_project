@@ -38,7 +38,7 @@
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
     {% for motor in motors %}
-    <div class="motor-box" data-motor-id="{{ motor.id }}" style="padding: 20px; border-radius: 8px; background: rgba(0,0,0,0.8); border: 2px solid {% if motor.torque_enabled %}rgba(0,255,0,1){% else %}rgba(255,0,0,1){% endif %}">
+    <div class="motor-box" data-motor-id="{{ motor.id }}" style="padding: 20px; border-radius: 8px; background: rgba(0,0,0,0.7); border: 2px solid {% if motor.torque_enabled %}rgba(0,255,0,0.5){% else %}rgba(255,0,0,0.5){% endif %}">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h2 class="motor-name" style="{% if motor.torque_enabled %}color: rgba(0,255,0,1){% else %}color: rgba(255,0,0,1){% endif %}">
                 {{ motor.name }}
@@ -48,7 +48,7 @@
                 <button onclick="toggleTorque({{ motor.id }}, false)">Disable</button>
             </div>
         </div>
-        <div style="margin-bottom: 20px;">
+        <div style="margin-bottom: 20px; color: rgb(255, 255, 255);">
             <div>Position: <span class="position-value" data-motor-id="{{ motor.id }}">{{ motor.position }}</span>{% if motor.id == 2 %}mm{% else %}°{% endif %}</div>
             <div>Temperature: <span class="temperature-value">{{ motor.temperature }}</span>°C</div>
             <div>Voltage: <span class="voltage-value">{{ motor.voltage }}</span>V</div>
@@ -57,7 +57,7 @@
             <div>Acceleration: <span class="load-value">{{ motor.load }}</span> ms</div>
         </div>
         
-        <div style="margin-top: 15px;">
+        <div style="margin-top: 15px;color: rgb(255, 255, 255);">
             <div class="control-group">
                 <label for="position_{{ motor.id }}">Position ({% if motor.id == 2 %}mm{% else %}°{% endif %}):</label>
                 <input type="number" 
@@ -66,7 +66,7 @@
                        min="{% if motor.id in [3, 4] %}-180{% elif motor.id == 2 %}0{% else %}0{% endif %}"
                        max="{% if motor.id in [3, 4] %}180{% elif motor.id == 2 %}800{% else %}360{% endif %}"
                        step="0.1"
-                       style="width: 80px;">
+                       style="width: 50px;">
                 <button onclick="updateMotorPosition({{ motor.id }})">Set</button>
             </div>
 
@@ -77,7 +77,7 @@
                        value="100"
                        min="0"
                        max="32000"
-                       style="width: 80px;">
+                       style="width: 50px;">
                 <button onclick="updateMotorVelocity({{ motor.id }})">Set</button>
             </div>
 
@@ -88,7 +88,7 @@
                        value="50"
                        min="0"
                        max="32000"
-                       style="width: 80px;">
+                       style="width: 50px;">
                 <button onclick="updateMotorAcceleration({{ motor.id }})">Set</button>
             </div>
         </div>

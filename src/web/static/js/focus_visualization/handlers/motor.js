@@ -14,7 +14,10 @@ export class MotorPositionHandler {
 
     async updatePositions() {
         try {
-            const response = await fetch('/motors/positions');
+            const response = await fetch('/focus/motors/positions');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const positions = await response.json();
             
             if (positions[2]) { // Slider motor ID
