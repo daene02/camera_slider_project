@@ -130,6 +130,12 @@ MIN_FOCUS_DISTANCE = 100      # Minimum focus distance in mm
 MAX_FOCUS_DISTANCE = 2000     # Maximum focus distance in mm
 
 ########################################
+# Slider-Einstellungen
+########################################
+SLIDER_STEP_TO_MM = 0.08789122581892  # 1 step = 0.08789122581892 mm
+SLIDER_MAX_MM = 1400  # Maximum slider range in mm
+
+########################################
 # Kamera-Position und Offset-Einstellungen
 ########################################
 TURNTABLE_POSITION: Dict[str, Union[int, float]] = {
@@ -176,6 +182,7 @@ __all__ = [
     "PAN_TILT_TOLERANCE", "CURRENT_THRESHOLD", "MAX_HOMING_VELOCITY",
     "MAX_CURRENT_LIMITS", "FOCUS_ENABLED",
     "MIN_FOCUS_DISTANCE", "MAX_FOCUS_DISTANCE",
+    "SLIDER_STEP_TO_MM", "SLIDER_MAX_MM",
     "TURNTABLE_POSITION", "MOTOR_OFFSETS", "CAMERA_OFFSET_Z",
     "MOVEMENT_SETTINGS"
 ]

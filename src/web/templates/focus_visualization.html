@@ -59,6 +59,11 @@ canvas {
     background: rgba(255, 255, 255, 0.2);
 }
 
+.point-content {
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
 .point-name {
     font-weight: bold;
     margin-bottom: 5px;
@@ -67,11 +72,6 @@ canvas {
 .point-coordinates {
     font-size: 0.9em;
     color: rgba(255, 255, 255, 0.7);
-}
-
-.point-content {
-    cursor: pointer;
-    margin-bottom: 10px;
 }
 
 .point-controls {
@@ -87,54 +87,6 @@ canvas {
     border: none;
     background: none;
     cursor: pointer;
-}
-
-.btn-sm {
-    padding: 4px 8px;
-    font-size: 14px;
-}
-
-.btn-danger {
-    background: #8b0000;
-}
-
-.btn-danger:hover {
-    background: #a00;
-}
-
-.info-panel {
-    position: fixed;
-    background: rgba(0, 0, 0, 0.8);
-    padding: 15px;
-    border-radius: 4px;
-}
-
-.legend {
-    left: 20px;
-    bottom: 20px;
-}
-
-.slider-info {
-    left: 20px;
-    top: 20px;
-}
-
-.pan-info {
-    right: 320px;
-    top: 20px;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-
-.legend-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
 }
 
 .btn {
@@ -163,11 +115,17 @@ canvas {
     z-index: 100;
 }
 
-.info-panel {
-    background: rgba(0, 0, 0, 0.8);
-    padding: 15px;
-    border-radius: 4px;
-    position: fixed;
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 14px;
+}
+
+.btn-danger {
+    background: #8b0000;
+}
+
+.btn-danger:hover {
+    background: #a00;
 }
 </style>
 {% endblock %}
@@ -183,321 +141,8 @@ canvas {
     <h2>Focus Points</h2>
     <div class="point-list" id="pointList"></div>
 </div>
-
-<div class="legend info-panel">
-    <div class="legend-item">
-        <div class="legend-color" style="background: yellow"></div>
-        <span>Current Position</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-color" style="background: #00ff00"></div>
-        <span>Target Point</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-color" style="background: #4a9eff"></div>
-        <span>Saved Points</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-color" style="background: red"></div>
-        <span>Selected Point</span>
-    </div>
-</div>
-
-<div class="slider-info info-panel">
-    <div>Slider Position: <span id="sliderPosition">0%</span></div>
-    <div>Height: <span id="sliderHeight">0mm</span></div>
-</div>
-
-<div class="pan-info info-panel">
-    <div>Pan Angle: <span id="panAngle">0°</span></div>
-    <div>Direction: <span id="panDirection">North</span></div>
-</div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const canvas = document.getElementById('focusVisualization');
-    const ctx = canvas.getContext('2d');
-    const pointList = document.getElementById('pointList');
-
-    let focusPoints = [];
-    let currentPointId = null;
-    let currentSliderPosition = 0;
-    let currentPanAngle = 0;
-    let targetPoint = null;
-    let animationFrameId;
-    let isDragging = false;
-    let lastMouseX = 0;
-    let viewRotation = 0;
-
-    // Set canvas size
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-
-    // Convert world coordinates to screen coordinates
-    function worldToScreen(x, y, z) {
-        const scale = 0.5;
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-
-        // Apply view rotation
-        const rotatedX = x * Math.cos(viewRotation) - z * Math.sin(viewRotation);
-        const rotatedZ = x * Math.sin(viewRotation) + z * Math.cos(viewRotation);
-
-        // Simple isometric projection
-        const screenX = centerX + (rotatedX - rotatedZ) * scale;
-        const screenY = centerY + ((rotatedX + rotatedZ) * scale / 2 - y * scale);
-
-        return { x: screenX, y: screenY };
-    }
-
-    function drawPoint(x, y, z, color, name = null) {
-        const pos = worldToScreen(x, y, z);
-        
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
-
-        if (name) {
-            ctx.fillStyle = 'white';
-            ctx.font = '14px Arial';
-            ctx.fillText(name, pos.x + 10, pos.y);
-        }
-    }
-
-    function drawSliderBar() {
-        const barWidth = 40;
-        const barHeight = canvas.height * 0.7;
-        const barX = 100;
-        const barY = (canvas.height - barHeight) / 2;
-
-        // Draw bar background
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
-
-        // Draw scale marks
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        const steps = 10;
-        for (let i = 0; i <= steps; i++) {
-            const y = barY + (barHeight * i / steps);
-            ctx.fillRect(barX - 5, y, 5, 1);
-            const value = Math.round((1 - i / steps) * 100);
-            ctx.fillText(`${value}%`, barX - 30, y + 4);
-        }
-
-        // Draw slider position
-        const sliderY = barY + barHeight * (1 - currentSliderPosition / 100);
-        ctx.beginPath();
-        ctx.arc(barX + barWidth / 2, sliderY, 6, 0, Math.PI * 2);
-        ctx.fillStyle = 'yellow';
-        ctx.fill();
-
-        // Update info display
-        document.getElementById('sliderPosition').textContent = `${Math.round(currentSliderPosition)}%`;
-        document.getElementById('sliderHeight').textContent = `${Math.round(currentSliderPosition * 8.96)}mm`;
-    }
-
-    function drawPanArrow(x, y, angle) {
-        const arrowLength = 60;
-        const headLength = 20;
-        const headAngle = Math.PI / 6;
-
-        // Calculate end point
-        const endX = x + arrowLength * Math.cos(angle);
-        const endY = y + arrowLength * Math.sin(angle);
-
-        // Draw arrow line
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(endX, endY);
-        ctx.strokeStyle = 'yellow';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        // Draw arrow head
-        ctx.beginPath();
-        ctx.moveTo(endX, endY);
-        ctx.lineTo(
-            endX - headLength * Math.cos(angle - headAngle),
-            endY - headLength * Math.sin(angle - headAngle)
-        );
-        ctx.moveTo(endX, endY);
-        ctx.lineTo(
-            endX - headLength * Math.cos(angle + headAngle),
-            endY - headLength * Math.sin(angle + headAngle)
-        );
-        ctx.stroke();
-
-        // Update pan info display
-        const degrees = ((angle * 180 / Math.PI) + 360) % 360;
-        document.getElementById('panAngle').textContent = `${degrees.toFixed(1)}°`;
-        
-        // Calculate cardinal direction
-        const cardinal = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-        const index = Math.round(degrees / 45) % 8;
-        document.getElementById('panDirection').textContent = cardinal[index];
-    }
-
-    function updateVisualization() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw slider bar
-        drawSliderBar();
-
-        // Draw pan direction
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        drawPanArrow(centerX, centerY, currentPanAngle * Math.PI / 180);
-
-        // Draw saved points
-        focusPoints.forEach(point => {
-            const color = point.id === currentPointId ? 'red' : 
-                        (point.id === targetPoint?.id ? '#00ff00' : point.color || '#4a9eff');
-            drawPoint(point.x, point.y, point.z, color, point.name);
-        });
-
-        animationFrameId = requestAnimationFrame(updateVisualization);
-    }
-
-    function renderPointList() {
-        pointList.innerHTML = focusPoints.map(point => `
-            <div class="point-item ${point.id === currentPointId ? 'active' : ''}">
-                <div class="point-content" onclick="selectPoint(${point.id})">
-                    <div class="point-name">${point.name}</div>
-                    <div class="point-coordinates">
-                        X: ${point.x}mm, Y: ${point.y}mm, Z: ${point.z}mm
-                    </div>
-                </div>
-                <div class="point-controls">
-                    <input type="color" 
-                           value="${point.color || '#4a9eff'}" 
-                           onchange="updatePointColor(${point.id}, this.value)">
-                    <button onclick="deletePoint(${point.id})" class="btn btn-sm btn-danger">×</button>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    // Event handlers
-    canvas.addEventListener('mousedown', e => {
-        isDragging = true;
-        lastMouseX = e.clientX;
-    });
-
-    canvas.addEventListener('mousemove', e => {
-        if (isDragging) {
-            const deltaX = e.clientX - lastMouseX;
-            viewRotation += deltaX * 0.01;
-            lastMouseX = e.clientX;
-        }
-    });
-
-    canvas.addEventListener('mouseup', () => {
-        isDragging = false;
-    });
-
-    canvas.addEventListener('mouseleave', () => {
-        isDragging = false;
-    });
-
-    // Point interaction handlers
-    window.selectPoint = async function(pointId) {
-        if (pointId === undefined || pointId === null) {
-            console.error('Invalid point ID');
-            return;
-        }
-        currentPointId = pointId;
-        renderPointList();
-    };
-
-    window.deletePoint = async function(pointId) {
-        if (pointId === undefined || pointId === null) {
-            console.error('Invalid point ID');
-            return;
-        }
-
-        try {
-            const response = await fetch(`/focus/point/${pointId}`, { 
-                method: 'DELETE'
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to delete point');
-            }
-
-            await loadFocusPoints();
-            if (currentPointId === pointId) {
-                currentPointId = null;
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert(error.message || 'Failed to delete point');
-        }
-    };
-
-    window.updatePointColor = async function(pointId, color) {
-        if (pointId === undefined || pointId === null) {
-            console.error('Invalid point ID');
-            return;
-        }
-        const point = focusPoints.find(p => p.id === pointId);
-        if (point) {
-            point.color = color;
-            try {
-                const response = await fetch(`/focus/point/${pointId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(point)
-                });
-                if (!response.ok) throw new Error('Failed to update point color');
-            } catch (error) {
-                console.error('Error updating point color:', error);
-            }
-        }
-    };
-
-    // Motor position polling
-    async function updateMotorPositions() {
-        try {
-            const response = await fetch('/motors/positions');
-            const positions = await response.json();
-            
-            if (positions[2]) { // Slider motor ID
-                const sliderSteps = positions[2];
-                currentSliderPosition = (sliderSteps / 89600) * 100;
-            }
-
-            if (positions[3]) { // Pan motor ID
-                const panSteps = positions[3];
-                currentPanAngle = (panSteps / 4096) * 360;
-            }
-        } catch (error) {
-            console.error('Error updating motor positions:', error);
-        }
-    }
-
-    // Load focus points
-    async function loadFocusPoints() {
-        try {
-            const response = await fetch('/focus/points');
-            focusPoints = await response.json();
-            renderPointList();
-        } catch (error) {
-            console.error('Error loading focus points:', error);
-        }
-    }
-
-    // Initialize
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-    updateVisualization();
-    loadFocusPoints();
-    setInterval(updateMotorPositions, 100);
-});
-</script>
+<script type="module" src="/static/js/focus_visualization/main.js"></script>
 {% endblock %}
