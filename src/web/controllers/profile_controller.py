@@ -3,7 +3,7 @@ import json
 from threading import Thread, Event
 import time
 from .motor_controller import motor_controller
-from src.focus import FocusController
+from .focus_controller import focus_controller
 from src.settings import (
     MOTOR_IDS, PAN_TILT_VELOCITY, PAN_TILT_ACCELERATION,
     MOVEMENT_SETTINGS, DEFAULT_ACCELERATION
@@ -18,7 +18,6 @@ class ProfileController:
     def __init__(self):
         self.playback_stop_event = Event()
         self.current_playback_thread = None
-        self.focus_controller = None
 
     def get_profile_path(self, name=None):
         current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -63,7 +62,6 @@ class ProfileController:
             if 'points' in profile_data:
                 for point in profile_data['points']:
                     if 'positions' in point:
-                        # Remove pan and tilt positions if they exist
                         positions = {
                             k: v for k, v in point['positions'].items()
                             if k not in [str(MOTOR_IDS['pan']), str(MOTOR_IDS['tilt'])]
@@ -96,7 +94,6 @@ class ProfileController:
 
             all_reached = True
             for motor_id, target in target_positions.items():
-                # Skip if motor_id is pan or tilt if they're in the target positions
                 if motor_id in [MOTOR_IDS['pan'], MOTOR_IDS['tilt']]:
                     continue
                     
@@ -118,32 +115,14 @@ class ProfileController:
         logger.warning("Position verification timed out or stopped")
         return False
 
-    def get_focus_points(self):
-        """Get focus points from the focus controller"""
-        try:
-            focus_controller = FocusController()
-            return focus_controller.focus_points
-        except Exception as e:
-            logger.error(f"Error getting focus points: {str(e)}")
-            return []
-
-    def get_focus_point(self, point_id):
-        """Get a specific focus point by ID"""
-        try:
-            focus_points = self.get_focus_points()
-            for point in focus_points:
-                if point['id'] == point_id:
-                    return point
-            logger.warning(f"Focus point not found: {point_id}")
-            return None
-        except Exception as e:
-            logger.error(f"Error getting focus point: {str(e)}")
-            return None
+    def has_focus_points(self, profile):
+        """Check if profile has any focus points"""
+        return any(point.get('focus_point_id') is not None for point in profile['points'])
 
     def run_profile(self, profile, settings):
         try:
             logger.info("Starting profile playback")
-            
+
             # Set acceleration for primary motors
             acceleration = int(profile.get('acceleration', DEFAULT_ACCELERATION))
             primary_accel_dict = {
@@ -161,6 +140,19 @@ class ProfileController:
             }
             motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_acceleration, pan_tilt_accel_dict)
 
+            # Initialize focus tracking if needed
+            first_focus_point = None
+            if self.has_focus_points(profile):
+                for point in profile['points']:
+                    if point.get('focus_point_id') is not None:
+                        first_focus_point = focus_controller.get_focus_point(point['focus_point_id'])
+                        if first_focus_point:
+                            logger.debug("Starting focus tracking")
+                            success, error = focus_controller.start_tracking(first_focus_point)
+                            if not success:
+                                logger.error(f"Failed to start focus tracking: {error}")
+                        break
+
             # Process each point in sequence
             for i, point in enumerate(profile['points']):
                 if self.playback_stop_event.is_set():
@@ -169,18 +161,15 @@ class ProfileController:
                 try:
                     logger.debug(f"Processing point {i+1}")
                     
-                    # Handle focus point first
+                    # Update focus point if needed
                     focus_point_id = point.get('focus_point_id')
                     if focus_point_id is not None:
-                        focus_point = self.get_focus_point(focus_point_id)
+                        focus_point = focus_controller.get_focus_point(focus_point_id)
                         if focus_point:
-                            logger.debug(f"Setting focus point: {focus_point}")
-                            # Create new FocusController with the focus point coordinates
-                            self.focus_controller = FocusController(
-                                object_position=(focus_point['x'], focus_point['y'], focus_point['z'])
-                            )
+                            logger.debug(f"Updating focus point: {focus_point}")
+                            focus_controller.set_focus_point(focus_point)
                     
-                    # Get the time-based velocity (duration) from the point
+                    # Get the time-based velocity (duration)
                     duration = int(point.get('velocity', 1000))
                     
                     # Convert saved positions to motor steps (explicitly exclude pan/tilt)
@@ -197,37 +186,14 @@ class ProfileController:
                         MOTOR_IDS['zoom']: duration,
                         MOTOR_IDS['focus']: duration
                     }
+                    
                     logger.debug(f"Setting motor velocities: {primary_velocity_dict}")
                     motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, primary_velocity_dict)
                     
+                    # Move primary motors
                     logger.debug(f"Moving to positions: {positions}")
                     if not motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, positions):
                         raise Exception(f"Failed to move primary motors at point {i+1}")
-
-                    # Handle focus tracking after primary motors move
-                    if self.focus_controller:
-                        try:
-                            slider_pos = motor_controller.steps_to_units(positions[MOTOR_IDS['slider']], 'slider')
-                            motor_positions = self.focus_controller.get_motor_positions(slider_pos)
-                            
-                            pan_tilt_positions = {
-                                MOTOR_IDS['pan']: motor_controller.units_to_steps(motor_positions['pan'], 'pan'),
-                                MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt')
-                            }
-                            
-                            logger.debug(f"Setting pan/tilt positions: {pan_tilt_positions}")
-                            
-                            # Set velocity and move pan/tilt motors
-                            pan_tilt_velocity = {
-                                MOTOR_IDS['pan']: PAN_TILT_VELOCITY,
-                                MOTOR_IDS['tilt']: PAN_TILT_VELOCITY
-                            }
-                            motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, pan_tilt_velocity)
-                            motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, pan_tilt_positions)
-                            
-                        except Exception as e:
-                            logger.error(f"Focus tracking error at point {i+1}: {str(e)}")
-                            continue
 
                     # Wait for primary motors to reach their positions
                     if not self.verify_motor_positions(positions):
@@ -240,7 +206,8 @@ class ProfileController:
         except Exception as e:
             logger.error(f"Error in profile playback: {str(e)}")
         finally:
-            self.focus_controller = None
+            # Clear stop event but don't stop focus tracking
+            # This allows focus tracking to continue after profile ends
             self.playback_stop_event.clear()
 
     def start_playback(self, profile, settings):
@@ -249,7 +216,6 @@ class ProfileController:
             
         try:
             self.playback_stop_event.clear()
-            self.focus_controller = None
             self.current_playback_thread = Thread(target=self.run_profile, args=(profile, settings))
             self.current_playback_thread.start()
             return True, None
@@ -259,7 +225,6 @@ class ProfileController:
     def stop_playback(self):
         try:
             self.playback_stop_event.set()
-            self.focus_controller = None
             current_positions = motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_read_positions)
             if current_positions:
                 motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, current_positions)
