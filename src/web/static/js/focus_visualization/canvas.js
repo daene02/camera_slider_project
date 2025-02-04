@@ -11,8 +11,14 @@ export class CanvasManager {
         this.setupCanvas();
         this.loadBackground();
         
+        // Initialize renderers
+        this.axisRenderer = null;
+        
+        // Event handlers
         window.addEventListener('resize', () => this.setupCanvas());
         this.canvas.addEventListener('wheel', (e) => this.handleZoom(e));
+        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.canvas.addEventListener('click', (e) => this.handleClick(e));
 
         // Enable animation
         requestAnimationFrame(() => this.animate());
@@ -23,6 +29,51 @@ export class CanvasManager {
     loadBackground() {
         this.background = new Image();
         this.background.src = '/static/images/backgrounds/slider.jpg';
+    }
+
+    handleMouseMove(event) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Check if mouse is over axis numbers
+        let needsRedraw = false;
+        if (this.axisRenderer) {
+            needsRedraw = this.axisRenderer.handleMouseMove(x, y);
+        }
+        
+        if (needsRedraw) {
+            this.draw();
+        }
+    }
+
+    setAxisRenderer(renderer) {
+        this.axisRenderer = renderer;
+    }
+
+    handleClick(event) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Check if an axis number was clicked
+        if (this.axisRenderer) {
+            const mmValue = this.axisRenderer.handleClick(x, y);
+            if (mmValue !== null) {
+                // Convert mm to motor steps (64/4096 mm per step)
+                // steps = mm * (4096/64) = mm * 64
+                const position = Math.round(mmValue * 64);
+                
+                // Send motor position update
+                fetch('/motor/2/position', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ position })
+                });
+            }
+        }
     }
 
     handleZoom(event) {

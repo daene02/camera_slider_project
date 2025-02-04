@@ -19,6 +19,9 @@ export class FocusVisualization {
         this.trackingHandler = new TrackingHandler();
         this.pointHandler = new PointHandler();
         
+        // Connect axis renderer to canvas manager
+        this.canvasManager.setAxisRenderer(this.axisRenderer);
+        
         // Initialize points renderer with all handlers
         this.pointsRenderer = new PointsRenderer(
             this.canvasManager,

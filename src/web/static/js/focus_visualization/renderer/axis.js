@@ -3,12 +3,18 @@ import { SLIDER_MAX_MM } from '../constants.js';
 export class AxisRenderer {
     constructor(canvasManager) {
         this.canvasManager = canvasManager;
+        this.clickableAreas = [];
+        this.hoveredValue = null;
+        this.selectedValue = null;
     }
 
     draw() {
         const ctx = this.canvasManager.getContext();
         const start = this.canvasManager.worldToScreen(0, 0);
         const end = this.canvasManager.worldToScreen(0, SLIDER_MAX_MM);
+        
+        // Reset clickable areas
+        this.clickableAreas = [];
         
         // Draw background for axis - width scales with zoom
         const axisWidth = Math.max(15, 20 * this.canvasManager.zoomLevel);
@@ -44,14 +50,71 @@ export class AxisRenderer {
             ctx.lineTo(pos.x + axisWidth/2 + tickSize, pos.y);
             ctx.stroke();
             
-            // mm labels - scale font with zoom
-            const fontSize = Math.max(12, Math.floor(12 * this.canvasManager.zoomLevel));
-            ctx.fillStyle = 'white';
+            // Scale font size based on hover/zoom
+            let fontSize = Math.max(12, Math.floor(12 * this.canvasManager.zoomLevel));
+            if (mm === this.hoveredValue) {
+                fontSize = Math.floor(fontSize * 1.5); // 50% larger on hover
+            }
+            
             ctx.font = `${fontSize}px Arial`;
-           // ctx.textAlign = 'right';
-           // ctx.fillText(`${mm}mm`, pos.x - axisWidth/2 - tickSize - 5, pos.y + fontSize/3);
+            const text = `${mm}`;
+            const metrics = ctx.measureText(text);
+            
+            // Store clickable area
+            this.clickableAreas.push({
+                x: pos.x + axisWidth/2 + tickSize + 15,
+                y: pos.y - fontSize/2,
+                width: metrics.width,
+                height: fontSize,
+                value: mm
+            });
+            
+            // Set up text style
             ctx.textAlign = 'left';
-            ctx.fillText(`${mm}`, pos.x + axisWidth/2 + tickSize + 15, pos.y + fontSize/3);
+            
+            // Add glow effect for selected value
+            if (mm === this.selectedValue) {
+                ctx.save();
+                ctx.shadowColor = '#00ff00';
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = '#00ff00';
+            } else {
+                ctx.fillStyle = 'white';
+            }
+            
+            ctx.fillText(text, pos.x + axisWidth/2 + tickSize + 15, pos.y + fontSize/3);
+            
+            if (mm === this.selectedValue) {
+                ctx.restore();
+            }
         }
+    }
+
+    handleMouseMove(x, y) {
+        let found = false;
+        for (const area of this.clickableAreas) {
+            if (x >= area.x && x <= area.x + area.width &&
+                y >= area.y && y <= area.y + area.height) {
+                this.hoveredValue = area.value;
+                found = true;
+                break;
+            }
+        }
+        if (!found && this.hoveredValue !== null) {
+            this.hoveredValue = null;
+            return true; // Changed state
+        }
+        return found; // Return true if hovering over a number
+    }
+
+    handleClick(x, y) {
+        for (const area of this.clickableAreas) {
+            if (x >= area.x && x <= area.x + area.width &&
+                y >= area.y && y <= area.y + area.height) {
+                this.selectedValue = area.value;
+                return area.value;
+            }
+        }
+        return null;
     }
 }
