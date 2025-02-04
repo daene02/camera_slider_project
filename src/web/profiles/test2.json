@@ -1,0 +1,39 @@
+{
+  "name": "test2",
+  "points": [
+    {
+      "positions": {
+        "1": 3,
+        "2": 642,
+        "5": 549,
+        "6": 568
+      },
+      "velocity": 10000,
+      "timestamp": 1738708894513,
+      "focus_point_id": 2
+    },
+    {
+      "positions": {
+        "1": 3,
+        "2": 38402,
+        "5": 549,
+        "6": 567
+      },
+      "velocity": 15000,
+      "timestamp": 1738708928109,
+      "focus_point_id": 0
+    },
+    {
+      "positions": {
+        "1": 3,
+        "2": 642,
+        "5": 549,
+        "6": 567
+      },
+      "velocity": 1000,
+      "timestamp": 1738708968184,
+      "focus_point_id": 1
+    }
+  ],
+  "acceleration": 1800
+}

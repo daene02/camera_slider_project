@@ -6,7 +6,6 @@
 - Implemented clickable position numbers along Y-axis
 - Added interactive hover effects (50% size increase)
 - Added green glow effect for selected values
-- Proper mm to motor step conversion (64 steps/mm)
 - Adaptive text sizing based on zoom level
 - Interactive movement control via number clicks
 

@@ -1,66 +1,54 @@
 {
-  "acceleration": 1800,
   "name": "test",
   "points": [
     {
       "positions": {
         "1": 2,
-        "2": 3,
-        "3": 2316,
-        "4": 1767,
-        "5": 550,
+        "2": 12804,
+        "5": 549,
         "6": 567
       },
-      "timestamp": 1738463152151,
-      "velocity": 5000
+      "velocity": 20000,
+      "focusPointId": 1,
+      "timestamp": 1738695424735,
+      "focus_point_id": 1
     },
     {
       "positions": {
-        "1": 2047,
-        "2": 59999,
-        "3": 3667,
-        "4": 1647,
-        "5": 550,
+        "1": 2,
+        "2": 51204,
+        "5": 549,
         "6": 567
       },
-      "timestamp": 1738463215975,
-      "velocity": 25000
+      "velocity": 22000,
+      "focusPointId": 1,
+      "timestamp": 1738695457980,
+      "focus_point_id": 0
     },
     {
       "positions": {
-        "1": 2047,
-        "2": 30002,
-        "3": 2768,
-        "4": 1524,
-        "5": 550,
+        "1": 1024,
+        "2": 32000,
+        "5": 549,
         "6": 567
       },
-      "velocity": 12000,
-      "timestamp": 1738463311199
+      "velocity": 10000,
+      "focusPointId": 0,
+      "timestamp": 1738695508788,
+      "focus_point_id": 1
     },
     {
       "positions": {
-        "1": 1,
-        "2": 30001,
-        "3": 2768,
-        "4": 1525,
-        "5": 550,
+        "1": 2,
+        "2": 640,
+        "5": 549,
         "6": 567
       },
-      "velocity": 5000,
-      "timestamp": 1738463373611
-    },
-    {
-      "positions": {
-        "1": 1,
-        "2": 100,
-        "3": 2317,
-        "4": 1767,
-        "5": 550,
-        "6": 567
-      },
-      "velocity": 12000,
-      "timestamp": 1738463428693
+      "velocity": 10000,
+      "focusPointId": 0,
+      "timestamp": 1738695550893,
+      "focus_point_id": 0
     }
-  ]
+  ],
+  "acceleration": 1800
 }

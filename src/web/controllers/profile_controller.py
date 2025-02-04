@@ -116,6 +116,19 @@ class ProfileController:
         print("Position verification timed out or stopped")
         return False
 
+    def get_focus_points(self):
+        """Get focus points from the focus controller"""
+        focus_controller = FocusController()
+        return focus_controller.focus_points
+
+    def get_focus_point(self, point_id):
+        """Get a specific focus point by ID"""
+        focus_points = self.get_focus_points()
+        for point in focus_points:
+            if point['id'] == point_id:
+                return point
+        return None
+
     def run_profile(self, profile, settings):
         try:
             # Set acceleration for primary motors
@@ -134,9 +147,6 @@ class ProfileController:
                 MOTOR_IDS['tilt']: PAN_TILT_ACCELERATION
             }
             motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_acceleration, pan_tilt_accel_dict)
-
-            # Initialize/reinitialize focus controller
-            self.focus_controller = FocusController(object_position=(-260, 600, -300))
 
             # Process each point in sequence
             for i, point in enumerate(profile['points']):
@@ -172,41 +182,55 @@ class ProfileController:
                     if not self.verify_motor_positions(positions):
                         print(f"Primary motors didn't reach target positions at point {i+1}, continuing...")
 
-                    # Calculate and verify pan/tilt positions
-                    try:
-                        slider_pos = motor_controller.steps_to_units(positions[MOTOR_IDS['slider']], 'slider')
-                        motor_positions = self.focus_controller.get_motor_positions(slider_pos)
-                        
-                        pan_tilt_positions = {
-                            MOTOR_IDS['pan']: motor_controller.units_to_steps(motor_positions['pan'], 'pan'),
-                            MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt')
-                        }
-                        
-                        print(f"Pan/tilt positions: {pan_tilt_positions}")
-                        
-                        # Set velocity and move pan/tilt motors using settings
-                        pan_tilt_velocity = {
-                            MOTOR_IDS['pan']: PAN_TILT_VELOCITY,
-                            MOTOR_IDS['tilt']: PAN_TILT_VELOCITY
-                        }
-                        motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, pan_tilt_velocity)
-                        if not motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, pan_tilt_positions):
-                            print(f"Failed to move pan/tilt motors at point {i+1}, continuing with sequence...")
-                        
-                    except Exception as e:
-                        print(f"Focus tracking error at point {i+1}: {str(e)}")
-                        # Continue with next point even if focus tracking fails
-                        continue
+                    # Check for focus point and update focus controller
+                    focus_point_id = point.get('focus_point_id')
+                    if focus_point_id is not None:
+                        focus_point = self.get_focus_point(focus_point_id)
+                        if focus_point:
+                            if self.focus_controller is None:
+                                self.focus_controller = FocusController(
+                                    object_position=(focus_point['x'], focus_point['y'], focus_point['z'])
+                                )
+                            else:
+                                self.focus_controller.object_x = focus_point['x']
+                                self.focus_controller.object_y = focus_point['y']
+                                self.focus_controller.object_z = focus_point['z']
+
+                    # Calculate and verify pan/tilt positions if focus controller is active
+                    if self.focus_controller:
+                        try:
+                            slider_pos = motor_controller.steps_to_units(positions[MOTOR_IDS['slider']], 'slider')
+                            motor_positions = self.focus_controller.get_motor_positions(slider_pos)
+                            
+                            pan_tilt_positions = {
+                                MOTOR_IDS['pan']: motor_controller.units_to_steps(motor_positions['pan'], 'pan'),
+                                MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt')
+                            }
+                            
+                            print(f"Pan/tilt positions: {pan_tilt_positions}")
+                            
+                            # Set velocity and move pan/tilt motors using settings
+                            pan_tilt_velocity = {
+                                MOTOR_IDS['pan']: PAN_TILT_VELOCITY,
+                                MOTOR_IDS['tilt']: PAN_TILT_VELOCITY
+                            }
+                            motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, pan_tilt_velocity)
+                            if not motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, pan_tilt_positions):
+                                print(f"Failed to move pan/tilt motors at point {i+1}, continuing with sequence...")
+                            
+                        except Exception as e:
+                            print(f"Focus tracking error at point {i+1}: {str(e)}")
+                            continue
 
                 except Exception as e:
                     print(f"Error processing point {i+1}: {str(e)}")
-                    # Continue with next point if there's an error
                     continue
 
         except Exception as e:
             print(f"Error in profile playback: {str(e)}")
         finally:
             self.playback_stop_event.clear()
+            self.focus_controller = None
 
     def start_playback(self, profile, settings):
         if self.current_playback_thread and self.current_playback_thread.is_alive():
