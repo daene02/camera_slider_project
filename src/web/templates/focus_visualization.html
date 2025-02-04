@@ -48,38 +48,92 @@
             font-size: 12px;
             z-index: 1000;
             background: rgba(0, 0, 0, 0.7);
-            padding: 10px;
             border-radius: 5px;
             max-width: 400px;
             overflow-wrap: break-word;
             display: none;
+        }
+
+        .debug-header {
+            padding: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .debug-content {
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease;
+        }
+
+        #debug.collapsed .debug-content {
+            max-height: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        #debug.collapsed .toggle-btn {
+            transform: rotate(-90deg);
         }
     </style>
 </head>
 <body>
     <a href="/focus" class="back-button">Back to Focus Control</a>
     <canvas id="focusCanvas"></canvas>
-    <div id="debug"></div>
+    <div id="debug" class="collapsed">
+        <div class="debug-header" id="debugHeader">
+            <span>Debug Log</span>
+            <button class="toggle-btn">▼</button>
+        </div>
+        <div class="debug-content"></div>
+    </div>
     
     <script type="module">
         import { FocusVisualization } from '/static/js/focus_visualization/main.js';
         
         const debug = document.getElementById('debug');
         
+        // Load debug state from localStorage
+        const debugPanel = document.getElementById('debug');
+        const debugContent = debugPanel.querySelector('.debug-content');
+        const debugHeader = document.getElementById('debugHeader');
+        
+        // Initialize from localStorage or default to collapsed
+        const isCollapsed = localStorage.getItem('debugCollapsed') === 'true';
+        debugPanel.classList.toggle('collapsed', isCollapsed);
+        
+        // Toggle debug panel
+        debugHeader.addEventListener('click', () => {
+            debugPanel.classList.toggle('collapsed');
+            localStorage.setItem('debugCollapsed', debugPanel.classList.contains('collapsed'));
+        });
+        
         // Override console.log for debugging
         const originalLog = console.log;
         console.log = (...args) => {
             originalLog.apply(console, args);
-            if (debug) {
-                debug.style.display = 'block';
-                debug.innerHTML = args.map(arg => 
+            if (debugPanel) {
+                debugPanel.style.display = 'block';
+                debugContent.innerHTML = args.map(arg => 
                     typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
-                ).join(' ') + '<br>' + debug.innerHTML;
+                ).join(' ') + '<br>' + debugContent.innerHTML;
                 
                 // Keep only last 10 messages
-                const messages = debug.innerHTML.split('<br>');
+                const messages = debugContent.innerHTML.split('<br>');
                 if (messages.length > 10) {
-                    debug.innerHTML = messages.slice(0, 10).join('<br>');
+                    debugContent.innerHTML = messages.slice(0, 10).join('<br>');
                 }
             }
         };

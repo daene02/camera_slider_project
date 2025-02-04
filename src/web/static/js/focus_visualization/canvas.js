@@ -66,7 +66,7 @@ export class CanvasManager {
 
     worldToScreen(x, y) {
         const centerOffsetX = -this.currentSliderX;
-        const centerOffsetY = -this.currentSliderY;
+        const centerOffsetY = -this.currentSliderY-200;
         const scale = 0.5 * this.zoomLevel;
         const screenY = (this.canvas.height/2) - ((y + centerOffsetY) * scale);
         const screenX = (this.canvas.width/2) + ((x + centerOffsetX) * scale);
@@ -92,7 +92,7 @@ export class CanvasManager {
 
         const padding = 20;
         const listWidth = 300;  // Increased width for better readability
-        const listX = this.canvas.width - listWidth - padding;
+        const listX = this.canvas.width - listWidth+10- padding;
         const listY = padding;
         const width = listWidth;
         const headerHeight = 40;
@@ -117,14 +117,14 @@ export class CanvasManager {
         // Draw semi-transparent background
         this.ctx.save();
         this.ctx.beginPath();
-        this.ctx.roundRect(listX, listY, width, listHeight, 10);
+        this.ctx.roundRect(listX-150, listY, width, listHeight, 10);
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         this.ctx.fill();
         
         // Draw title
         this.ctx.fillStyle = 'white';
         this.ctx.font = 'bold 16px Arial';
-        this.ctx.fillText('Focus Points', listX + 150, listY + 25);
+        this.ctx.fillText('Focus Points', listX , listY + 25);
         
         // Draw points
         let y = listY + headerHeight;

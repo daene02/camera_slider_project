@@ -8,7 +8,7 @@ export class SliderRenderer {
         const pos = this.canvasManager.worldToScreen(0, position);
         
         // Scale dot size proportionally with zoom
-        const dotRadius = Math.max(10, 10 * this.canvasManager.zoomLevel);
+        const dotRadius = Math.max(12, 15 * this.canvasManager.zoomLevel);
         
         // Draw slider dot
         ctx.beginPath();

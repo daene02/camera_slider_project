@@ -166,14 +166,26 @@ export class PointsRenderer {
         
         ctx.save();
         
-        // Draw shadow
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        ctx.shadowBlur = radius / 2;
+        // Draw glow effect
+        const pointColor = isActive ? '#00ff00' : point.color || '#4a9eff';
         
-        // Draw point circle
+        // Draw multiple layers for enhanced glow
+        const glowIntensity = isActive ? 1.0 : 0.7;
+        
+        // Outer glow
+        ctx.shadowColor = pointColor;
+        ctx.shadowBlur = radius * 2;
+        ctx.globalAlpha = 0.3 * glowIntensity;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, radius * 1.2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner glow
+        ctx.shadowBlur = radius;
+        ctx.globalAlpha = 0.7 * glowIntensity;
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = isActive ? '#00ff00' : point.color || '#4a9eff';
+        ctx.fillStyle = pointColor;
         ctx.fill();
         
         // Draw labels

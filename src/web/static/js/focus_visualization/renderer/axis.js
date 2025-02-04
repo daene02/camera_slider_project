@@ -11,7 +11,7 @@ export class AxisRenderer {
         const end = this.canvasManager.worldToScreen(0, SLIDER_MAX_MM);
         
         // Draw background for axis - width scales with zoom
-        const axisWidth = Math.max(20, 20 * this.canvasManager.zoomLevel);
+        const axisWidth = Math.max(15, 20 * this.canvasManager.zoomLevel);
         ctx.beginPath();
         ctx.rect(start.x - axisWidth/2, end.y, axisWidth, start.y - end.y);
         ctx.fillStyle = '#000000';
@@ -48,10 +48,10 @@ export class AxisRenderer {
             const fontSize = Math.max(12, Math.floor(12 * this.canvasManager.zoomLevel));
             ctx.fillStyle = 'white';
             ctx.font = `${fontSize}px Arial`;
-            ctx.textAlign = 'right';
-            ctx.fillText(`${mm}mm`, pos.x - axisWidth/2 - tickSize - 5, pos.y + fontSize/3);
+           // ctx.textAlign = 'right';
+           // ctx.fillText(`${mm}mm`, pos.x - axisWidth/2 - tickSize - 5, pos.y + fontSize/3);
             ctx.textAlign = 'left';
-            ctx.fillText(`${mm}mm`, pos.x + axisWidth/2 + tickSize + 5, pos.y + fontSize/3);
+            ctx.fillText(`${mm}`, pos.x + axisWidth/2 + tickSize + 15, pos.y + fontSize/3);
         }
     }
 }
