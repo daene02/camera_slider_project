@@ -121,22 +121,95 @@ class CanonEOSR50:
             self._logger.error(f"Error toggling live view: {str(e)}")
             return False
 
-    async def capture_preview(self) -> Optional[gp.CameraFile]:
+    async def capture_preview(self) -> Optional[bytes]:
         """Capture a preview image from the camera."""
-        if not self.camera:
+        if not self.camera or not self.context:
             self._logger.error("Camera not connected")
             return None
 
         try:
             # Make sure live view is enabled
+            self._logger.debug(f"Live view status before capture: {self.live_view_enabled}")
             if not self.live_view_enabled:
+                self._logger.debug("Enabling live view for preview")
                 if not await self.toggle_live_view(True):
+                    self._logger.error("Failed to enable live view")
                     return None
+                await self._sleep(0.5)  # Additional delay after enabling live view
 
-            preview = self.camera.capture_preview()
-            return preview if preview else None
+            max_io_retries = 3
+            retry_delay = 0.5
+
+            # Helper function to safely capture preview with retries
+            async def try_capture_preview(is_buffer_clear=False):
+                for attempt in range(max_io_retries):
+                    try:
+                        try:
+                            camera_file = self.camera.capture_preview()
+                            if not camera_file:
+                                self._logger.error("Capture returned None")
+                                continue
+
+                            # Log available methods and properties
+                            self._logger.debug(f"Camera file type: {type(camera_file)}")
+                            self._logger.debug(f"Camera file dir: {dir(camera_file)}")
+
+                            # Get data from camera file
+                            file_data = camera_file.get_data_and_size()
+                            if not file_data:
+                                self._logger.error("No data returned from preview")
+                                continue
+                                
+                            self._logger.debug(f"Raw data type: {type(file_data)}")
+                            
+                            # Convert FileData to bytes
+                            data = bytes(file_data)
+                            self._logger.debug(f"Converted data size: {len(data)} bytes")
+                            
+                            # Verify we got JPEG data
+                            mime_type = camera_file.get_mime_type()
+                            self._logger.debug(f"MIME type: {mime_type}")
+                            if not mime_type.startswith('image/'):
+                                self._logger.error(f"Unexpected MIME type: {mime_type}")
+                                continue
+
+                            return data
+                        finally:
+                            # Clean up camera file
+                            if 'camera_file' in locals():
+                                camera_file.clean()
+                    except gp.GPhoto2Error as e:
+                        if e.code == -110:  # I/O in progress
+                            self._logger.warning(f"I/O in progress (attempt {attempt + 1}/{max_io_retries})")
+                            await self._sleep(retry_delay)
+                            continue
+                        raise
+                return None
+
+            # First preview to clear buffer
+            self._logger.debug("Capturing first preview (buffer clear)")
+            await try_capture_preview(is_buffer_clear=True)
+            await self._sleep(0.2)  # Longer delay after buffer clear
+
+            # Actual preview capture
+            self._logger.debug("Capturing main preview")
+            data = await try_capture_preview()
+            
+            if not data:
+                self._logger.error("Failed to get valid preview data")
+                return None
+
+            self._logger.debug(f"Successfully captured preview ({len(data)} bytes)")
+            return data
+        except gp.GPhoto2Error as e:
+            if e.code == -110:  # I/O in progress
+                self._logger.warning("I/O in progress, retrying after delay")
+                await self._sleep(0.5)
+                return await self.capture_preview()
+            self._logger.error(f"GPhoto2 error capturing preview: {str(e)}", exc_info=True)
+            return None
         except Exception as e:
-            self._logger.error(f"Error capturing preview: {str(e)}")
+            self._logger.error(f"Error capturing preview: {str(e)}", exc_info=True)
             return None
 
     async def get_storage_info(self) -> Dict[str, Any]:

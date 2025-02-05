@@ -21,7 +21,7 @@ class ProfileController:
         self.playback_stop_event = Event()
         self.current_playback_thread = None
         self.tracking_active = False
-        self.camera = CanonEOSR50()
+        self.camera = None
         self.camera_connected = False
         self.recording_active = False
 
@@ -124,12 +124,34 @@ class ProfileController:
         return any(point.get('focus_point_id') is not None for point in profile['points'])
 
     async def connect_camera(self):
-        """Initialize camera connection."""
+        """Connect to the camera."""
         try:
-            self.camera_connected = await self.camera.connect()
-            return self.camera_connected, None if self.camera_connected else "Failed to connect to camera"
+            # Clear any existing camera state
+            if self.camera:
+                try:
+                    await self.camera.disconnect()
+                except Exception as e:
+                    logger.warning(f"Error disconnecting existing camera: {str(e)}")
+                self.camera = None
+                self.camera_connected = False
+                self.recording_active = False
+
+            # Create and connect new camera instance
+            self.camera = CanonEOSR50()
+            success = await self.camera.connect()
+            
+            if success:
+                self.camera_connected = True
+                logger.info("Camera connected and initialized successfully")
+                return True, None
+            else:
+                self.camera = None
+                logger.error("Failed to establish camera connection")
+                return False, "Failed to connect to camera"
         except Exception as e:
-            logger.error(f"Camera connection error: {str(e)}")
+            self.camera = None
+            self.camera_connected = False
+            logger.error(f"Error connecting to camera: {str(e)}", exc_info=True)
             return False, str(e)
 
     def run_profile(self, profile, settings):

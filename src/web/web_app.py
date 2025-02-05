@@ -5,6 +5,7 @@ from src.web.controllers.focus_controller import focus_controller
 import asyncio
 import os
 import logging
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, 
@@ -23,9 +24,24 @@ PAGE_BACKGROUNDS = {
     'photo': 'images/backgrounds/photo-bg.jpg'
 }
 
+def run_async(coro):
+    """Helper to run coroutines in Flask routes."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
 def get_background_image(endpoint):
     """Get the background image for the current page"""
     return PAGE_BACKGROUNDS.get(endpoint, PAGE_BACKGROUNDS['home'])
+
+def check_camera_connected():
+    """Check if camera is connected and return error response if not."""
+    if not profile_controller.camera_connected:
+        return jsonify({"error": "Camera not connected"}), 400
+    return None
 
 # Main page routes
 @app.route('/')
@@ -49,9 +65,7 @@ def profiles():
         profiles_list = profile_controller.list_profiles()
         return render_template('profiles.html', profiles=profiles_list, background_image=get_background_image('profiles'))
     except Exception as e:
-        print(f"Error in profiles route: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error in profiles route: {str(e)}", exc_info=True)
         return render_template('profiles.html', profiles=[], background_image=get_background_image('profiles'))
 
 @app.route('/video')
@@ -124,44 +138,6 @@ def get_motor_positions():
         return jsonify({"error": "Failed to read positions"}), 500
     return jsonify(positions)
 
-# Profile routes
-@app.route('/profile/list')
-def list_profiles():
-    profiles = profile_controller.list_profiles()
-    return jsonify(profiles)
-
-@app.route('/profile/<name>')
-def get_profile(name):
-    profile_data = profile_controller.get_profile(name)
-    if profile_data is None:
-        return jsonify({'error': 'Profile not found'}), 404
-    return jsonify(profile_data)
-
-@app.route('/profile/save', methods=['POST'])
-def save_profile():
-    success = profile_controller.save_profile(request.json)
-    if success:
-        return jsonify({'success': True})
-    return jsonify({'error': 'Failed to save profile'}), 500
-
-@app.route('/profile/play', methods=['POST'])
-def play_profile():
-    try:
-        data = request.json
-        success, error = profile_controller.start_playback(data['profile'], data['settings'])
-        if success:
-            return jsonify({'success': True})
-        return jsonify({'error': error}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/profile/stop', methods=['POST'])
-def stop_profile():
-    success, error = profile_controller.stop_playback()
-    if success:
-        return jsonify({'success': True})
-    return jsonify({'error': error}), 500
-
 # Focus control routes
 @app.route('/focus/points', methods=['GET'])
 def get_focus_points():
@@ -206,7 +182,6 @@ def start_focus_tracking():
             missing_fields = [k for k in required_fields if k not in point_data]
             return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
             
-        # Validate coordinate values
         try:
             for field in required_fields:
                 point_data[field] = float(point_data[field])
@@ -222,7 +197,7 @@ def start_focus_tracking():
             })
         return jsonify({"error": error}), 400
     except Exception as e:
-        print(f"Error in start_focus_tracking: {str(e)}")
+        logger.error(f"Error in start_focus_tracking: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/focus/stop_tracking', methods=['POST'])
@@ -235,7 +210,7 @@ def stop_focus_tracking():
             })
         return jsonify({"error": "Failed to stop tracking"}), 500
     except Exception as e:
-        print(f"Error in stop_focus_tracking: {str(e)}")
+        logger.error(f"Error in stop_focus_tracking: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/focus/status')
@@ -261,9 +236,7 @@ def get_focus_motor_positions():
 @app.route('/camera/connect', methods=['POST'])
 def connect_camera():
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        success, error = loop.run_until_complete(profile_controller.connect_camera())
+        success, error = run_async(profile_controller.connect_camera())
         if success:
             return jsonify({"success": True})
         return jsonify({"error": error}), 400
@@ -273,13 +246,11 @@ def connect_camera():
 @app.route('/camera/status', methods=['GET'])
 def get_camera_status():
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         if not profile_controller.camera_connected:
             return jsonify({"connected": False})
             
-        storage_info = loop.run_until_complete(profile_controller.camera.get_storage_info())
-        camera_settings = loop.run_until_complete(profile_controller.camera.get_settings())
+        storage_info = run_async(profile_controller.camera.get_storage_info())
+        camera_settings = run_async(profile_controller.camera.get_settings())
         
         return jsonify({
             "connected": True,
@@ -289,111 +260,198 @@ def get_camera_status():
             "live_view": profile_controller.camera.live_view_enabled
         })
     except Exception as e:
+        logger.error(f"Error getting camera status: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/camera/capture', methods=['POST'])
 def capture_photo():
-    if not profile_controller.camera_connected:
-        return jsonify({"error": "Camera not connected"}), 400
+    if error_response := check_camera_connected():
+        return error_response
+        
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        success = loop.run_until_complete(profile_controller.camera.capture_photo())
+        success = run_async(profile_controller.camera.capture_photo())
         if success:
             return jsonify({"success": True})
         return jsonify({"error": "Failed to capture photo"}), 500
     except Exception as e:
+        logger.error(f"Error capturing photo: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/camera/video/start', methods=['POST'])
 def start_video():
-    if not profile_controller.camera_connected:
-        return jsonify({"error": "Camera not connected"}), 400
+    if error_response := check_camera_connected():
+        return error_response
+        
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        success = loop.run_until_complete(profile_controller.camera.start_video())
+        success = run_async(profile_controller.camera.start_video())
         if success:
             profile_controller.recording_active = True
             return jsonify({"success": True})
         return jsonify({"error": "Failed to start recording"}), 500
     except Exception as e:
+        logger.error(f"Error starting video: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/camera/video/stop', methods=['POST'])
 def stop_video():
-    if not profile_controller.camera_connected:
-        return jsonify({"error": "Camera not connected"}), 400
+    if error_response := check_camera_connected():
+        return error_response
+        
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        success = loop.run_until_complete(profile_controller.camera.stop_video())
+        success = run_async(profile_controller.camera.stop_video())
         if success:
             profile_controller.recording_active = False
             return jsonify({"success": True})
         return jsonify({"error": "Failed to stop recording"}), 500
     except Exception as e:
+        logger.error(f"Error stopping video: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/camera/live_view')
 def get_live_view():
-    if not profile_controller.camera_connected:
-        return jsonify({"error": "Camera not connected"}), 400
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Check camera connection
+        if error_response := check_camera_connected():
+            logger.error("Camera not connected during live view request")
+            return error_response
 
-        # Ensure live view is enabled
-        if not profile_controller.camera.live_view_enabled:
-            success = loop.run_until_complete(profile_controller.camera.toggle_live_view(True))
-            if not success:
-                return jsonify({"error": "Failed to enable live view"}), 500
-            # Give camera time to start live view
-            loop.run_until_complete(asyncio.sleep(0.2))
+        camera = profile_controller.camera
+        if not camera:
+            logger.error("Camera object is None")
+            return jsonify({"error": "Camera not properly initialized"}), 500
         
-        # Capture preview
-        preview = loop.run_until_complete(profile_controller.camera.capture_preview())
-        if not preview:
-            return jsonify({"error": "Failed to capture preview"}), 500
-
+        # Verify live view state
+        if not camera.live_view_enabled:
+            logger.debug("Live view not enabled, enabling now...")
+            success = run_async(camera.toggle_live_view(True))
+            if not success:
+                logger.error("Failed to enable live view")
+                return jsonify({"error": "Failed to enable live view"}), 500
+                
+        # Capture preview with retries and increasing delays
+        max_retries = 3
+        base_delay = 0.5
+        for attempt in range(max_retries):
+            delay = base_delay * (attempt + 1)  # Increasing delay for each retry
+            logger.debug(f"Attempting preview capture (attempt {attempt + 1}/{max_retries})")
             
-        file_data = preview.get_data_and_size()
-        response = make_response(file_data)
-        response.headers.set('Content-Type', 'image/jpeg')
-        return response
+            preview = run_async(camera.capture_preview())
+            if not preview and attempt < max_retries - 1:
+                logger.warning(f"Preview capture failed, waiting {delay}s before retry")
+                time.sleep(delay)
+            if preview:
+                try:
+                    if not preview:
+                        logger.error("No preview data received")
+                        raise ValueError("Preview data is empty")
+                        
+                    # Handle potential tuple return (data, size)
+                    if isinstance(preview, tuple):
+                        data = preview[0]
+                        logger.debug(f"Got preview data from tuple, size: {len(data) if data else 0}")
+                    else:
+                        data = preview
+                        logger.debug(f"Got preview data directly, size: {len(data) if data else 0}")
+                    
+                    if not data:
+                        raise ValueError("No valid preview data")
+                        
+                    # Create response with preview bytes
+                    response = make_response(data)
+                    response.headers['Content-Type'] = 'image/jpeg'
+                    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                    logger.debug("Sending preview response")
+                    return response
+                except Exception as e:
+                    logger.error(f"Error processing preview data: {str(e)}", exc_info=True)
+                    continue
+            else:
+                logger.error("Preview capture returned None")
+                
+        logger.error("Failed to capture preview after all retries")
+        return jsonify({"error": "Failed to capture preview after multiple attempts"}), 500
     except Exception as e:
         logger.error(f"Live view error: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-@app.route('/camera/live_view/toggle', methods=['POST'])
-def toggle_live_view():
-    if not profile_controller.camera_connected:
-        return jsonify({"error": "Camera not connected"}), 400
-    try:
-        enable = request.json.get('enable')
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        success = loop.run_until_complete(profile_controller.camera.toggle_live_view(enable))
-        if success:
-            return jsonify({"success": True, "enabled": profile_controller.camera.live_view_enabled})
-        return jsonify({"error": "Failed to toggle live view"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/camera/settings', methods=['POST'])
 def update_camera_settings():
-    if not profile_controller.camera_connected:
-        return jsonify({"error": "Camera not connected"}), 400
+    if error_response := check_camera_connected():
+        return error_response
+        
     try:
         settings = request.json
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        success = loop.run_until_complete(profile_controller.camera.update_settings(settings))
+        success = run_async(profile_controller.camera.update_settings(settings))
         if success:
             return jsonify({"success": True})
         return jsonify({"error": "Failed to update camera settings"}), 500
     except Exception as e:
+        logger.error(f"Error updating camera settings: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/camera/live_view/toggle', methods=['POST'])
+def toggle_live_view():
+    if error_response := check_camera_connected():
+        return error_response
+        
+    try:
+        enable = request.json.get('enable')
+        success = run_async(profile_controller.camera.toggle_live_view(enable))
+        if success:
+            return jsonify({
+                "success": True,
+                "enabled": profile_controller.camera.live_view_enabled
+            })
+        return jsonify({"error": "Failed to toggle live view"}), 500
+    except Exception as e:
+        logger.error(f"Error toggling live view: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+# Profile routes
+@app.route('/profile/list')
+def list_profiles():
+    profiles = profile_controller.list_profiles()
+    return jsonify(profiles)
+
+@app.route('/profile/play', methods=['POST'])
+def play_profile():
+    try:
+        profile_data = request.json.get('profile')
+        if not profile_data:
+            return jsonify({"error": "No profile data provided"}), 400
+            
+        settings = request.json.get('settings', {})
+        logger.debug(f"Starting playback for profile: {profile_data.get('name', 'unnamed')}")
+        
+        success, error = profile_controller.start_playback(profile_data, settings)
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "Profile playback started"
+            })
+        return jsonify({
+            "success": False,
+            "error": error or "Failed to start profile playback"
+        }), 400
+    except Exception as e:
+        logger.error(f"Error starting profile playback: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/profile/stop', methods=['POST'])
+def stop_profile():
+    try:
+        success, error = profile_controller.stop_playback()
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "Profile playback stopped"
+            })
+        return jsonify({
+            "success": False,
+            "error": error or "Failed to stop profile playback"
+        }), 400
+    except Exception as e:
+        logger.error(f"Error stopping profile playback: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
