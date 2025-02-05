@@ -3,244 +3,7 @@
 <head>
     <title>Focus Visualization</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background: black;
-            font-family: Arial, sans-serif;
-        }
-        
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-        
-        .back-button {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 1000;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            padding: 10px 20px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-size: 14px;
-            transition: background 0.2s;
-        }
-
-        .back-button:hover {
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-        }
-
-        .progress-overlay {
-            position: fixed;
-            top: 80px;
-            left: 20px;
-            z-index: 1000;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            padding: 15px;
-            border-radius: 5px;
-            display: none;
-        }
-
-        .progress-overlay.active {
-            display: block;
-        }
-
-        .progress-bar {
-            width: 200px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            margin-top: 10px;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            background: #4a9eff;
-            border-radius: 2px;
-            width: 0;
-            transition: width 0.3s ease;
-        }
-
-        .icon-bar {
-            position: fixed;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            opacity: 1;
-        }
-
-        .icon-bar.hidden {
-            opacity: 0;
-            transform: translate(100px, -50%);
-            pointer-events: none;
-        }
-
-        .icon-button {
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 24px;
-        }
-
-        .icon-button:hover {
-            transform: scale(1.1);
-            background: rgba(74, 158, 255, 0.3);
-            border-color: #4a9eff;
-        }
-
-        .icon-button i {
-            transition: transform 0.2s;
-        }
-
-        .icon-button:hover i {
-            transform: scale(1.2);
-        }
-
-        .icon-button.active {
-            background: #4a9eff;
-            border-color: #4a9eff;
-        }
-
-        .panel {
-            position: fixed;
-            right: 0;
-            top: 0;
-            width: 300px;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            border-left: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            z-index: 999;
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-        }
-
-        .panel.active {
-            transform: translateX(0);
-        }
-
-        .panel-header {
-            padding: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 16px;
-            font-weight: bold;
-        }
-
-        .panel-content {
-            padding: 20px;
-            height: calc(100% - 61px);
-            overflow-y: auto;
-        }
-
-        .profile-item {
-            padding: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-
-        .profile-name {
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .profile-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .profile-button {
-            padding: 5px 15px;
-            border-radius: 3px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .profile-button:hover {
-            background: rgba(74, 158, 255, 0.8);
-            border-color: #4a9eff;
-        }
-
-        /* Debug Panel Styles */
-        .debug-content {
-            font-family: monospace;
-            font-size: 12px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
-        .debug-message {
-            padding: 5px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        /* Points Panel Styles */
-        .point-item {
-            padding: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-
-        .point-name {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .point-coords, .point-angles {
-            font-family: monospace;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 5px;
-        }
-
-        .point-item {
-            padding: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .point-item:hover {
-            background: rgba(74, 158, 255, 0.1);
-            border-color: rgba(74, 158, 255, 0.3);
-        }
-
-        .point-item.active {
-            background: rgba(74, 158, 255, 0.2);
-            border-color: #4a9eff;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/focus_visualization.css">
 </head>
 <body>
     <a href="/focus" class="back-button">Back to Focus Control</a>
@@ -262,6 +25,9 @@
         <button class="icon-button" data-panel="points">
             <i class="fas fa-crosshairs"></i>
         </button>
+        <button class="icon-button" data-panel="camera">
+            <i class="fas fa-camera"></i>
+        </button>
         <button class="icon-button" data-panel="debug">
             <i class="fas fa-terminal"></i>
         </button>
@@ -282,8 +48,35 @@
         <div class="panel-header">Debug Log</div>
         <div class="panel-content debug-content"></div>
     </div>
+
+    <div id="camera-panel" class="panel">
+        <div class="panel-header">Camera View</div>
+        <div class="panel-content">
+            <img id="camera-preview" class="camera-preview" />
+        </div>
+    </div>
     
     <canvas id="focusCanvas"></canvas>
+
+    <style>
+        .camera-preview {
+            width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            background: rgba(0, 0, 0, 0.3);
+        }
+    </style>
+
+    <script>
+        // Auto-update camera preview
+        const cameraPreview = document.getElementById('camera-preview');
+        const updateCameraPreview = () => {
+            if (cameraPreview && document.getElementById('camera-panel').classList.contains('active')) {
+                cameraPreview.src = '/camera/live_view?' + new Date().getTime();
+            }
+        };
+        setInterval(updateCameraPreview, 200);
+    </script>
     
     <script type="module">
         import { FocusVisualization } from '/static/js/focus_visualization/main.js';

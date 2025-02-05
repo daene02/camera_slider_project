@@ -328,35 +328,30 @@ class DynamixelManager:
                     ok = grp_read.addParam(dxl_id, ADDR_PRO_PRESENT_CURRENT, LEN_PRO_PRESENT_CURRENT)
                     if not ok:
                         print(f"[WARN] Konnte ID {dxl_id} nicht für Present Current registrieren.")
-    
+        
                 result = grp_read.txRxPacket()
                 if result != COMM_SUCCESS:
                     print(f"[ERROR] BulkRead Current: {self.packetHandler.getTxRxResult(result)}")
-    
+        
                 curr_dict = {}
                 for dxl_id in self.dxl_ids:
                     if grp_read.isAvailable(dxl_id, ADDR_PRO_PRESENT_CURRENT, LEN_PRO_PRESENT_CURRENT):
                         raw_value = grp_read.getData(dxl_id, ADDR_PRO_PRESENT_CURRENT, LEN_PRO_PRESENT_CURRENT)
                         
-                        # Überprüfung auf Fehlerwerte
-                        if raw_value >= 65540:  # Fehlerhafter Wert nahe 65535 erkannt
-                            print(f"[WARN] Ungültiger Wert für ID {dxl_id}: {raw_value}")
-                            curr_dict[dxl_id] = None
-                        else:
-                            # Korrektur für negative Werte und Umkehrung nur für Werte über 1023
-                            if raw_value > 1024:
-                                raw_value -= 2048  # Umwandlung für negative Ströme
-                                raw_value *= -1  # Umdrehen nur der negativen Werte
-                            
-                            # Umrechnung des Rohwerts in Ampere
-                            CURRENT_SCALE_FACTOR = 1  # Beispiel: 1 Einheit = 1 mA
-                            current = raw_value * CURRENT_SCALE_FACTOR  # Berechnung des Stroms in Ampere
-                            
-                            curr_dict[dxl_id] = current  # Speichern des berechneten Stroms
-    
+                        # Konvertiere unsigned 16-bit (0 bis 65535) zu signed 16-bit (-32768 bis 32767)
+                        if raw_value > 32767:
+                            raw_value -= 65536  # Umwandlung in negative Werte
+                            raw_value *= -1  # Umdrehen nur der negativen Werte
+
+                        # Umrechnung des Rohwerts in Ampere
+                        CURRENT_SCALE_FACTOR = 0.01  # Beispiel: 1 Einheit = 1 mA
+                        current = raw_value * CURRENT_SCALE_FACTOR  # Berechnung des Stroms in Ampere
+                        
+                        curr_dict[dxl_id] = current  # Speichern des berechneten Stroms
+        
                     else:
                         curr_dict[dxl_id] = None
-    
+            
                 grp_read.clearParam()
                 return curr_dict
             except Exception as e:
@@ -368,46 +363,6 @@ class DynamixelManager:
 
 
 
-
-
-    
-
-    
-
-
-
-    
-
-
-
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-    
-
-
-
-
-                grp_read.clearParam()
-                return curr_dict
-            except Exception as e:
-                print(f"[ERROR] BulkRead Current error: {e}")
-                return {}
 
 
     def close(self):

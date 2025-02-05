@@ -1,8 +1,27 @@
 export class ProfileManager {
     constructor() {
+        // Initialize panels
         this.profilesPanel = document.getElementById('profiles-panel');
         this.pointsPanel = document.getElementById('points-panel');
+        
+        // Create progress overlay if it doesn't exist
         this.progressOverlay = document.querySelector('.progress-overlay');
+        if (!this.progressOverlay) {
+            this.progressOverlay = document.createElement('div');
+            this.progressOverlay.className = 'progress-overlay';
+            this.progressOverlay.innerHTML = `
+                <div class="progress-content">
+                    <div class="profile-name"></div>
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill"></div>
+                    </div>
+                    <div class="progress-status"></div>
+                </div>
+            `;
+            document.body.appendChild(this.progressOverlay);
+        }
+        
+        // Initialize state
         this.currentProfile = null;
         this.isPlaying = false;
         this.trackingHandler = null;
@@ -18,7 +37,7 @@ export class ProfileManager {
         
         // Start polling for progress updates during playback
         setInterval(() => {
-            if (this.isPlaying) {
+            if (this.isPlaying || this.progressOverlay.classList.contains('active')) {
                 this.updateProgress();
             }
         }, 100);
@@ -41,6 +60,7 @@ export class ProfileManager {
         profiles.forEach(profileName => {
             const item = document.createElement('div');
             item.className = 'profile-item';
+            item.dataset.profileName = profileName;
             
             const nameDiv = document.createElement('div');
             nameDiv.className = 'profile-name';
@@ -51,8 +71,16 @@ export class ProfileManager {
             
             const playButton = document.createElement('button');
             playButton.className = 'profile-button';
+            playButton.dataset.profileName = profileName;
             playButton.innerHTML = '<i class="fas fa-play"></i> Play';
-            playButton.onclick = () => this.playProfile(profileName);
+            playButton.onclick = (e) => {
+                e.stopPropagation();
+                if (this.isPlaying && this.currentProfile?.name === profileName) {
+                    this.stopProfile();
+                } else {
+                    this.playProfile(profileName);
+                }
+            };
             
             actions.appendChild(playButton);
             item.appendChild(nameDiv);
@@ -133,6 +161,11 @@ export class ProfileManager {
     
     async playProfile(profileName) {
         try {
+            if (this.isPlaying) {
+                console.log('Already playing a profile');
+                return;
+            }
+
             // Load profile data
             const response = await fetch(`/profile/${profileName}`);
             const profile = await response.json();
@@ -155,34 +188,50 @@ export class ProfileManager {
                 this.updateProgressOverlay(profile.name, 0, profile.points.length);
                 this.progressOverlay.classList.add('active');
                 
-                // Update play button to stop
-                const playButton = this.profilesPanel.querySelector(`button`);
-                if (playButton) {
-                    playButton.innerHTML = '<i class="fas fa-stop"></i> Stop';
-                    playButton.onclick = () => this.stopProfile();
-                }
+                // Update button states
+                const buttons = this.profilesPanel.querySelectorAll('.profile-button');
+                buttons.forEach(button => {
+                    const isCurrentProfile = button.closest('.profile-item').dataset.profileName === profileName;
+                    if (isCurrentProfile) {
+                        button.innerHTML = '<i class="fas fa-stop"></i> Stop';
+                        button.classList.add('active');
+                    } else {
+                        button.disabled = true;
+                    }
+                });
             }
         } catch (error) {
             console.error('Error playing profile:', error);
+            this.resetProfileButtons();
         }
     }
     
     async stopProfile() {
         try {
-            await fetch('/profile/stop', { method: 'POST' });
-            this.isPlaying = false;
-            this.currentProfile = null;
-            this.progressOverlay.classList.remove('active');
-            
-            // Reset play button
-            const playButton = this.profilesPanel.querySelector(`button`);
-            if (playButton) {
-                playButton.innerHTML = '<i class="fas fa-play"></i> Play';
-                playButton.onclick = () => this.playProfile(profile.name);
+            if (!this.isPlaying) {
+                console.log('No profile is currently playing');
+                return;
+            }
+
+            const stopResponse = await fetch('/profile/stop', { method: 'POST' });
+            if (stopResponse.ok) {
+                this.isPlaying = false;
+                this.currentProfile = null;
+                this.progressOverlay.classList.remove('active');
+                this.resetProfileButtons();
             }
         } catch (error) {
             console.error('Error stopping profile:', error);
         }
+    }
+
+    resetProfileButtons() {
+        const buttons = this.profilesPanel.querySelectorAll('.profile-button');
+        buttons.forEach(button => {
+            button.innerHTML = '<i class="fas fa-play"></i> Play';
+            button.classList.remove('active');
+            button.disabled = false;
+        });
     }
     
     async updateProgress() {
