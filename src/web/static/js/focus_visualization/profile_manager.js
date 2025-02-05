@@ -5,6 +5,7 @@ export class ProfileManager {
         this.progressOverlay = document.querySelector('.progress-overlay');
         this.currentProfile = null;
         this.isPlaying = false;
+        this.trackingHandler = null;
         
         // Bind methods
         this.updateProfiles = this.updateProfiles.bind(this);
@@ -60,13 +61,37 @@ export class ProfileManager {
         });
     }
     
+    setTrackingHandler(handler) {
+        this.trackingHandler = handler;
+        // Update tracking callback to refresh points display
+        if (handler) {
+            handler.setUpdateCallback(isTracking => {
+                const points = document.querySelectorAll('.point-item');
+                points.forEach(point => {
+                    const pointId = point.dataset.id;
+                    if (pointId === handler.getCurrentPointId()) {
+                        point.classList.add('active');
+                    } else {
+                        point.classList.remove('active');
+                    }
+                });
+            });
+        }
+    }
+
     updatePoints(points) {
+        if (!points) return;
+        
         const content = this.pointsPanel.querySelector('.panel-content');
+        const currentPointId = this.trackingHandler?.getCurrentPointId();
         content.innerHTML = '';
         
         points.forEach(point => {
             const item = document.createElement('div');
             item.className = 'point-item';
+            if (currentPointId === point.id) {
+                item.classList.add('active');
+            }
             
             const nameDiv = document.createElement('div');
             nameDiv.className = 'point-name';
@@ -76,8 +101,32 @@ export class ProfileManager {
             coords.className = 'point-coords';
             coords.textContent = `X: ${point.x.toFixed(0)}  Y: ${point.y.toFixed(0)}  Z: ${point.z.toFixed(0)}`;
             
+            const angles = document.createElement('div');
+            angles.className = 'point-angles';
+            
+            // Calculate angles
+            const dx = point.x;
+            const dy = point.y;
+            const dz = point.z;
+            const panAngle = Math.atan2(dx, Math.abs(dz)) * (180/Math.PI);
+            const horizontalDist = Math.sqrt(dx*dx + dz*dz);
+            const tiltAngle = Math.atan2(dy, horizontalDist) * (180/Math.PI);
+            
+            angles.textContent = `Pan: ${panAngle.toFixed(1)}°  Tilt: ${tiltAngle.toFixed(1)}°`;
+            
             item.appendChild(nameDiv);
             item.appendChild(coords);
+            item.appendChild(angles);
+            
+            // Add click handler to select point
+            item.addEventListener('click', () => {
+                if (this.trackingHandler) {
+                    this.trackingHandler.selectPoint(point);
+                }
+            });
+            
+            // Store point ID for tracking
+            item.dataset.id = point.id;
             content.appendChild(item);
         });
     }

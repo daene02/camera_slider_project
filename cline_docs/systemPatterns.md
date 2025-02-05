@@ -211,6 +211,55 @@ def execute_movement(positions, velocity=None):
 - Position validation
 - Movement timeout checks
 
+## Web Interface Design System
+
+### Web Settings Architecture
+Similar to the main settings.py, the web interface has its own configuration system:
+
+1. **Web Settings File Structure**
+- `src/web/web_settings.py`: Central configuration for all web styling
+- `src/web/static/css/base.css`: CSS implementation of web settings
+
+2. **Key Configuration Areas**
+```python
+# Colors
+- Primary colors (blue: #4a9eff)
+- Background colors (black)
+- Text colors (white, rgba variations)
+- Border colors (rgba(255, 255, 255, 0.3))
+
+# Typography
+- Font families (Arial, monospace)
+- Font sizes (12px to 24px)
+- Line heights and spacing
+
+# Component Dimensions
+- Icon buttons (60x60px)
+- Panels (300px width)
+- Spacing units (10px, 15px, 20px)
+
+# Animations
+- Durations (0.2s, 0.3s)
+- Timing functions (ease)
+```
+
+3. **Usage Pattern**
+```python
+from src.web.web_settings import COLORS, FONTS, COMPONENTS
+
+class WebComponent:
+    def __init__(self):
+        self.primary_color = COLORS["primary"]
+        self.font_family = FONTS["primary"]
+        self.button_size = COMPONENTS["icon_button"]["size"]
+```
+
+### Implementation Guidelines
+1. All web styling configurations in web_settings.py
+2. Use base.css for shared styles
+3. Follow consistent naming conventions
+4. Document all parameters
+
 ## Future Considerations
 1. Settings validation system
 2. Hot-reload capability

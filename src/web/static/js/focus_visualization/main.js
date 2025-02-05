@@ -19,6 +19,7 @@ export class FocusVisualization {
         this.trackingHandler = new TrackingHandler();
         this.pointHandler = new PointHandler();
         this.profileManager = new ProfileManager();
+        this.profileManager.setTrackingHandler(this.trackingHandler);
         
         // Initialize points renderer with all handlers
         this.pointsRenderer = new PointsRenderer(
@@ -62,6 +63,7 @@ export class FocusVisualization {
         this.pointHandler.setUpdateCallback(() => {
             const points = this.pointHandler.getPoints();
             this.canvasManager.setPoints(points);
+            this.profileManager.updatePoints(points);
             this.draw();
         });
         
@@ -77,6 +79,7 @@ export class FocusVisualization {
         await this.pointHandler.loadPoints();
         const points = this.pointHandler.getPoints();
         this.canvasManager.setPoints(points);
+        this.profileManager.updatePoints(points);
         console.log("Loaded points:", points);
         this.draw();
     }
@@ -100,9 +103,6 @@ export class FocusVisualization {
                 positions ? positions.tiltAngle : 0
             );
             this.pointsRenderer.draw(points, currentPointId, isTracking);
-            
-            // Draw points list overlay last (always on top)
-            this.canvasManager.drawPointsList(points, currentPointId);
             
         } catch (error) {
             console.error("Error in draw cycle:", error);

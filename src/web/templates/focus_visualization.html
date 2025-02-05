@@ -82,12 +82,20 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 1;
+        }
+
+        .icon-bar.hidden {
+            opacity: 0;
+            transform: translate(100px, -50%);
+            pointer-events: none;
         }
 
         .icon-button {
-            width: 40px;
-            height: 40px;
-            border-radius: 5px;
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
             background: rgba(0, 0, 0, 0.7);
             border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
@@ -96,10 +104,21 @@
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
+            font-size: 24px;
         }
 
         .icon-button:hover {
-            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.1);
+            background: rgba(74, 158, 255, 0.3);
+            border-color: #4a9eff;
+        }
+
+        .icon-button i {
+            transition: transform 0.2s;
+        }
+
+        .icon-button:hover i {
+            transform: scale(1.2);
         }
 
         .icon-button.active {
@@ -196,10 +215,30 @@
             margin-bottom: 5px;
         }
 
-        .point-coords {
+        .point-coords, .point-angles {
             font-family: monospace;
             font-size: 12px;
             color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 5px;
+        }
+
+        .point-item {
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .point-item:hover {
+            background: rgba(74, 158, 255, 0.1);
+            border-color: rgba(74, 158, 255, 0.3);
+        }
+
+        .point-item.active {
+            background: rgba(74, 158, 255, 0.2);
+            border-color: #4a9eff;
         }
     </style>
 </head>
@@ -253,7 +292,64 @@
         const iconButtons = document.querySelectorAll('.icon-button');
         const panels = document.querySelectorAll('.panel');
         let activePanel = null;
-        
+        let closeTimer = null;
+
+        // Close panel with animation
+        function closePanel() {
+            const iconBar = document.querySelector('.icon-bar');
+            const activeButton = document.querySelector('.icon-button.active');
+            
+            if (activeButton) {
+                activeButton.classList.remove('active');
+            }
+            if (activePanel) {
+                activePanel.classList.remove('active');
+                const panel = activePanel;
+                activePanel = null;
+                
+                // Show icons after panel slide
+                setTimeout(() => {
+                    if (!activePanel) { // Only show icons if no new panel was opened
+                        iconBar.classList.remove('hidden');
+                    }
+                }, 300);
+            }
+        }
+
+        // Auto-close functionality
+        function startCloseTimer() {
+            clearTimeout(closeTimer);
+            if (activePanel) {
+                closeTimer = setTimeout(closePanel, 3000);
+            }
+        }
+
+        // Add mouse event listeners to panels
+        panels.forEach(panel => {
+            panel.addEventListener('mouseenter', () => {
+                clearTimeout(closeTimer);
+            });
+            
+            panel.addEventListener('mouseleave', () => {
+                startCloseTimer();
+            });
+
+            // Reset auto-close timer when interacting with panel
+            panel.addEventListener('click', () => {
+                if (activePanel === panel) {
+                    clearTimeout(closeTimer);
+                    startCloseTimer();
+                }
+            });
+
+            panel.addEventListener('touchstart', () => {
+                if (activePanel === panel) {
+                    clearTimeout(closeTimer);
+                    startCloseTimer();
+                }
+            });
+        });
+
         // Restore scroll positions
         const scrollPositions = JSON.parse(localStorage.getItem('panelScrollPositions') || '{}');
         panels.forEach(panel => {
@@ -278,14 +374,12 @@
         // Panel toggle handling
         iconButtons.forEach(button => {
             button.addEventListener('click', () => {
+                clearTimeout(closeTimer);
                 const panelName = button.dataset.panel;
                 const panel = document.getElementById(`${panelName}-panel`);
                 
                 if (activePanel === panel) {
-                    // Close active panel
-                    button.classList.remove('active');
-                    panel.classList.remove('active');
-                    activePanel = null;
+                    closePanel();
                 } else {
                     // Close previously active panel
                     if (activePanel) {
@@ -294,25 +388,22 @@
                         activePanel.classList.remove('active');
                     }
                     
-                    // Open new panel
+                    // Open new panel and hide icons
                     button.classList.add('active');
                     panel.classList.add('active');
                     activePanel = panel;
+                    document.querySelector('.icon-bar').classList.add('hidden');
                 }
             });
         });
         
         // Close panel when clicking outside
         document.addEventListener('click', (event) => {
+            const iconBar = document.querySelector('.icon-bar');
             if (activePanel && 
                 !event.target.closest('.panel') && 
                 !event.target.closest('.icon-button')) {
-                const activeButton = document.querySelector('.icon-button.active');
-                if (activeButton) {
-                    activeButton.classList.remove('active');
-                }
-                activePanel.classList.remove('active');
-                activePanel = null;
+                closePanel();
             }
         });
         

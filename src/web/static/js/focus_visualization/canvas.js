@@ -77,24 +77,6 @@ export class CanvasManager {
         this.axisRenderer = renderer;
     }
 
-    isClickInPointsList(x, y) {
-        const padding = 20;
-        const listWidth = 300;
-        const listX = this.canvas.width - listWidth + 10 - padding;
-        const listY = padding;
-        const headerHeight = 40;
-        const itemHeight = 70;
-        const spacing = 10;
-        const totalContentHeight = headerHeight + (this.points.length * (itemHeight + spacing));
-        const listHeight = Math.min(
-            this.canvas.height - (padding * 2),
-            totalContentHeight
-        );
-
-        return (x >= listX - 150 && x <= listX + listWidth &&
-                y >= listY && y <= listY + listHeight);
-    }
-
     isClickOnPoint(x, y) {
         if (!this.pointsRenderer) return false;
         
@@ -133,7 +115,7 @@ export class CanvasManager {
         }
 
         // Then check other UI areas
-        if (this.isClickInPointsList(x, y) || this.isClickOnPoint(x, y)) {
+        if (this.isClickOnPoint(x, y)) {
             return; // Let other handlers process the click
         }
 
@@ -197,80 +179,6 @@ export class CanvasManager {
         if (this.onDraw) {
             this.onDraw();
         }
-    }
-
-    drawPointsList(points, currentPointId) {
-        if (!points || points.length === 0) {
-            return;
-        }
-
-        const padding = 20;
-        const listWidth = 300;
-        const listX = this.canvas.width - listWidth+10- padding;
-        const listY = padding;
-        const width = listWidth;
-        const headerHeight = 40;
-        const itemHeight = 70;
-        const spacing = 10;
-        
-        const totalContentHeight = headerHeight + (points.length * (itemHeight + spacing));
-        const listHeight = Math.min(
-            this.canvas.height - (padding * 2),
-            totalContentHeight
-        );
-        
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.roundRect(listX-150, listY, width, listHeight, 10);
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        this.ctx.fill();
-        
-        this.ctx.fillStyle = 'white';
-        this.ctx.font = 'bold 16px Arial';
-        this.ctx.fillText('Focus Points', listX , listY + 25);
-        
-        let y = listY + headerHeight;
-        points.forEach(point => {
-            if (y + itemHeight > listY + listHeight) return;
-            
-            const isSelected = point.id === currentPointId;
-            
-            if (isSelected) {
-                this.ctx.beginPath();
-                this.ctx.roundRect(listX + 5, y, width - 10, itemHeight - spacing, 5);
-                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-                this.ctx.fill();
-            }
-            
-            this.ctx.fillStyle = point.color || '#4a9eff';
-            this.ctx.font = 'bold 14px Arial';
-            this.ctx.fillText(point.name, listX + 15, y + 20);
-            
-            this.ctx.fillStyle = 'white';
-            this.ctx.font = '12px Arial';
-            this.ctx.fillText(
-                `X: ${point.x.toFixed(0)}mm  Y: ${point.y.toFixed(0)}mm  Z: ${point.z.toFixed(0)}mm`,
-                listX + 15,
-                y + 40
-            );
-            
-            const dx = point.x;
-            const dz = point.z;
-            const dy = point.y;
-            const panAngle = Math.atan2(dx, Math.abs(dz)) * (180/Math.PI);
-            const horizontalDist = Math.sqrt(dx*dx + dz*dz);
-            const tiltAngle = Math.atan2(dy, horizontalDist) * (180/Math.PI);
-            
-            this.ctx.fillText(
-                `Pan: ${panAngle.toFixed(1)}°  Tilt: ${tiltAngle.toFixed(1)}°`,
-                listX + 15,
-                y + 60
-            );
-            
-            y += itemHeight;
-        });
-        
-        this.ctx.restore();
     }
 
     clear() {
