@@ -5,6 +5,7 @@ import { PointsRenderer } from './renderer/points.js';
 import { MotorPositionHandler } from './handlers/motor.js';
 import { TrackingHandler } from './handlers/tracking.js';
 import { PointHandler } from './handlers/point.js';
+import { ProfileManager } from './profile_manager.js';
 
 export class FocusVisualization {
     constructor(canvasId) {
@@ -17,12 +18,20 @@ export class FocusVisualization {
         this.motorHandler = new MotorPositionHandler();
         this.trackingHandler = new TrackingHandler();
         this.pointHandler = new PointHandler();
+        this.profileManager = new ProfileManager();
         
         // Initialize points renderer with all handlers
         this.pointsRenderer = new PointsRenderer(
             this.canvasManager,
             this.motorHandler
         );
+
+        // Connect profile manager with points handler
+        this.pointHandler.setUpdateCallback((points) => {
+            this.profileManager.updatePoints(points);
+            this.canvasManager.setPoints(points);
+            this.draw();
+        });
         
         // Connect tracking handler and points renderer
         this.pointsRenderer.setTrackingHandler(this.trackingHandler);

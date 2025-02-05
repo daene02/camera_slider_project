@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Focus Visualization</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
             margin: 0;
@@ -38,111 +39,311 @@
             background: rgba(0, 0, 0, 0.9);
             color: white;
         }
-        
-        #debug {
+
+        .progress-overlay {
             position: fixed;
-            bottom: 10px;
-            left: 10px;
-            color: white;
-            font-family: monospace;
-            font-size: 12px;
+            top: 80px;
+            left: 20px;
             z-index: 1000;
             background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 15px;
             border-radius: 5px;
-            max-width: 400px;
-            overflow-wrap: break-word;
             display: none;
         }
 
-        .debug-header {
-            padding: 8px;
-            cursor: pointer;
+        .progress-overlay.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 200px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin-top: 10px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: #4a9eff;
+            border-radius: 2px;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        .icon-bar {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            flex-direction: column;
+            gap: 10px;
         }
 
-        .debug-content {
-            padding: 10px;
-            max-height: 300px;
-            overflow-y: auto;
-            transition: max-height 0.3s ease;
-        }
-
-        #debug.collapsed .debug-content {
-            max-height: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        .toggle-btn {
-            background: none;
-            border: none;
+        .icon-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .icon-button:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        .icon-button.active {
+            background: #4a9eff;
+            border-color: #4a9eff;
+        }
+
+        .panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 300px;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            border-left: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            z-index: 999;
+            transform: translateX(100%);
             transition: transform 0.3s ease;
         }
 
-        #debug.collapsed .toggle-btn {
-            transform: rotate(-90deg);
+        .panel.active {
+            transform: translateX(0);
+        }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .panel-content {
+            padding: 20px;
+            height: calc(100% - 61px);
+            overflow-y: auto;
+        }
+
+        .profile-item {
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .profile-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .profile-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .profile-button {
+            padding: 5px 15px;
+            border-radius: 3px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .profile-button:hover {
+            background: rgba(74, 158, 255, 0.8);
+            border-color: #4a9eff;
+        }
+
+        /* Debug Panel Styles */
+        .debug-content {
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .debug-message {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Points Panel Styles */
+        .point-item {
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .point-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .point-coords {
+            font-family: monospace;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
         }
     </style>
 </head>
 <body>
     <a href="/focus" class="back-button">Back to Focus Control</a>
-    <canvas id="focusCanvas"></canvas>
-    <div id="debug" class="collapsed">
-        <div class="debug-header" id="debugHeader">
-            <span>Debug Log</span>
-            <button class="toggle-btn">▼</button>
+    
+    <!-- Progress Overlay -->
+    <div class="progress-overlay">
+        <div class="profile-name">Profile Name</div>
+        <div class="progress-status">Point 1/10</div>
+        <div class="progress-bar">
+            <div class="progress-bar-fill"></div>
         </div>
-        <div class="debug-content"></div>
     </div>
+    
+    <!-- Icon Bar -->
+    <div class="icon-bar">
+        <button class="icon-button" data-panel="profiles">
+            <i class="fas fa-play"></i>
+        </button>
+        <button class="icon-button" data-panel="points">
+            <i class="fas fa-crosshairs"></i>
+        </button>
+        <button class="icon-button" data-panel="debug">
+            <i class="fas fa-terminal"></i>
+        </button>
+    </div>
+    
+    <!-- Panels -->
+    <div id="profiles-panel" class="panel">
+        <div class="panel-header">Profiles</div>
+        <div class="panel-content"></div>
+    </div>
+    
+    <div id="points-panel" class="panel">
+        <div class="panel-header">Focus Points</div>
+        <div class="panel-content"></div>
+    </div>
+    
+    <div id="debug-panel" class="panel">
+        <div class="panel-header">Debug Log</div>
+        <div class="panel-content debug-content"></div>
+    </div>
+    
+    <canvas id="focusCanvas"></canvas>
     
     <script type="module">
         import { FocusVisualization } from '/static/js/focus_visualization/main.js';
         
-        const debug = document.getElementById('debug');
+        // Panel Management
+        const iconButtons = document.querySelectorAll('.icon-button');
+        const panels = document.querySelectorAll('.panel');
+        let activePanel = null;
         
-        // Load debug state from localStorage
-        const debugPanel = document.getElementById('debug');
-        const debugContent = debugPanel.querySelector('.debug-content');
-        const debugHeader = document.getElementById('debugHeader');
-        
-        // Initialize from localStorage or default to collapsed
-        const isCollapsed = localStorage.getItem('debugCollapsed') === 'true';
-        debugPanel.classList.toggle('collapsed', isCollapsed);
-        
-        // Toggle debug panel
-        debugHeader.addEventListener('click', () => {
-            debugPanel.classList.toggle('collapsed');
-            localStorage.setItem('debugCollapsed', debugPanel.classList.contains('collapsed'));
+        // Restore scroll positions
+        const scrollPositions = JSON.parse(localStorage.getItem('panelScrollPositions') || '{}');
+        panels.forEach(panel => {
+            const content = panel.querySelector('.panel-content');
+            if (content && scrollPositions[panel.id]) {
+                content.scrollTop = scrollPositions[panel.id];
+            }
         });
         
-        // Override console.log for debugging
-        const originalLog = console.log;
-        console.log = (...args) => {
-            originalLog.apply(console, args);
-            if (debugPanel) {
-                debugPanel.style.display = 'block';
-                debugContent.innerHTML = args.map(arg => 
-                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
-                ).join(' ') + '<br>' + debugContent.innerHTML;
-                
-                // Keep only last 10 messages
-                const messages = debugContent.innerHTML.split('<br>');
-                if (messages.length > 10) {
-                    debugContent.innerHTML = messages.slice(0, 10).join('<br>');
+        // Save scroll positions before unload
+        window.addEventListener('beforeunload', () => {
+            const positions = {};
+            panels.forEach(panel => {
+                const content = panel.querySelector('.panel-content');
+                if (content) {
+                    positions[panel.id] = content.scrollTop;
                 }
-            }
-        };
+            });
+            localStorage.setItem('panelScrollPositions', JSON.stringify(positions));
+        });
         
+        // Panel toggle handling
+        iconButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const panelName = button.dataset.panel;
+                const panel = document.getElementById(`${panelName}-panel`);
+                
+                if (activePanel === panel) {
+                    // Close active panel
+                    button.classList.remove('active');
+                    panel.classList.remove('active');
+                    activePanel = null;
+                } else {
+                    // Close previously active panel
+                    if (activePanel) {
+                        const activeButton = document.querySelector(`.icon-button[data-panel="${activePanel.id.replace('-panel', '')}"]`);
+                        activeButton.classList.remove('active');
+                        activePanel.classList.remove('active');
+                    }
+                    
+                    // Open new panel
+                    button.classList.add('active');
+                    panel.classList.add('active');
+                    activePanel = panel;
+                }
+            });
+        });
+        
+        // Close panel when clicking outside
+        document.addEventListener('click', (event) => {
+            if (activePanel && 
+                !event.target.closest('.panel') && 
+                !event.target.closest('.icon-button')) {
+                const activeButton = document.querySelector('.icon-button.active');
+                if (activeButton) {
+                    activeButton.classList.remove('active');
+                }
+                activePanel.classList.remove('active');
+                activePanel = null;
+            }
+        });
+        
+        // Initialize visualization
         window.addEventListener('DOMContentLoaded', () => {
             console.log('Initializing focus visualization...');
             window.focusViz = new FocusVisualization('focusCanvas');
             console.log('Visualization initialized');
         });
+        
+        // Override console.log for debug panel
+        const debugContent = document.querySelector('#debug-panel .debug-content');
+        const originalLog = console.log;
+        console.log = (...args) => {
+            originalLog.apply(console, args);
+            
+            if (debugContent) {
+                const message = document.createElement('div');
+                message.className = 'debug-message';
+                message.textContent = args.map(arg => 
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+                ).join(' ');
+                
+                debugContent.insertBefore(message, debugContent.firstChild);
+                
+                // Keep only last 100 messages
+                while (debugContent.children.length > 100) {
+                    debugContent.removeChild(debugContent.lastChild);
+                }
+            }
+        };
     </script>
 </body>
 </html>
