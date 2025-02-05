@@ -1,8 +1,7 @@
 import gphoto2 as gp
-import time
 import logging
 import asyncio
-from typing import Dict, Optional, Any, Tuple
+from typing import Dict, Optional, Any
 
 class CanonEOSR50:
     """Manages communication with Canon EOS R50 camera via gphoto2."""
@@ -46,15 +45,10 @@ class CanonEOSR50:
             return False
 
         try:
-            # Pre-capture delay
-            await self._sleep(0.2)
-            
-            # Capture
+            await self._sleep(0.2)  # Pre-capture delay
             self._logger.info("Capturing photo")
             self.camera.trigger_capture()
-            
-            # Post-capture delay
-            await self._sleep(0.2)
+            await self._sleep(0.2)  # Post-capture delay
             return True
         except Exception as e:
             self._logger.error(f"Error capturing photo: {str(e)}")
@@ -67,16 +61,12 @@ class CanonEOSR50:
             return False
 
         try:
-            # Enable movie mode
             config = self.camera.get_config()
-            movie_mode = self._get_config_value(config, 'eosmoviemode')
-            if movie_mode:
+            if movie_mode := self._get_config_value(config, 'eosmoviemode'):
                 movie_mode.set_value(1)
                 self.camera.set_config(config)
-                
-            # Start recording
-            remote_mode = self._get_config_value(config, 'eosremoterelease')
-            if remote_mode:
+            
+            if remote_mode := self._get_config_value(config, 'eosremoterelease'):
                 remote_mode.set_value("Record Start")
                 self.camera.set_config(config)
                 self._logger.info("Video recording started")
@@ -94,8 +84,7 @@ class CanonEOSR50:
 
         try:
             config = self.camera.get_config()
-            remote_mode = self._get_config_value(config, 'eosremoterelease')
-            if remote_mode:
+            if remote_mode := self._get_config_value(config, 'eosremoterelease'):
                 remote_mode.set_value("Record Stop")
                 self.camera.set_config(config)
                 self._logger.info("Video recording stopped")
@@ -104,36 +93,6 @@ class CanonEOSR50:
         except Exception as e:
             self._logger.error(f"Error stopping video: {str(e)}")
             return False
-
-    async def capture_preview(self) -> Optional[gp.CameraFile]:
-        """Capture a preview image from the camera."""
-        if not self.camera:
-            self._logger.error("Camera not connected")
-            return None
-
-        try:
-            # Enable live view if not already enabled
-            if not self.live_view_enabled:
-                success = await self.toggle_live_view(True)
-                if not success:
-                    self._logger.error("Failed to enable live view for preview")
-                    return None
-                await self._sleep(0.5)  # Wait for live view to start
-
-            # Capture preview
-            try:
-                preview = self.camera.capture_preview()
-                if not preview:
-                    self._logger.error("Preview capture returned None")
-                    return None
-                return preview
-            except Exception as e:
-                self._logger.error(f"Error capturing preview: {str(e)}")
-                return None
-
-        except Exception as e:
-            self._logger.error(f"Error in capture_preview: {str(e)}")
-            return None
 
     async def toggle_live_view(self, enable: bool = None) -> bool:
         """Toggle live view on/off."""
@@ -151,26 +110,34 @@ class CanonEOSR50:
                 self._logger.error("Viewfinder not found in camera config")
                 return False
 
-            # Toggle viewfinder
             viewfinder.set_value(1 if enable else 0)
             self.camera.set_config(config)
+            await self._sleep(0.3)  # Give camera time to process change
             
-            # Wait for camera to process change
-            await self._sleep(0.5)
-            
-            # Verify the change took effect
-            config = self.camera.get_config()
-            current_value = self._get_config_value(config, 'viewfinder')
-            if current_value and int(current_value.get_value()) == (1 if enable else 0):
-                self.live_view_enabled = enable
-                self._logger.info(f"Live view {'enabled' if enable else 'disabled'}")
-                return True
-            
-            self._logger.error("Failed to verify live view state change")
-            return False
+            self.live_view_enabled = enable
+            self._logger.info(f"Live view {'enabled' if enable else 'disabled'}")
+            return True
         except Exception as e:
             self._logger.error(f"Error toggling live view: {str(e)}")
             return False
+
+    async def capture_preview(self) -> Optional[gp.CameraFile]:
+        """Capture a preview image from the camera."""
+        if not self.camera:
+            self._logger.error("Camera not connected")
+            return None
+
+        try:
+            # Make sure live view is enabled
+            if not self.live_view_enabled:
+                if not await self.toggle_live_view(True):
+                    return None
+
+            preview = self.camera.capture_preview()
+            return preview if preview else None
+        except Exception as e:
+            self._logger.error(f"Error capturing preview: {str(e)}")
+            return None
 
     async def get_storage_info(self) -> Dict[str, Any]:
         """Get storage information from camera."""
@@ -203,15 +170,13 @@ class CanonEOSR50:
             config = self.camera.get_config()
             settings = {}
             
-            # Map of settings to retrieve
             setting_keys = [
                 'iso', 'aperture', 'shutterspeed', 'autoexposuremode',
                 'imageformat', 'whitebalance'
             ]
             
             for key in setting_keys:
-                value = self._get_config_value(config, key)
-                if value:
+                if value := self._get_config_value(config, key):
                     settings[key] = value.get_value()
             
             return settings
@@ -227,10 +192,8 @@ class CanonEOSR50:
 
         try:
             config = self.camera.get_config()
-            
             for key, value in settings.items():
-                setting = self._get_config_value(config, key)
-                if setting:
+                if setting := self._get_config_value(config, key):
                     setting.set_value(value)
             
             self.camera.set_config(config)
