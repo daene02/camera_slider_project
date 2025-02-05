@@ -11,8 +11,10 @@ export class CanvasManager {
         this.setupCanvas();
         this.loadBackground();
         
-        // Initialize renderers
+        // Initialize renderers and handlers
         this.axisRenderer = null;
+        this.trackingHandler = null;
+        this.pointsRenderer = null;
         
         // Event handlers
         window.addEventListener('resize', () => this.setupCanvas());
@@ -31,13 +33,21 @@ export class CanvasManager {
         this.background.src = '/static/images/backgrounds/slider.jpg';
     }
 
+    setTrackingHandler(handler) {
+        this.trackingHandler = handler;
+    }
+
+    setPointsRenderer(renderer) {
+        this.pointsRenderer = renderer;
+    }
+
     handleMouseMove(event) {
         const rect = this.canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        // Check if mouse is over axis numbers
         let needsRedraw = false;
+        // Check if mouse is over axis numbers
         if (this.axisRenderer) {
             needsRedraw = this.axisRenderer.handleMouseMove(x, y);
         }
@@ -51,20 +61,49 @@ export class CanvasManager {
         this.axisRenderer = renderer;
     }
 
+    isClickInPointsList(x, y) {
+        const padding = 20;
+        const listWidth = 300;
+        const listX = this.canvas.width - listWidth + 10 - padding;
+        const listY = padding;
+        const headerHeight = 40;
+        const itemHeight = 70;
+        const spacing = 10;
+        const totalContentHeight = headerHeight + (this.points.length * (itemHeight + spacing));
+        const listHeight = Math.min(
+            this.canvas.height - (padding * 2),
+            totalContentHeight
+        );
+
+        return (x >= listX - 150 && x <= listX + listWidth &&
+                y >= listY && y <= listY + listHeight);
+    }
+
+    isClickOnPoint(x, y) {
+        if (!this.pointsRenderer) return false;
+        
+        const points = this.points || [];
+        return points.some(point => {
+            const pointPos = this.worldToScreen(point.x, point.y);
+            const distance = Math.sqrt(
+                Math.pow(x - pointPos.x, 2) + 
+                Math.pow(y - pointPos.y, 2)
+            );
+            return distance <= (12 * this.zoomLevel * 2);
+        });
+    }
+
     handleClick(event) {
         const rect = this.canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        // Check if an axis number was clicked
+        // First check if we clicked on axis numbers
         if (this.axisRenderer) {
             const mmValue = this.axisRenderer.handleClick(x, y);
             if (mmValue !== null) {
-                // Convert mm to motor steps (64/4096 mm per step)
-                // steps = mm * (4096/64) = mm * 64
+                // Convert mm to motor steps and send position update
                 const position = Math.round(mmValue * 64);
-                
-                // Send motor position update
                 fetch('/motor/2/position', {
                     method: 'POST',
                     headers: {
@@ -72,7 +111,21 @@ export class CanvasManager {
                     },
                     body: JSON.stringify({ position })
                 });
+                this.draw(); // Redraw to update axis highlights
+                return;
             }
+        }
+
+        // Then check other UI areas
+        if (this.isClickInPointsList(x, y) || this.isClickOnPoint(x, y)) {
+            return; // Let other handlers process the click
+        }
+
+        // If click was in empty space and tracking is active, stop tracking
+        if (this.trackingHandler && this.trackingHandler.isTracking()) {
+            console.log("Click in empty space, stopping tracking");
+            this.trackingHandler.stopTracking();
+            this.draw(); // Force redraw to update UI
         }
     }
 
@@ -88,13 +141,12 @@ export class CanvasManager {
 
     animate() {
         const currentTime = performance.now();
-        const deltaTime = (currentTime - this.lastFrameTime) / 1000; // Convert to seconds
+        const deltaTime = (currentTime - this.lastFrameTime) / 1000;
         this.lastFrameTime = currentTime;
 
-        // Smooth zoom animation
         const zoomDiff = this.targetZoom - this.zoomLevel;
         if (Math.abs(zoomDiff) > 0.001) {
-            this.zoomLevel += zoomDiff * Math.min(deltaTime * 10, 1); // Adjust speed with the multiplier
+            this.zoomLevel += zoomDiff * Math.min(deltaTime * 10, 1);
             this.draw();
         }
 
@@ -132,62 +184,41 @@ export class CanvasManager {
     }
 
     drawPointsList(points, currentPointId) {
-        console.log("\n=== Drawing Points List ===");
-        console.log("Points array:", points);
-        console.log("Current point ID:", currentPointId);
-        
         if (!points || points.length === 0) {
-            console.log("No points to display");
             return;
         }
 
         const padding = 20;
-        const listWidth = 300;  // Increased width for better readability
+        const listWidth = 300;
         const listX = this.canvas.width - listWidth+10- padding;
         const listY = padding;
         const width = listWidth;
         const headerHeight = 40;
-        const itemHeight = 70;  // Increased height for better spacing
-        const spacing = 10;     // Space between items
+        const itemHeight = 70;
+        const spacing = 10;
         
-        // Calculate total height needed
         const totalContentHeight = headerHeight + (points.length * (itemHeight + spacing));
         const listHeight = Math.min(
-            this.canvas.height - (padding * 2),  // Maximum available height
-            totalContentHeight                   // Required height for all content
+            this.canvas.height - (padding * 2),
+            totalContentHeight
         );
         
-        console.log("List dimensions:", {
-            x: listX,
-            y: listY,
-            width: width,
-            height: listHeight,
-            totalItems: points.length
-        });
-        
-        // Draw semi-transparent background
         this.ctx.save();
         this.ctx.beginPath();
         this.ctx.roundRect(listX-150, listY, width, listHeight, 10);
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         this.ctx.fill();
         
-        // Draw title
         this.ctx.fillStyle = 'white';
         this.ctx.font = 'bold 16px Arial';
         this.ctx.fillText('Focus Points', listX , listY + 25);
         
-        // Draw points
         let y = listY + headerHeight;
         points.forEach(point => {
-            // Skip if would render outside visible area
-            if (y + itemHeight > listY + listHeight) {
-                return;
-            }
+            if (y + itemHeight > listY + listHeight) return;
             
             const isSelected = point.id === currentPointId;
             
-            // Draw selection background
             if (isSelected) {
                 this.ctx.beginPath();
                 this.ctx.roundRect(listX + 5, y, width - 10, itemHeight - spacing, 5);
@@ -195,7 +226,6 @@ export class CanvasManager {
                 this.ctx.fill();
             }
             
-            // Draw point details
             this.ctx.fillStyle = point.color || '#4a9eff';
             this.ctx.font = 'bold 14px Arial';
             this.ctx.fillText(point.name, listX + 15, y + 20);
@@ -208,7 +238,6 @@ export class CanvasManager {
                 y + 40
             );
             
-            // Calculate angles
             const dx = point.x;
             const dz = point.z;
             const dy = point.y;

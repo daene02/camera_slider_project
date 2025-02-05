@@ -97,13 +97,19 @@ export class TrackingHandler {
             return true;
         }
         
-        // If tracking a different point, stop current tracking
-        if (this.isTrackingActive) {
-            console.log("Stopping current tracking before switching points");
-            await this.stopTracking();
+        // Start tracking new point (backend handles stopping previous tracking)
+        const success = await this.startTracking(point);
+        
+        // Update UI immediately on success
+        if (success) {
+            this.isTrackingActive = true;
+            this.currentPointId = point.id;
+            if (this.updateCallback) {
+                console.log("Calling update callback - point selected");
+                this.updateCallback(true);
+            }
         }
         
-        // Start tracking new point
-        return this.startTracking(point);
+        return success;
     }
 }

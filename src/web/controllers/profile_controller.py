@@ -18,6 +18,7 @@ class ProfileController:
     def __init__(self):
         self.playback_stop_event = Event()
         self.current_playback_thread = None
+        self.tracking_active = False
 
     def get_profile_path(self, name=None):
         current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -109,8 +110,6 @@ class ProfileController:
 
             time.sleep(check_interval)
             retry_count += 1
-            if retry_count % 20 == 0:
-                logger.debug(f"Still waiting for motors to reach position... (attempt {retry_count}/{max_retries})")
 
         logger.warning("Position verification timed out or stopped")
         return False
@@ -122,7 +121,7 @@ class ProfileController:
     def run_profile(self, profile, settings):
         try:
             logger.info("Starting profile playback")
-
+            
             # Set acceleration for primary motors
             acceleration = int(profile.get('acceleration', DEFAULT_ACCELERATION))
             primary_accel_dict = {
@@ -147,10 +146,10 @@ class ProfileController:
                     if point.get('focus_point_id') is not None:
                         first_focus_point = focus_controller.get_focus_point(point['focus_point_id'])
                         if first_focus_point:
-                            logger.debug("Starting focus tracking")
-                            success, error = focus_controller.start_tracking(first_focus_point)
-                            if not success:
-                                logger.error(f"Failed to start focus tracking: {error}")
+                            logger.debug("Starting initial focus tracking")
+                            success = focus_controller.start_tracking(first_focus_point)
+                            self.tracking_active = success
+                            logger.debug(f"Initial tracking start {'succeeded' if success else 'failed'}")
                         break
 
             # Process each point in sequence
@@ -161,25 +160,31 @@ class ProfileController:
                 try:
                     logger.debug(f"Processing point {i+1}")
                     
-                    # Update focus point if needed
+                    # Handle focus point changes
                     focus_point_id = point.get('focus_point_id')
                     if focus_point_id is not None:
                         focus_point = focus_controller.get_focus_point(focus_point_id)
                         if focus_point:
-                            logger.debug(f"Updating focus point: {focus_point}")
-                            focus_controller.set_focus_point(focus_point)
+                            if not self.tracking_active:
+                                # Start tracking if not active
+                                logger.debug(f"Starting focus tracking at point {i+1}")
+                                success = focus_controller.start_tracking(focus_point)
+                                self.tracking_active = success
+                            else:
+                                # Update existing tracking
+                                logger.debug(f"Updating focus point at point {i+1}")
+                                success = focus_controller.set_focus_point(focus_point)[0]
+                            logger.debug(f"Focus point update {'succeeded' if success else 'failed'}")
                     
-                    # Get the time-based velocity (duration)
+                    # Get and set point settings
                     duration = int(point.get('velocity', 1000))
-                    
-                    # Convert saved positions to motor steps (explicitly exclude pan/tilt)
                     positions = {
                         int(motor_id): int(pos) 
                         for motor_id, pos in point['positions'].items() 
                         if str(motor_id) not in [str(MOTOR_IDS['pan']), str(MOTOR_IDS['tilt'])]
                     }
 
-                    # Set velocity and positions for primary motors together
+                    # Set velocities
                     primary_velocity_dict = {
                         MOTOR_IDS['turntable']: duration,
                         MOTOR_IDS['slider']: duration,
@@ -187,10 +192,10 @@ class ProfileController:
                         MOTOR_IDS['focus']: duration
                     }
                     
-                    logger.debug(f"Setting motor velocities: {primary_velocity_dict}")
+                    logger.debug(f"Setting velocities: primary={primary_velocity_dict}")
                     motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_velocity, primary_velocity_dict)
                     
-                    # Move primary motors
+                    # Move motors
                     logger.debug(f"Moving to positions: {positions}")
                     if not motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, positions):
                         raise Exception(f"Failed to move primary motors at point {i+1}")
@@ -206,8 +211,6 @@ class ProfileController:
         except Exception as e:
             logger.error(f"Error in profile playback: {str(e)}")
         finally:
-            # Clear stop event but don't stop focus tracking
-            # This allows focus tracking to continue after profile ends
             self.playback_stop_event.clear()
 
     def start_playback(self, profile, settings):
@@ -216,6 +219,7 @@ class ProfileController:
             
         try:
             self.playback_stop_event.clear()
+            self.tracking_active = False
             self.current_playback_thread = Thread(target=self.run_profile, args=(profile, settings))
             self.current_playback_thread.start()
             return True, None
@@ -228,6 +232,8 @@ class ProfileController:
             current_positions = motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_read_positions)
             if current_positions:
                 motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, current_positions)
+            if self.tracking_active:
+                self.tracking_active = False
             return True, None
         except Exception as e:
             return False, str(e)
