@@ -4,13 +4,43 @@
 
 {% block content %}
 <div class="control-section">
-    <h1>Video Mode</h1>
+    <h1 class="text-xlarge">Video Mode</h1>
+    
+    <!-- Camera Connection Status -->
+    <div class="camera-status">
+        <h2>Camera Status</h2>
+        <div class="control-panel">
+            <div class="status-row">
+                <label>Connection:</label>
+                <span id="camera-connection">Not Connected</span>
+                <button id="connect-camera" class="btn">Connect Camera</button>
+            </div>
+            <div class="status-row">
+                <label>Storage:</label>
+                <span id="storage-info">N/A</span>
+            </div>
+            <div class="status-row">
+                <label>Battery:</label>
+                <span id="battery-info">N/A</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live View -->
+    <div class="live-view-panel">
+        <div class="live-view-controls">
+            <button id="toggle-live-view" class="btn" disabled>Enable Live View</button>
+        </div>
+        <div id="live-view-container" style="display: none;">
+            <img id="live-view" src="" alt="Camera Live View">
+        </div>
+    </div>
     <div class="video-controls">
         <h2>Camera Settings</h2>
         <div class="control-panel">
             <div class="setting-row">
                 <label>Recording Resolution:</label>
-                <select id="resolution">
+                <select id="resolution" class="form-control">
                     <option value="4k">4K (3840x2160)</option>
                     <option value="1080p">1080p (1920x1080)</option>
                     <option value="720p">720p (1280x720)</option>
@@ -18,7 +48,7 @@
             </div>
             <div class="setting-row">
                 <label>Frame Rate:</label>
-                <select id="framerate">
+                <select id="framerate" class="form-control">
                     <option value="60">60 fps</option>
                     <option value="30">30 fps</option>
                     <option value="24">24 fps</option>
@@ -32,12 +62,12 @@
         <div class="control-panel">
             <div class="setting-row">
                 <label>Velocity (from Duration):</label>
-                <input type="number" id="duration" value="10" min="1" max="3600">
+                <input type="number" id="duration" value="10" min="1" max="3600" class="form-control">
                 <span class="hint">seconds (lower = faster)</span>
             </div>
             <div class="setting-row">
                 <label>Movement Profile:</label>
-                <select id="profile">
+                <select id="profile" class="form-control">
                     <option value="">Select a profile...</option>
                 </select>
             </div>
@@ -51,9 +81,9 @@
     </div>
 
     <div class="action-buttons">
-        <button id="start-record" class="btn">Start Recording</button>
-        <button id="stop-record" class="btn danger" disabled>Stop Recording</button>
-        <button id="preview" class="btn">Preview Movement</button>
+        <button id="start-record" class="btn btn-success">Start Recording</button>
+        <button id="stop-record" class="btn btn-danger" disabled>Stop Recording</button>
+        <button id="preview" class="btn btn-primary">Preview Movement</button>
     </div>
 
     <div class="status-panel" style="display: none;">
@@ -75,131 +105,112 @@
 </div>
 {% endblock %}
 
-{% block extra_styles %}
-<style>
-.video-controls, .motion-controls {
-    margin-bottom: 30px;
-}
-
-.setting-row {
-    display: flex;
-    align-items: center;
-    margin: 15px 0;
-    gap: 20px;
-}
-
-.setting-row label {
-    min-width: 150px;
-    font-weight: bold;
-}
-
-.setting-row select, .setting-row input {
-    padding: 8px;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-    min-width: 200px;
-}
-
-.setting-row .hint {
-    color: rgba(255,255,255,0.6);
-    font-size: 0.9em;
-}
-
-.focus-control-panel {
-    margin-top: 20px;
-    padding: 15px;
-    background: rgba(0,0,0,0.2);
-    border-radius: 8px;
-}
-
-#focus-settings {
-    margin-top: 10px;
-    padding: 10px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 4px;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 10px;
-    margin: 20px 0;
-}
-
-.status-panel {
-    margin-top: 30px;
-}
-
-.status-info {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.info-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #eee;
-}
-
-.progress-bar {
-    height: 20px;
-    background: #eee;
-    border-radius: 10px;
-    margin-top: 20px;
-    overflow: hidden;
-}
-
-.progress {
-    height: 100%;
-    background: #2196F3;
-    transition: width 0.3s ease;
-}
-
-.btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    background: rgba(255,255,255,0.1);
-    color: white;
-    transition: all 0.3s ease;
-}
-
-.btn:hover {
-    background: rgba(255,255,255,0.2);
-    transform: scale(1.05);
-}
-
-.btn.danger {
-    background: rgba(255,0,0,0.3);
-}
-
-.btn.active {
-    background: #2196F3;
-    color: white;
-}
-
-.btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
-
-#focus-tracking {
-    min-width: 200px;
-}
-
-#focus-tracking.active {
-    background: #4CAF50;
-}
-</style>
-{% endblock %}
-
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // Camera control elements
+    const connectBtn = document.getElementById('connect-camera');
+    const cameraStatus = document.getElementById('camera-connection');
+    const storageInfo = document.getElementById('storage-info');
+    const batteryInfo = document.getElementById('battery-info');
+    const liveViewBtn = document.getElementById('toggle-live-view');
+    const liveViewContainer = document.getElementById('live-view-container');
+    const liveView = document.getElementById('live-view');
+
+    // Camera connection
+    async function connectCamera() {
+        try {
+            const response = await fetch('/camera/connect', {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                await updateCameraStatus();
+                connectBtn.style.display = 'none';
+                liveViewBtn.disabled = false;
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to connect camera');
+            }
+        } catch (error) {
+            console.error('Camera connection error:', error);
+            alert('Failed to connect camera: ' + error.message);
+        }
+    }
+
+    // Update camera status
+    async function updateCameraStatus() {
+        try {
+            const response = await fetch('/camera/status');
+            const status = await response.json();
+            
+            if (status.connected) {
+                cameraStatus.textContent = 'Connected';
+                cameraStatus.className = 'connected';
+                
+                if (status.storage) {
+                    storageInfo.textContent = `${status.storage.available_shots} shots remaining`;
+                }
+                
+                if (status.storage && status.storage.battery_level !== undefined) {
+                    batteryInfo.textContent = `${status.storage.battery_level}%`;
+                }
+                
+                // Update live view status
+                liveViewBtn.textContent = status.live_view ? 'Disable Live View' : 'Enable Live View';
+                liveViewContainer.style.display = status.live_view ? 'block' : 'none';
+            } else {
+                cameraStatus.textContent = 'Not Connected';
+                cameraStatus.className = '';
+                storageInfo.textContent = 'N/A';
+                batteryInfo.textContent = 'N/A';
+            }
+        } catch (error) {
+            console.error('Error updating camera status:', error);
+        }
+    }
+
+    // Live view toggle
+    async function toggleLiveView() {
+        try {
+            const response = await fetch('/camera/live_view/toggle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    enable: liveViewContainer.style.display === 'none'
+                })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                liveViewContainer.style.display = result.enabled ? 'block' : 'none';
+                liveViewBtn.textContent = result.enabled ? 'Disable Live View' : 'Enable Live View';
+                
+                if (result.enabled) {
+                    // Start live view update loop
+                    updateLiveView();
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling live view:', error);
+            alert('Failed to toggle live view');
+        }
+    }
+
+    // Update live view image
+    function updateLiveView() {
+        if (liveViewContainer.style.display === 'block') {
+            liveView.src = `/camera/live_view?t=${Date.now()}`;
+            setTimeout(updateLiveView, 100);  // Update every 100ms
+        }
+    }
+
+    // Connect event listeners
+    connectBtn.addEventListener('click', connectCamera);
+    liveViewBtn.addEventListener('click', toggleLiveView);
+
     // Load profiles
     function loadProfiles() {
         fetch('/profile/list')
@@ -224,9 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Duration to velocity conversion
     function durationToVelocity(duration) {
-        // Convert duration to velocity (inverse relationship)
-        // Longer duration = slower velocity
-        // Scale to motor velocity range (0-1023)
         const minDuration = 1;  // 1 second
         const maxDuration = 3600;  // 1 hour
         const minVelocity = 50;  // minimum safe velocity
@@ -335,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     focusTrackingBtn.addEventListener('click', toggleFocusTracking);
 
+    // Modified startRecording function
     async function startRecording() {
         const profileName = document.getElementById('profile').value;
         if (!profileName) {
@@ -343,6 +352,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
+            // Start video recording
+            const recordResponse = await fetch('/camera/video/start', {
+                method: 'POST'
+            });
+            
+            if (!recordResponse.ok) {
+                const error = await recordResponse.json();
+                throw new Error(error.error || 'Failed to start recording');
+            }
+
             // Get profile data
             const profileResponse = await fetch(`/profile/${profileName}`);
             if (!profileResponse.ok) throw new Error('Failed to load profile');
@@ -394,8 +413,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Modified stopRecording function
     async function stopRecording() {
         try {
+            // Stop video recording
+            await fetch('/camera/video/stop', { method: 'POST' });
+            
+            // Stop profile playback
             await fetch('/profile/stop', { method: 'POST' });
             
             clearInterval(recordingInterval);

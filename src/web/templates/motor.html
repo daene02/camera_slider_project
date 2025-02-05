@@ -3,52 +3,29 @@
 {% block title %}Motor Settings{% endblock %}
 
 {% block content %}
-<style>
-    button {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.5s ease;
-    }
-    button:hover {
-        transform: scale(1.05);
-        box-shadow: 0 0 10px rgba(255,255,255,0.6);
-    }
-    .control-group {
-        margin-bottom: 10px;
-    }
-    .control-group button {
-        background-color: rgba(255,255,255,0.6);
-    }
-    .control-group button:hover {
-        background-color: rgba(255,255,255,0.6);
-    }
-</style>
-
-<h1>Motor Settings</h1>
-<div style="margin-bottom: 20px;">
-    <button onclick="toggleAllTorque(true)" style="background-color: rgba(0,255,0,2);">
+<h1 class="text-xlarge">Motor Settings</h1>
+<div class="torque-controls">
+    <button onclick="toggleAllTorque(true)" class="btn btn-enable">
         Enable All Torque
     </button>
-    <button onclick="toggleAllTorque(false)" style="background-color: rgba(255,0,0,2);">
+    <button onclick="toggleAllTorque(false)" class="btn btn-disable">
         Disable All Torque
     </button>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+<div class="motor-grid">
     {% for motor in motors %}
-    <div class="motor-box" data-motor-id="{{ motor.id }}" style="padding: 20px; border-radius: 8px; background: rgba(0,0,0,0.7); border: 2px solid {% if motor.torque_enabled %}rgba(0,255,0,0.5){% else %}rgba(255,0,0,0.5){% endif %}">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h2 class="motor-name" style="{% if motor.torque_enabled %}color: rgba(0,255,0,1){% else %}color: rgba(255,0,0,1){% endif %}">
+    <div class="motor-box {{ 'enabled' if motor.torque_enabled else 'disabled' }}" data-motor-id="{{ motor.id }}">
+        <div class="motor-header">
+            <h2 class="motor-name {{ 'enabled' if motor.torque_enabled else 'disabled' }}">
                 {{ motor.name }}
             </h2>
-            <div>
-                <button onclick="toggleTorque({{ motor.id }}, true)">Enable</button>
-                <button onclick="toggleTorque({{ motor.id }}, false)">Disable</button>
+            <div class="btn-group">
+                <button onclick="toggleTorque({{ motor.id }}, true)" class="btn btn-enable">Enable</button>
+                <button onclick="toggleTorque({{ motor.id }}, false)" class="btn btn-disable">Disable</button>
             </div>
         </div>
-        <div style="margin-bottom: 20px; color: rgb(255, 255, 255);">
+        <div class="motor-stats">
             <div>Position: <span class="position-value" data-motor-id="{{ motor.id }}">{{ motor.position }}</span>{% if motor.id == 2 %}mm{% else %}°{% endif %}</div>
             <div>Temperature: <span class="temperature-value">{{ motor.temperature }}</span>°C</div>
             <div>Voltage: <span class="voltage-value">{{ motor.voltage }}</span>V</div>
@@ -57,39 +34,39 @@
             <div>Acceleration: <span class="load-value">{{ motor.load }}</span> ms</div>
         </div>
         
-        <div style="margin-top: 15px;color: rgb(255, 255, 255);">
+        <div class="motor-controls">
             <div class="control-group">
                 <label for="position_{{ motor.id }}">Position ({% if motor.id == 2 %}mm{% else %}°{% endif %}):</label>
-                <input type="number" 
+                <input type="number"
+                       class="form-control"
                        id="position_{{ motor.id }}"
                        value="{{ motor.position }}"
                        min="{% if motor.id in [3, 4] %}-180{% elif motor.id == 2 %}0{% else %}0{% endif %}"
                        max="{% if motor.id in [3, 4] %}180{% elif motor.id == 2 %}800{% else %}360{% endif %}"
-                       step="0.1"
-                       style="width: 50px;">
-                <button onclick="updateMotorPosition({{ motor.id }})">Set</button>
+                       step="0.1">
+                <button onclick="updateMotorPosition({{ motor.id }})" class="btn">Set</button>
             </div>
 
             <div class="control-group">
                 <label for="velocity_{{ motor.id }}">Velocity (ms):</label>
-                <input type="number" 
+                <input type="number"
+                       class="form-control" 
                        id="velocity_{{ motor.id }}"
                        value="100"
                        min="0"
-                       max="32000"
-                       style="width: 50px;">
-                <button onclick="updateMotorVelocity({{ motor.id }})">Set</button>
+                       max="32000">
+                <button onclick="updateMotorVelocity({{ motor.id }})" class="btn">Set</button>
             </div>
 
             <div class="control-group">
                 <label for="acceleration_{{ motor.id }}">Acceleration (ms):</label>
-                <input type="number" 
+                <input type="number"
+                       class="form-control"
                        id="acceleration_{{ motor.id }}"
                        value="50"
                        min="0"
-                       max="32000"
-                       style="width: 50px;">
-                <button onclick="updateMotorAcceleration({{ motor.id }})">Set</button>
+                       max="32000">
+                <button onclick="updateMotorAcceleration({{ motor.id }})" class="btn">Set</button>
             </div>
         </div>
     </div>

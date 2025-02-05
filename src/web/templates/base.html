@@ -2,68 +2,16 @@
 <html>
 <head>
     <title>{% block title %}Camera Slider Control{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        /* Navigation Bar */
-        .nav-bar {
-            background: #333;
-            padding: 10px 0;
-            margin-bottom: 30px;
-        }
-
-        .nav-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .nav-menu {
-            display: flex;
-            gap: 20px;
-        }
-
-        .nav-link {
-            color: white;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-
-        .nav-link:hover {
-            background-color: #444;
-        }
-
-        .nav-link.active {
-            background-color: #2196F3;
-        }
-
-        /* Page Background */
-        .page-background {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-size: cover;
-            background-position: center;
-            opacity: 0.9;
-            z-index: -1;
-        }
-
-        /* Content Container */
-        .content-container {
-            position: relative;
-            z-index: 1;
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     {% block extra_styles %}{% endblock %}
 </head>
 <body>
+    {% if background_image %}
     <div class="page-background" style="background-image: url('{{ url_for('static', filename=background_image) }}')"></div>
+    {% else %}
+    <div class="page-background"></div>
+    {% endif %}
     
     <nav class="nav-bar">
         <div class="nav-container">

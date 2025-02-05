@@ -4,6 +4,7 @@ All constants and configuration parameters should be defined here.
 """
 
 import logging
+import os
 from typing import Dict, List, Union
 
 ########################################
@@ -170,6 +171,37 @@ MOVEMENT_SETTINGS = {
 }
 
 # Export settings for use in other modules
+########################################
+# Camera Settings
+########################################
+CAMERA_SETTINGS = {
+    "capture": {
+        "pre_delay": 0.2,        # Delay before capture (seconds)
+        "post_delay": 0.2,       # Delay after capture (seconds)
+    },
+    "live_view": {
+        "enabled": False,        # Live view default state
+        "temp_dir": "/tmp/camera_preview",  # Directory for temporary preview files
+        "update_rate": 0.1,      # Live view update rate (seconds)
+    },
+    "preview": {
+        "width": 854,           # Preview image width
+        "height": 480,          # Preview image height
+        "quality": 85,          # JPEG quality for preview
+    }
+}
+
+# Create temporary directory for camera preview files
+os.makedirs(CAMERA_SETTINGS["live_view"]["temp_dir"], exist_ok=True)
+
+# Auto-detected camera settings options
+CAMERA_AUTO_SETTINGS = {
+    "iso": ["Auto", "100", "200", "400", "800", "1600", "3200", "6400"],
+    "aperture": ["Auto", "1.8", "2.0", "2.8", "4.0", "5.6", "8.0", "11", "16"],
+    "shutterspeed": ["Auto", "1/4000", "1/2000", "1/1000", "1/500", "1/250", "1/125", "1/60", "1/30", "1/15"],
+    "whitebalance": ["Auto", "Daylight", "Shade", "Cloudy", "Tungsten", "Fluorescent", "Flash", "Custom"],
+}
+
 __all__ = [
     "DEVICE_NAME", "BAUD_RATE", "PROTOCOL_VERSION",
     "MODEL_NUMBER_ADDR", "MODEL_NUMBER_LEN", "OPERATING_MODE",
@@ -184,5 +216,5 @@ __all__ = [
     "MIN_FOCUS_DISTANCE", "MAX_FOCUS_DISTANCE",
     "SLIDER_STEP_TO_MM", "SLIDER_MAX_MM",
     "TURNTABLE_POSITION", "MOTOR_OFFSETS", "CAMERA_OFFSET_Z",
-    "MOVEMENT_SETTINGS"
+    "MOVEMENT_SETTINGS", "CAMERA_SETTINGS", "CAMERA_AUTO_SETTINGS"
 ]

@@ -3,141 +3,14 @@
 {% block title %}Movement Profiles{% endblock %}
 
 {% block content %}
-<style>
-    button {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        background-color: rgba(255,255,255,0.1);
-        margin: 5px;
-    }
-    button:hover {
-        transform: scale(1.05);
-        box-shadow: 0 0 10px rgba(255,255,255,0.3);
-        background-color: rgba(255,255,255,0.2);
-    }
-    .profile-controls {
-        margin-bottom: 20px;
-        padding: 15px;
-        background: rgba(0,0,0,0.3);
-        border-radius: 8px;
-    }
-    .points-list {
-        margin: 20px 0;
-        padding: 15px;
-        background: rgba(0,0,0,0.3);
-        border-radius: 8px;
-    }
-    .point-item {
-        margin: 10px 0;
-        padding: 15px;
-        background: rgba(255,255,255,0.1);
-        border-radius: 4px;
-    }
-    .point-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid rgba(255,255,255,0.2);
-    }
-    .point-controls {
-        display: flex;
-        gap: 5px;
-    }
-    .point-controls button {
-        padding: 4px 8px;
-        margin: 0;
-    }
-    .remove-btn {
-        color: #ff4444;
-        font-size: 18px;
-        font-weight: bold;
-    }
-    .point-content {
-        display: grid;
-        gap: 15px;
-    }
-    .motor-positions {
-        display: grid;
-        gap: 8px;
-        padding: 10px;
-        background: rgba(255,255,255,0.05);
-        border-radius: 4px;
-    }
-    .position-row {
-        display: grid;
-        grid-template-columns: 100px minmax(120px, 1fr) 60px;
-        align-items: center;
-        gap: 10px;
-    }
-    .velocity-control {
-        display: grid;
-        grid-template-columns: 100px minmax(120px, 1fr);
-        align-items: center;
-        gap: 10px;
-        padding: 10px;
-        background: rgba(255,255,255,0.05);
-        border-radius: 4px;
-    }
-    .position-input, .velocity-input {
-        background: rgba(0,0,0,0.2);
-        border: 1px solid rgba(255,255,255,0.2);
-        color: white;
-        padding: 8px;
-        border-radius: 4px;
-        width: 100%;
-        font-family: monospace;
-    }
-    .position-row label, .velocity-control label {
-        color: rgba(255,255,255,0.8);
-        font-weight: 500;
-    }
-    .unit {
-        color: rgba(255,255,255,0.6);
-        font-size: 0.9em;
-        justify-self: start;
-    }
-    .playback-controls {
-        margin-top: 20px;
-        padding: 15px;
-        background: rgba(0,0,0,0.3);
-        border-radius: 8px;
-    }
-    .control-group {
-        margin: 10px 0;
-    }
-    input[type="number"] {
-        width: 80px;
-        margin: 0 10px;
-    }
-    .profile-select {
-        padding: 5px;
-        margin: 5px;
-        background: rgba(255,255,255,0.1);
-        color: white;
-        border: 1px solid rgba(255,255,255,0.2);
-        border-radius: 4px;
-    }
-    .info-text {
-        margin-top: 10px;
-        font-size: 0.9em;
-        color: rgba(255,255,255,0.7);
-        font-style: italic;
-    }
-</style>
-
-<h1>Movement Profiles</h1>
+<h1 class="text-xlarge">Movement Profiles</h1>
 
 <div class="profile-controls">
     <h2>Profile Management</h2>
-    <input type="text" id="profileName" placeholder="Profile name" style="margin-right: 10px;">
-    <button onclick="createProfile()">Create Profile</button>
-    <button onclick="saveProfile()">Save Profile</button>
-    <select id="profileSelect" class="profile-select">
+    <input type="text" id="profileName" placeholder="Profile name" class="form-control mr-2">
+    <button onclick="createProfile()" class="btn btn-primary">Create Profile</button>
+    <button onclick="saveProfile()" class="btn btn-success">Save Profile</button>
+    <select id="profileSelect" class="profile-select form-control">
         <option value="">Select profile...</option>
         {% for profile in profiles %}
         <option value="{{ profile }}">{{ profile }}</option>
@@ -149,7 +22,7 @@
 <div class="points-list">
     <h2>Motion Points</h2>
     <div class="info-text">Each point can have its own velocity setting</div>
-    <button onclick="capturePoint()">Capture Current Point</button>
+    <button onclick="capturePoint()" class="btn btn-primary">Capture Current Point</button>
     <div id="pointsList">
         <!-- Points will be dynamically added here -->
     </div>
@@ -162,8 +35,8 @@
         <input type="number" id="playbackAcceleration" value="1800" min="0" max="4000">
     </div>
     
-    <button onclick="startPlayback()">Start Movement</button>
-    <button onclick="stopPlayback()">Stop Movement</button>
+    <button onclick="startPlayback()" class="btn btn-success">Start Movement</button>
+    <button onclick="stopPlayback()" class="btn btn-danger">Stop Movement</button>
 </div>
 
 <script src="/static/profiles.js"></script>

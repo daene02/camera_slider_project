@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, send_from_directory, jsonify
 from src.web.controllers.motor_controller import motor_controller
 from src.web.controllers.profile_controller import profile_controller
 from src.web.controllers.focus_controller import focus_controller
+import asyncio
 import os
 import logging
 
@@ -255,6 +256,114 @@ def get_focus_motor_positions():
     if positions is None:
         return jsonify({"error": "Failed to read positions"}), 500
     return jsonify(positions)
+
+# Camera control routes
+@app.route('/camera/connect', methods=['POST'])
+def connect_camera():
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success, error = loop.run_until_complete(profile_controller.connect_camera())
+        if success:
+            return jsonify({"success": True})
+        return jsonify({"error": error}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/camera/status', methods=['GET'])
+def get_camera_status():
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        if not profile_controller.camera_connected:
+            return jsonify({"connected": False})
+            
+        storage_info = loop.run_until_complete(profile_controller.camera.get_storage_info())
+        camera_settings = loop.run_until_complete(profile_controller.camera.get_settings())
+        
+        return jsonify({
+            "connected": True,
+            "recording": profile_controller.recording_active,
+            "storage": storage_info,
+            "settings": camera_settings,
+            "live_view": profile_controller.camera.live_view_enabled
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/camera/capture', methods=['POST'])
+def capture_photo():
+    if not profile_controller.camera_connected:
+        return jsonify({"error": "Camera not connected"}), 400
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(profile_controller.camera.capture_photo())
+        if success:
+            return jsonify({"success": True})
+        return jsonify({"error": "Failed to capture photo"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/camera/video/start', methods=['POST'])
+def start_video():
+    if not profile_controller.camera_connected:
+        return jsonify({"error": "Camera not connected"}), 400
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(profile_controller.camera.start_video())
+        if success:
+            profile_controller.recording_active = True
+            return jsonify({"success": True})
+        return jsonify({"error": "Failed to start recording"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/camera/video/stop', methods=['POST'])
+def stop_video():
+    if not profile_controller.camera_connected:
+        return jsonify({"error": "Camera not connected"}), 400
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(profile_controller.camera.stop_video())
+        if success:
+            profile_controller.recording_active = False
+            return jsonify({"success": True})
+        return jsonify({"error": "Failed to stop recording"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/camera/live_view/toggle', methods=['POST'])
+def toggle_live_view():
+    if not profile_controller.camera_connected:
+        return jsonify({"error": "Camera not connected"}), 400
+    try:
+        enable = request.json.get('enable')
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(profile_controller.camera.toggle_live_view(enable))
+        if success:
+            return jsonify({"success": True, "enabled": profile_controller.camera.live_view_enabled})
+        return jsonify({"error": "Failed to toggle live view"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/camera/settings', methods=['POST'])
+def update_camera_settings():
+    if not profile_controller.camera_connected:
+        return jsonify({"error": "Camera not connected"}), 400
+    try:
+        settings = request.json
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(profile_controller.camera.update_settings(settings))
+        if success:
+            return jsonify({"success": True})
+        return jsonify({"error": "Failed to update camera settings"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     print("Starting Camera Slider Web Interface...")

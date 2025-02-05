@@ -1,0 +1,738 @@
+/*
+ * Base CSS styles implementing web_settings.py configurations
+ * Use these CSS variables in all web templates for consistent styling
+ */
+
+:root {
+    /* Colors */
+    --color-primary: #4a9eff;
+    --color-background: #000000;
+    --color-overlay: rgba(0, 0, 0, 0.85);
+    --color-border: rgba(255, 255, 255, 0.3);
+    --color-text-primary: #ffffff;
+    --color-text-secondary: rgba(255, 255, 255, 0.7);
+
+    /* Typography */
+    --font-primary: Arial, sans-serif;
+    --font-monospace: monospace;
+    
+    /* Font Sizes */
+    --font-size-small: 12px;
+    --font-size-normal: 14px;
+    --font-size-large: 16px;
+    --font-size-xlarge: 24px;
+    
+    /* Font Weights */
+    --font-weight-normal: 400;
+    --font-weight-bold: 700;
+
+    /* Component Dimensions */
+    --icon-button-size: 60px;
+    --icon-button-radius: 8px;
+    --panel-width: 300px;
+    --panel-header-height: 61px;
+    
+    /* Spacing */
+    --spacing-small: 10px;
+    --spacing-medium: 15px;
+    --spacing-large: 20px;
+
+    /* Animations */
+    --animation-fast: 0.2s;
+    --animation-normal: 0.3s;
+    --animation-timing: ease;
+}
+
+/* Base reset styles */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-primary);
+    background: var(--color-background);
+    color: var(--color-text-primary);
+}
+
+/* Common components */
+.icon-button {
+    width: var(--icon-button-size);
+    height: var(--icon-button-size);
+    border-radius: var(--icon-button-radius);
+    background: var(--color-overlay);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    transition: all var(--animation-fast) var(--animation-timing);
+}
+
+.panel {
+    width: var(--panel-width);
+    background: var(--color-overlay);
+    border-left: 1px solid var(--color-border);
+}
+
+.panel-header {
+    height: var(--panel-header-height);
+    font-size: var(--font-size-large);
+    font-weight: var(--font-weight-bold);
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* Typography classes */
+.text-monospace {
+    font-family: var(--font-monospace);
+}
+
+.text-small {
+    font-size: var(--font-size-small);
+}
+
+.text-large {
+    font-size: var(--font-size-large);
+}
+
+.text-xlarge {
+    font-size: var(--font-size-xlarge);
+}
+
+/* Utility classes */
+.primary-color {
+    color: var(--color-primary);
+}
+
+.border-color {
+    border-color: var(--color-border);
+}
+
+.spacing-small {
+    margin: var(--spacing-small);
+    padding: var(--spacing-small);
+}
+
+.spacing-medium {
+    margin: var(--spacing-medium);
+    padding: var(--spacing-medium);
+}
+
+.spacing-large {
+    margin: var(--spacing-large);
+    padding: var(--spacing-large);
+}
+
+/* Navigation Bar */
+.nav-bar {
+    background: var(--color-overlay);
+    padding: var(--spacing-medium) 0;
+    margin-bottom: var(--spacing-large);
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-medium);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-menu {
+    display: flex;
+    gap: var(--spacing-medium);
+}
+
+.nav-link {
+    color: var(--color-text-primary);
+    text-decoration: none;
+    padding: var(--spacing-small) var(--spacing-medium);
+    border-radius: var(--icon-button-radius);
+    transition: background-color var(--animation-fast) var(--animation-timing);
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.active {
+    background: var(--color-primary);
+}
+
+/* Feature Grid */
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-medium);
+    padding: var(--spacing-medium);
+}
+
+.feature-item {
+    background: var(--color-overlay);
+    padding: var(--spacing-medium);
+    border-radius: var(--icon-button-radius);
+    text-align: center;
+    text-decoration: none;
+    color: var(--color-text-primary);
+    font-weight: var(--font-weight-bold);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all var(--animation-fast) var(--animation-timing);
+}
+
+.feature-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    background: rgba(74, 158, 255, 0.4);
+    border-color: var(--color-primary);
+}
+
+.feature-item i {
+    display: block;
+    font-size: var(--font-size-xlarge);
+    margin-bottom: var(--spacing-small);
+}
+
+/* Page Background */
+.page-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.9;
+    z-index: -1;
+    background-image: none;
+}
+
+/* Content Container */
+.content-container {
+    position: relative;
+    z-index: 1;
+    padding: var(--spacing-large);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Form Elements */
+.form-control {
+    background: var(--color-overlay);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    padding: var(--spacing-small);
+    border-radius: var(--icon-button-radius);
+    font-size: var(--font-size-normal);
+}
+
+.input-group {
+    display: flex;
+    gap: var(--spacing-small);
+    margin-bottom: var(--spacing-medium);
+}
+
+/* Buttons */
+.btn {
+    background: var(--color-overlay);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    padding: var(--spacing-small) var(--spacing-medium);
+    border-radius: var(--icon-button-radius);
+    transition: all var(--animation-fast) var(--animation-timing);
+    cursor: pointer;
+}
+
+.btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.btn-primary:hover {
+    background: rgba(74, 158, 255, 0.8);
+}
+
+.btn-danger {
+    background: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-danger:hover {
+    background: rgba(220, 53, 69, 0.8);
+}
+
+.btn-success {
+    background: #28a745;
+    border-color: #28a745;
+}
+
+.btn-success:hover {
+    background: rgba(40, 167, 69, 0.8);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background: rgba(108, 117, 125, 0.8);
+}
+
+.btn-sm {
+    padding: calc(var(--spacing-small) / 2) var(--spacing-small);
+    font-size: var(--font-size-small);
+}
+
+.btn-group {
+    display: flex;
+    gap: var(--spacing-small);
+}
+
+/* Focus Control Specific */
+.focus-controls {
+    display: grid;
+    gap: var(--spacing-medium);
+}
+
+.points-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: var(--spacing-small);
+}
+
+.point-card {
+    background: var(--color-overlay);
+    margin-bottom: var(--spacing-small);
+    padding: var(--spacing-medium);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: var(--icon-button-radius);
+    border: 1px solid var(--color-border);
+}
+
+/* Utility Classes */
+.mb-2 {
+    margin-bottom: var(--spacing-medium);
+}
+
+.ml-2 {
+    margin-left: var(--spacing-medium);
+}
+
+.mt-3 {
+    margin-top: calc(var(--spacing-large) * 1.5);
+}
+
+.w-100 {
+    width: 100%;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.col-md-6 {
+    width: calc(50% - var(--spacing-medium));
+}
+
+.row {
+    display: flex;
+    gap: var(--spacing-medium);
+    margin: 0 calc(-1 * var(--spacing-small));
+}
+
+/* Additional Flex Utilities */
+.flex {
+    display: flex;
+}
+
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.gap-2 {
+    gap: var(--spacing-medium);
+}
+
+/* Motor Control Specific */
+.motor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-medium);
+}
+
+.motor-box {
+    padding: var(--spacing-medium);
+    border-radius: var(--icon-button-radius);
+    background: var(--color-overlay);
+    transition: border-color var(--animation-fast) var(--animation-timing);
+}
+
+.motor-box.enabled {
+    border: 2px solid rgba(0, 255, 0, 0.5);
+}
+
+.motor-box.disabled {
+    border: 2px solid rgba(255, 0, 0, 0.5);
+}
+
+.motor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-medium);
+}
+
+.motor-name {
+    margin: 0;
+    font-size: var(--font-size-large);
+    font-weight: var(--font-weight-bold);
+}
+
+.motor-name.enabled {
+    color: rgba(0, 255, 0, 1);
+}
+
+.motor-name.disabled {
+    color: rgba(255, 0, 0, 1);
+}
+
+.motor-stats {
+    margin-bottom: var(--spacing-medium);
+    color: var(--color-text-primary);
+}
+
+.control-group {
+    margin-bottom: var(--spacing-small);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+}
+
+.control-group label {
+    min-width: 120px;
+}
+
+.control-group input[type="number"] {
+    width: 60px;
+    padding: calc(var(--spacing-small) / 2);
+    border-radius: calc(var(--icon-button-radius) / 2);
+    border: 1px solid var(--color-border);
+    background: var(--color-overlay);
+    color: var(--color-text-primary);
+}
+
+.torque-controls {
+    margin-bottom: var(--spacing-medium);
+}
+
+.motor-controls {
+    margin-top: var(--spacing-medium);
+    color: var(--color-text-primary);
+}
+
+.btn-enable {
+    background-color: rgba(0, 255, 0, 0.2);
+    border: 1px solid rgba(0, 255, 0, 0.5);
+}
+
+.btn-disable {
+    background-color: rgba(255, 0, 0, 0.2);
+    border: 1px solid rgba(255, 0, 0, 0.5);
+}
+
+/* Profile Page Specific */
+.profile-controls {
+    margin-bottom: var(--spacing-medium);
+    padding: var(--spacing-medium);
+    background: var(--color-overlay);
+    border-radius: var(--icon-button-radius);
+    border: 1px solid var(--color-border);
+}
+
+.points-list {
+    margin: var(--spacing-medium) 0;
+    padding: var(--spacing-medium);
+    background: var(--color-overlay);
+    border-radius: var(--icon-button-radius);
+    border: 1px solid var(--color-border);
+}
+
+.point-item {
+    margin: var(--spacing-small) 0;
+    padding: var(--spacing-medium);
+    background: var(--color-overlay);
+    border-radius: var(--icon-button-radius);
+    border: 1px solid var(--color-border);
+}
+
+.point-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-medium);
+    padding-bottom: var(--spacing-small);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.point-controls {
+    display: flex;
+    gap: var(--spacing-small);
+}
+
+.point-controls .btn {
+    padding: calc(var(--spacing-small) / 2) var(--spacing-small);
+}
+
+.remove-btn {
+    color: #ff4444;
+    font-size: var(--font-size-large);
+    font-weight: var(--font-weight-bold);
+}
+
+.point-content {
+    display: grid;
+    gap: var(--spacing-medium);
+}
+
+.motor-positions {
+    display: grid;
+    gap: var(--spacing-small);
+    padding: var(--spacing-small);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: calc(var(--icon-button-radius) / 2);
+}
+
+.position-row {
+    display: grid;
+    grid-template-columns: 100px minmax(120px, 1fr) 60px;
+    align-items: center;
+    gap: var(--spacing-small);
+}
+
+.velocity-control {
+    display: grid;
+    grid-template-columns: 100px minmax(120px, 1fr);
+    align-items: center;
+    gap: var(--spacing-small);
+    padding: var(--spacing-small);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: calc(var(--icon-button-radius) / 2);
+}
+
+.position-input,
+.velocity-input {
+    background: var(--color-overlay);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    padding: var(--spacing-small);
+    border-radius: calc(var(--icon-button-radius) / 2);
+    width: 100%;
+    font-family: var(--font-monospace);
+}
+
+.position-row label,
+.velocity-control label {
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-bold);
+}
+
+.unit {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-small);
+    justify-self: start;
+}
+
+.playback-controls {
+    margin-top: var(--spacing-medium);
+    padding: var(--spacing-medium);
+    background: var(--color-overlay);
+    border-radius: var(--icon-button-radius);
+    border: 1px solid var(--color-border);
+}
+
+.control-group {
+    margin: var(--spacing-small) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+}
+
+.profile-select {
+    padding: calc(var(--spacing-small) / 2);
+    margin: calc(var(--spacing-small) / 2);
+    background: var(--color-overlay);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--icon-button-radius) / 2);
+}
+
+.info-text {
+    margin-top: var(--spacing-small);
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+    font-style: italic;
+}
+
+/* Video Mode Specific */
+.control-section {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.video-controls,
+.motion-controls {
+    margin-bottom: calc(var(--spacing-large) * 1.5);
+}
+
+.control-panel {
+    padding: var(--spacing-medium);
+    background: var(--color-overlay);
+    border-radius: var(--icon-button-radius);
+    border: 1px solid var(--color-border);
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    margin: var(--spacing-medium) 0;
+    gap: var(--spacing-medium);
+}
+
+.setting-row label {
+    min-width: 150px;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+}
+
+.setting-row select,
+.setting-row input {
+    padding: var(--spacing-small);
+    border-radius: calc(var(--icon-button-radius) / 2);
+    border: 1px solid var(--color-border);
+    background: var(--color-overlay);
+    color: var(--color-text-primary);
+    min-width: 200px;
+}
+
+.setting-row .hint {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-small);
+}
+
+.focus-control-panel {
+    margin-top: var(--spacing-medium);
+    padding: var(--spacing-medium);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--icon-button-radius);
+    border: 1px solid var(--color-border);
+}
+
+.status-panel {
+    margin-top: var(--spacing-large);
+}
+
+.status-info {
+    background: var(--color-overlay);
+    padding: var(--spacing-medium);
+    border-radius: var(--icon-button-radius);
+    border: 1px solid var(--color-border);
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-small) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.progress-bar {
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: calc(var(--icon-button-radius) / 2);
+    margin-top: var(--spacing-medium);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+}
+
+.progress {
+    height: 100%;
+    background: var(--color-primary);
+    transition: width var(--animation-normal) var(--animation-timing);
+}
+
+.action-buttons {
+    display: flex;
+    gap: var(--spacing-small);
+    margin: var(--spacing-medium) 0;
+}
+
+#focus-tracking {
+    min-width: 200px;
+}
+
+#focus-tracking.active {
+    background: #28a745;
+    border-color: #28a745;
+}
+
+/* Photo Mode Specific */
+.photo-controls,
+.photo-controls {
+    margin-bottom: calc(var(--spacing-large) * 1.5);
+}
+
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: var(--spacing-small);
+    margin-top: var(--spacing-medium);
+}
+
+.photo-thumbnail {
+    position: relative;
+    padding-bottom: 100%;
+    background: var(--color-overlay);
+    border-radius: calc(var(--icon-button-radius) / 2);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+}
+
+.photo-thumbnail img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-thumbnail .number {
+    position: absolute;
+    top: calc(var(--spacing-small) / 2);
+    left: calc(var(--spacing-small) / 2);
+    background: var(--color-overlay);
+    color: var(--color-text-primary);
+    padding: 2px 6px;
+    border-radius: calc(var(--icon-button-radius) / 4);
+    font-size: var(--font-size-small);
+    border: 1px solid var(--color-border);
+}
+
+@media (max-width: 768px) {
+    .photo-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    }
+}

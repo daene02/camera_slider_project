@@ -2,42 +2,8 @@
 
 {% block title %}Camera Slider Control{% endblock %}
 
-{% block extra_styles %}
-<style>
-    .feature-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        padding: 20px;
-    }
-
-    .feature-item {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        text-align: center;
-        text-decoration: none;
-        color: #333;
-        font-weight: bold;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s;
-    }
-
-    .feature-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .feature-item i {
-        display: block;
-        font-size: 2em;
-        margin-bottom: 10px;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<h1>Camera Slider Control</h1>
+<h1 class="text-xlarge">Camera Slider Control</h1>
 
 <div class="feature-grid">
     <a href="{{ url_for('motor') }}" class="feature-item">

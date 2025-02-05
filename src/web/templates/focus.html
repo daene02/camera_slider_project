@@ -1,62 +1,8 @@
 {% extends "base.html" %}
 
-{% block styles %}
-<style>
-body {
-    background-color: #1a1a2e;
-    color: white;
-}
-
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.focus-controls {
-    display: grid;
-    gap: 20px;
-}
-
-.form-control {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-}
-
-.btn {
-    background-color: #4a4e69;
-    color: white;
-    border: none;
-}
-
-.btn-primary {
-    background-color: #22577a;
-}
-
-.btn-danger {
-    background-color: #8b0000;
-}
-
-.points-list {
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.point-card {
-    background: rgba(255, 255, 255, 0.1);
-    margin-bottom: 10px;
-    padding: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="container">
-    <h2>Focus Point Control</h2>
+    <h2 class="text-xlarge">Focus Point Control</h2>
     
     <div class="focus-controls">
         <div class="row">
@@ -67,7 +13,7 @@ body {
                     <input type="number" id="y-pos" class="form-control" placeholder="Y">
                     <input type="number" id="z-pos" class="form-control" placeholder="Z">
                 </div>
-                <div class="d-flex mb-2">
+                <div class="flex mb-2">
                     <input type="color" id="point-color" class="form-control" value="#4a9eff">
                     <button id="savePoint" class="btn btn-primary ml-2">Save</button>
                 </div>

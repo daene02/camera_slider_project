@@ -2,11 +2,13 @@ import os
 import json
 from threading import Thread, Event
 import time
+import asyncio
 from .motor_controller import motor_controller
 from .focus_controller import focus_controller
+from src.camera import CanonEOSR50
 from src.settings import (
     MOTOR_IDS, PAN_TILT_VELOCITY, PAN_TILT_ACCELERATION,
-    MOVEMENT_SETTINGS, DEFAULT_ACCELERATION
+    MOVEMENT_SETTINGS, DEFAULT_ACCELERATION, CAMERA_SETTINGS
 )
 import logging
 
@@ -19,6 +21,9 @@ class ProfileController:
         self.playback_stop_event = Event()
         self.current_playback_thread = None
         self.tracking_active = False
+        self.camera = CanonEOSR50()
+        self.camera_connected = False
+        self.recording_active = False
 
     def get_profile_path(self, name=None):
         current_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -118,9 +123,26 @@ class ProfileController:
         """Check if profile has any focus points"""
         return any(point.get('focus_point_id') is not None for point in profile['points'])
 
+    async def connect_camera(self):
+        """Initialize camera connection."""
+        try:
+            self.camera_connected = await self.camera.connect()
+            return self.camera_connected, None if self.camera_connected else "Failed to connect to camera"
+        except Exception as e:
+            logger.error(f"Camera connection error: {str(e)}")
+            return False, str(e)
+
     def run_profile(self, profile, settings):
         try:
             logger.info("Starting profile playback")
+            
+            # Connect camera if not already connected
+            if not self.camera_connected:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                success, error = loop.run_until_complete(self.connect_camera())
+                if not success:
+                    logger.error(f"Failed to connect camera: {error}")
             
             # Set acceleration for primary motors
             acceleration = int(profile.get('acceleration', DEFAULT_ACCELERATION))
@@ -146,6 +168,24 @@ class ProfileController:
 
                 try:
                     logger.debug(f"Processing point {i+1}")
+                    
+                    # Handle camera operations before movement
+                    camera_action = point.get('camera_action', {})
+                    if camera_action:
+                        action_type = camera_action.get('type')
+                        if action_type == 'photo':
+                            # Wait for position if photo mode
+                            if not self.verify_motor_positions(positions):
+                                logger.warning(f"Motors didn't reach position for photo at point {i+1}")
+                            time.sleep(CAMERA_SETTINGS['capture']['pre_delay'])
+                            loop.run_until_complete(self.camera.capture_photo())
+                            time.sleep(CAMERA_SETTINGS['capture']['post_delay'])
+                        elif action_type == 'video_start' and not self.recording_active:
+                            loop.run_until_complete(self.camera.start_video())
+                            self.recording_active = True
+                        elif action_type == 'video_stop' and self.recording_active:
+                            loop.run_until_complete(self.camera.stop_video())
+                            self.recording_active = False
                     
                     # Handle focus point changes
                     focus_point_id = point.get('focus_point_id')
@@ -196,11 +236,23 @@ class ProfileController:
             logger.error(f"Error in profile playback: {str(e)}")
         finally:
             self.playback_stop_event.clear()
+            # Stop video recording if still active
+            if self.recording_active:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self.camera.stop_video())
+                self.recording_active = False
             # Don't stop tracking when playback ends - let user control it explicitly
 
     def start_playback(self, profile, settings):
         if self.current_playback_thread and self.current_playback_thread.is_alive():
             return False, "Playback already in progress"
+            
+        # Validate camera operations in profile
+        if not self.camera_connected:
+            for point in profile.get('points', []):
+                if point.get('camera_action'):
+                    return False, "Camera not connected. Cannot run profile with camera operations."
             
         try:
             self.playback_stop_event.clear()
