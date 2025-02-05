@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_from_directory, jsonify
+from flask import Flask, render_template, request, send_from_directory, jsonify, make_response
 from src.web.controllers.motor_controller import motor_controller
 from src.web.controllers.profile_controller import profile_controller
 from src.web.controllers.focus_controller import focus_controller
@@ -333,6 +333,37 @@ def stop_video():
             return jsonify({"success": True})
         return jsonify({"error": "Failed to stop recording"}), 500
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/camera/live_view')
+def get_live_view():
+    if not profile_controller.camera_connected:
+        return jsonify({"error": "Camera not connected"}), 400
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        # Ensure live view is enabled
+        if not profile_controller.camera.live_view_enabled:
+            success = loop.run_until_complete(profile_controller.camera.toggle_live_view(True))
+            if not success:
+                return jsonify({"error": "Failed to enable live view"}), 500
+            # Give camera time to start live view
+            loop.run_until_complete(asyncio.sleep(0.2))
+        
+        # Capture preview
+        preview = loop.run_until_complete(profile_controller.camera.capture_preview())
+        if not preview:
+            return jsonify({"error": "Failed to capture preview"}), 500
+
+            
+        file_data = preview.get_data_and_size()
+        response = make_response(file_data)
+        response.headers.set('Content-Type', 'image/jpeg')
+        return response
+    except Exception as e:
+        logger.error(f"Live view error: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/camera/live_view/toggle', methods=['POST'])

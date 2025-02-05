@@ -1,7 +1,8 @@
 import gphoto2 as gp
 import time
 import logging
-from typing import Dict, Optional, Any
+import asyncio
+from typing import Dict, Optional, Any, Tuple
 
 class CanonEOSR50:
     """Manages communication with Canon EOS R50 camera via gphoto2."""
@@ -104,6 +105,36 @@ class CanonEOSR50:
             self._logger.error(f"Error stopping video: {str(e)}")
             return False
 
+    async def capture_preview(self) -> Optional[gp.CameraFile]:
+        """Capture a preview image from the camera."""
+        if not self.camera:
+            self._logger.error("Camera not connected")
+            return None
+
+        try:
+            # Enable live view if not already enabled
+            if not self.live_view_enabled:
+                success = await self.toggle_live_view(True)
+                if not success:
+                    self._logger.error("Failed to enable live view for preview")
+                    return None
+                await self._sleep(0.5)  # Wait for live view to start
+
+            # Capture preview
+            try:
+                preview = self.camera.capture_preview()
+                if not preview:
+                    self._logger.error("Preview capture returned None")
+                    return None
+                return preview
+            except Exception as e:
+                self._logger.error(f"Error capturing preview: {str(e)}")
+                return None
+
+        except Exception as e:
+            self._logger.error(f"Error in capture_preview: {str(e)}")
+            return None
+
     async def toggle_live_view(self, enable: bool = None) -> bool:
         """Toggle live view on/off."""
         if not self.camera:
@@ -116,12 +147,26 @@ class CanonEOSR50:
 
             config = self.camera.get_config()
             viewfinder = self._get_config_value(config, 'viewfinder')
-            if viewfinder:
-                viewfinder.set_value(1 if enable else 0)
-                self.camera.set_config(config)
+            if not viewfinder:
+                self._logger.error("Viewfinder not found in camera config")
+                return False
+
+            # Toggle viewfinder
+            viewfinder.set_value(1 if enable else 0)
+            self.camera.set_config(config)
+            
+            # Wait for camera to process change
+            await self._sleep(0.5)
+            
+            # Verify the change took effect
+            config = self.camera.get_config()
+            current_value = self._get_config_value(config, 'viewfinder')
+            if current_value and int(current_value.get_value()) == (1 if enable else 0):
                 self.live_view_enabled = enable
                 self._logger.info(f"Live view {'enabled' if enable else 'disabled'}")
                 return True
+            
+            self._logger.error("Failed to verify live view state change")
             return False
         except Exception as e:
             self._logger.error(f"Error toggling live view: {str(e)}")
@@ -137,9 +182,13 @@ class CanonEOSR50:
             available = self._get_config_value(config, 'availableshots')
             battery = self._get_config_value(config, 'batterylevel')
             
+            # Parse battery level - handle percentage string
+            battery_value = battery.get_value() if battery else '0%'
+            battery_level = int(battery_value.rstrip('%')) if battery_value.endswith('%') else int(battery_value)
+
             return {
                 'available_shots': int(available.get_value()) if available else 0,
-                'battery_level': int(battery.get_value()) if battery else 0
+                'battery_level': battery_level
             }
         except Exception as e:
             self._logger.error(f"Error getting storage info: {str(e)}")
@@ -201,4 +250,4 @@ class CanonEOSR50:
     @staticmethod
     async def _sleep(seconds: float) -> None:
         """Async sleep helper."""
-        time.sleep(seconds)  # For simplicity, using sync sleep
+        await asyncio.sleep(seconds)
