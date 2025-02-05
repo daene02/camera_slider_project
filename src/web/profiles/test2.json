@@ -30,9 +30,9 @@
         "5": 549,
         "6": 567
       },
-      "velocity": 1000,
+      "velocity": 20000,
       "timestamp": 1738708968184,
-      "focus_point_id": 1
+      "focus_point_id": 0
     }
   ],
   "acceleration": 1800

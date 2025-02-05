@@ -15,10 +15,27 @@ export class PointsRenderer {
         // Add event listeners
         this.canvasManager.canvas.addEventListener('mousemove', this.handleMouseMove);
         this.canvasManager.canvas.addEventListener('click', this.handleClick);
+
+        // Start blink animation
+        this.startBlinking();
     }
 
     setTrackingHandler(trackingHandler) {
+        console.log("Setting tracking handler in PointsRenderer");
         this.trackingHandler = trackingHandler;
+    }
+
+    startBlinking() {
+        setInterval(() => {
+            const currentTime = Date.now();
+            if (currentTime - this.lastBlinkTime > this.BLINK_INTERVAL) {
+                this.blinkState = !this.blinkState;
+                this.lastBlinkTime = currentTime;
+                if (this.trackingHandler && this.trackingHandler.isTracking()) {
+                    this.canvasManager.draw();
+                }
+            }
+        }, 100);
     }
 
     handleMouseMove(event) {
@@ -33,8 +50,6 @@ export class PointsRenderer {
                 Math.pow(mouseX - pointPos.x, 2) + 
                 Math.pow(mouseY - pointPos.y, 2)
             );
-            
-            // Double radius for hover detection
             return distance <= (12 * this.canvasManager.zoomLevel * 2);
         });
         
@@ -44,7 +59,6 @@ export class PointsRenderer {
             this.canvasManager.canvas.style.cursor = 'default';
         }
         
-        // Trigger redraw to show hover effect
         this.canvasManager.draw();
     }
 
@@ -60,8 +74,6 @@ export class PointsRenderer {
                 Math.pow(mouseX - pointPos.x, 2) + 
                 Math.pow(mouseY - pointPos.y, 2)
             );
-            
-            // Double radius for click detection
             return distance <= (12 * this.canvasManager.zoomLevel * 2);
         });
         
@@ -82,29 +94,20 @@ export class PointsRenderer {
         }
     }
 
-    updateBlink() {
-        const currentTime = Date.now();
-        if (currentTime - this.lastBlinkTime > this.BLINK_INTERVAL) {
-            this.blinkState = !this.blinkState;
-            this.lastBlinkTime = currentTime;
-        }
-    }
-
     draw(points, currentPointId, isTracking) {
         if (!points || points.length === 0) return;
 
-        this.updateBlink();
-        
         // First draw all inactive points and their connectors
         points.forEach(point => {
             const isActive = isTracking && point.id === currentPointId;
-            if (!isActive || (isActive && this.blinkState)) {
+            // Draw inactive points or active point during blink-on phase
+            if (!isActive || this.blinkState) {
                 this.drawPointConnector(point);
                 this.drawHeightLine(point);
             }
         });
         
-        // Draw tracking line if there's an active point (no blinking)
+        // Draw tracking line if there's an active point
         if (isTracking && currentPointId !== null) {
             const currentPoint = points.find(p => p.id === currentPointId);
             if (currentPoint) {
@@ -139,16 +142,13 @@ export class PointsRenderer {
         const sliderPos = this.canvasManager.worldToScreen(0, positions.sliderPosition);
         
         ctx.save();
-        
-        // Draw blue dashed line
         ctx.beginPath();
         ctx.setLineDash([10, 5]); // 10px dash, 5px gap
         ctx.moveTo(pointPos.x, pointPos.y);
         ctx.lineTo(sliderPos.x, sliderPos.y);
-        ctx.strokeStyle = 'rgba(74, 158, 255, 0.6)'; // Blue with 60% opacity
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(74, 158, 255, 0.8)';
+        ctx.lineWidth = 2 * this.canvasManager.zoomLevel;
         ctx.stroke();
-        
         ctx.restore();
     }
 
@@ -168,24 +168,20 @@ export class PointsRenderer {
         
         // Draw glow effect
         const pointColor = isActive ? '#00ff00' : point.color || '#4a9eff';
-        
-        // Draw multiple layers for enhanced glow
-        const glowIntensity = isActive ? 1.0 : 0.7;
-        
-        // Outer glow
         ctx.shadowColor = pointColor;
         ctx.shadowBlur = radius * 2;
-        ctx.globalAlpha = 0.3 * glowIntensity;
+        
+        // Outer glow
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, radius * 1.2, 0, Math.PI * 2);
+        ctx.fillStyle = pointColor;
+        ctx.globalAlpha = 0.3;
         ctx.fill();
         
         // Inner glow
-        ctx.shadowBlur = radius;
-        ctx.globalAlpha = 0.7 * glowIntensity;
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = pointColor;
+        ctx.globalAlpha = 0.7;
         ctx.fill();
         
         // Draw labels

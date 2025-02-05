@@ -139,19 +139,6 @@ class ProfileController:
             }
             motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_profile_acceleration, pan_tilt_accel_dict)
 
-            # Initialize focus tracking if needed
-            first_focus_point = None
-            if self.has_focus_points(profile):
-                for point in profile['points']:
-                    if point.get('focus_point_id') is not None:
-                        first_focus_point = focus_controller.get_focus_point(point['focus_point_id'])
-                        if first_focus_point:
-                            logger.debug("Starting initial focus tracking")
-                            success = focus_controller.start_tracking(first_focus_point)
-                            self.tracking_active = success
-                            logger.debug(f"Initial tracking start {'succeeded' if success else 'failed'}")
-                        break
-
             # Process each point in sequence
             for i, point in enumerate(profile['points']):
                 if self.playback_stop_event.is_set():
@@ -165,16 +152,13 @@ class ProfileController:
                     if focus_point_id is not None:
                         focus_point = focus_controller.get_focus_point(focus_point_id)
                         if focus_point:
-                            if not self.tracking_active:
-                                # Start tracking if not active
-                                logger.debug(f"Starting focus tracking at point {i+1}")
-                                success = focus_controller.start_tracking(focus_point)
-                                self.tracking_active = success
+                            logger.debug(f"Starting/updating tracking for point {focus_point_id}")
+                            success, error = focus_controller.start_tracking(focus_point)
+                            if success:
+                                logger.debug("Successfully activated tracking")
+                                self.tracking_active = True
                             else:
-                                # Update existing tracking
-                                logger.debug(f"Updating focus point at point {i+1}")
-                                success = focus_controller.set_focus_point(focus_point)[0]
-                            logger.debug(f"Focus point update {'succeeded' if success else 'failed'}")
+                                logger.error(f"Failed to activate tracking: {error}")
                     
                     # Get and set point settings
                     duration = int(point.get('velocity', 1000))
@@ -212,6 +196,7 @@ class ProfileController:
             logger.error(f"Error in profile playback: {str(e)}")
         finally:
             self.playback_stop_event.clear()
+            # Don't stop tracking when playback ends - let user control it explicitly
 
     def start_playback(self, profile, settings):
         if self.current_playback_thread and self.current_playback_thread.is_alive():
@@ -232,8 +217,6 @@ class ProfileController:
             current_positions = motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_read_positions)
             if current_positions:
                 motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, current_positions)
-            if self.tracking_active:
-                self.tracking_active = False
             return True, None
         except Exception as e:
             return False, str(e)

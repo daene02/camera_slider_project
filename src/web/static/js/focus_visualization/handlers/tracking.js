@@ -4,6 +4,9 @@ export class TrackingHandler {
         this.currentPointId = null;
         this.updateCallback = null;
         console.log("TrackingHandler initialized");
+        
+        // Start polling for tracking state
+        this.startPolling();
     }
 
     setUpdateCallback(callback) {
@@ -17,6 +20,35 @@ export class TrackingHandler {
 
     getCurrentPointId() {
         return this.currentPointId;
+    }
+
+    async checkTrackingState() {
+        try {
+            const response = await fetch('/focus/status');
+            const status = await response.json();
+            
+            const wasTracking = this.isTrackingActive;
+            const previousPointId = this.currentPointId;
+            
+            this.isTrackingActive = status.tracking_active;
+            this.currentPointId = status.current_point_id;
+            
+            // Call update callback if state changed
+            if (this.updateCallback && 
+                (wasTracking !== this.isTrackingActive || 
+                previousPointId !== this.currentPointId)) {
+                console.log("Tracking state changed:", 
+                    {tracking: this.isTrackingActive, pointId: this.currentPointId});
+                this.updateCallback(this.isTrackingActive);
+            }
+        } catch (error) {
+            console.error("Error checking tracking state:", error);
+        }
+    }
+
+    startPolling() {
+        // Poll every 100ms for state changes
+        setInterval(() => this.checkTrackingState(), 100);
     }
 
     async startTracking(point) {
@@ -36,14 +68,7 @@ export class TrackingHandler {
             console.log("Start tracking response:", result);
 
             if (result.success) {
-                this.isTrackingActive = true;
-                this.currentPointId = point.id;
-                
-                if (this.updateCallback) {
-                    console.log("Calling update callback - tracking started");
-                    this.updateCallback(true);
-                }
-                
+                // State will be updated by polling
                 return true;
             } else {
                 console.error("Failed to start tracking:", result.error);
@@ -67,14 +92,7 @@ export class TrackingHandler {
             console.log("Stop tracking response:", result);
 
             if (result.success) {
-                this.isTrackingActive = false;
-                this.currentPointId = null;
-                
-                if (this.updateCallback) {
-                    console.log("Calling update callback - tracking stopped");
-                    this.updateCallback(false);
-                }
-                
+                // State will be updated by polling
                 return true;
             } else {
                 console.error("Failed to stop tracking:", result.error);
@@ -100,16 +118,7 @@ export class TrackingHandler {
         // Start tracking new point (backend handles stopping previous tracking)
         const success = await this.startTracking(point);
         
-        // Update UI immediately on success
-        if (success) {
-            this.isTrackingActive = true;
-            this.currentPointId = point.id;
-            if (this.updateCallback) {
-                console.log("Calling update callback - point selected");
-                this.updateCallback(true);
-            }
-        }
-        
+        // State will be updated by polling
         return success;
     }
 }

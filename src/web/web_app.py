@@ -237,6 +237,18 @@ def stop_focus_tracking():
         print(f"Error in stop_focus_tracking: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
+@app.route('/focus/status')
+def get_focus_status():
+    try:
+        active_point = focus_controller.active_point
+        return jsonify({
+            "tracking_active": focus_controller.current_tracking_thread is not None and focus_controller.current_tracking_thread.is_alive(),
+            "current_point_id": active_point['id'] if active_point else None
+        })
+    except Exception as e:
+        logger.error(f"Error getting focus status: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
 @app.route('/focus/motors/positions')
 def get_focus_motor_positions():
     positions = motor_controller.get_motor_positions()

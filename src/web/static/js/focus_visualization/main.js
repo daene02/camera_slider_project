@@ -24,15 +24,18 @@ export class FocusVisualization {
             this.motorHandler
         );
         
-        // Connect components
+        // Connect tracking handler and points renderer
+        this.pointsRenderer.setTrackingHandler(this.trackingHandler);
+        
+        // Connect components to canvas
         this.canvasManager.setAxisRenderer(this.axisRenderer);
         this.canvasManager.setTrackingHandler(this.trackingHandler);
         this.canvasManager.setPointsRenderer(this.pointsRenderer);
         
-        // Connect tracking handler to points renderer and update callback
-        this.pointsRenderer.setTrackingHandler(this.trackingHandler);
+        // Setup tracking callback for UI updates
         this.trackingHandler.setUpdateCallback(isTracking => {
-            this.canvasManager.draw();
+            console.log("Tracking state changed:", isTracking);
+            this.draw();
         });
         
         // Set up draw callback
@@ -52,9 +55,6 @@ export class FocusVisualization {
             this.canvasManager.setPoints(points);
             this.draw();
         });
-
-        // Setup periodic UI refresh during profile playback
-        this.startUIRefreshLoop();
         
         // Start motor position polling
         this.motorHandler.startPolling();
@@ -70,15 +70,6 @@ export class FocusVisualization {
         this.canvasManager.setPoints(points);
         console.log("Loaded points:", points);
         this.draw();
-    }
-
-    startUIRefreshLoop() {
-        // Refresh UI state every 100ms during profile playback
-        setInterval(() => {
-            if (this.trackingHandler.isTracking()) {
-                this.draw();
-            }
-        }, 100);
     }
     
     draw() {

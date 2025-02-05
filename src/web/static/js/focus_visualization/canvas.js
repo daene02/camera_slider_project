@@ -15,6 +15,8 @@ export class CanvasManager {
         this.axisRenderer = null;
         this.trackingHandler = null;
         this.pointsRenderer = null;
+        this.lastDrawTime = 0;
+        this.REDRAW_INTERVAL = 100; // ms
         
         // Event handlers
         window.addEventListener('resize', () => this.setupCanvas());
@@ -26,6 +28,17 @@ export class CanvasManager {
         requestAnimationFrame(() => this.animate());
         this.lastFrameTime = performance.now();
         this.targetZoom = this.zoomLevel;
+
+        // Set up periodic redraw for tracking updates
+        setInterval(() => {
+            if (this.trackingHandler && this.trackingHandler.isTracking()) {
+                const now = performance.now();
+                if (now - this.lastDrawTime >= this.REDRAW_INTERVAL) {
+                    this.draw();
+                    this.lastDrawTime = now;
+                }
+            }
+        }, this.REDRAW_INTERVAL);
     }
 
     loadBackground() {
@@ -39,6 +52,9 @@ export class CanvasManager {
 
     setPointsRenderer(renderer) {
         this.pointsRenderer = renderer;
+        if (this.trackingHandler) {
+            this.pointsRenderer.setTrackingHandler(this.trackingHandler);
+        }
     }
 
     handleMouseMove(event) {
