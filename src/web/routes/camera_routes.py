@@ -22,7 +22,7 @@ def cleanup_streamer():
     """Clean up MJPEG streamer on shutdown."""
     global mjpeg_streamer
     if mjpeg_streamer and mjpeg_streamer.is_streaming:
-        asyncio.run(mjpeg_streamer.stop_streaming())
+        asyncio.run(mjpeg_streamer.reset())
     mjpeg_streamer = None
 
 def ensure_camera_connected():
@@ -218,9 +218,16 @@ def update_camera_settings():
 def toggle_live_view():
     if error_response := check_camera_connected():
         return error_response
-        
+    
+    global mjpeg_streamer
     try:
         enable = request.json.get('enable')
+        
+        # If disabling, stop and reset streamer
+        if not enable and mjpeg_streamer is not None:
+            run_async(mjpeg_streamer.reset())
+            mjpeg_streamer = None
+            
         success = run_async(profile_controller.camera.toggle_live_view(enable))
         if success:
             return jsonify({

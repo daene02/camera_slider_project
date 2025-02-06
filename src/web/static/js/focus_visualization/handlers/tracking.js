@@ -18,6 +18,23 @@ export class TrackingHandler {
         return this.isTrackingActive;
     }
 
+    async setTracking(enabled) {
+        console.log("Setting tracking state:", enabled);
+        if (enabled === this.isTrackingActive) {
+            return; // Already in desired state
+        }
+        
+        if (enabled) {
+            // Only try to start tracking if we have a current point
+            if (this.currentPointId !== null) {
+                return await this.startTracking({ id: this.currentPointId });
+            }
+            return false;
+        } else {
+            return await this.stopTracking();
+        }
+    }
+
     getCurrentPointId() {
         return this.currentPointId;
     }

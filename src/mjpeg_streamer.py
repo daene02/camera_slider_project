@@ -10,13 +10,7 @@ class MJPEGStreamer:
     """Handles MJPEG streaming from the camera with connection pooling."""
     
     def __init__(self, camera, max_connections=5, frame_buffer_size=2):
-        """Initialize the MJPEG streamer.
-        
-        Args:
-            camera: Camera instance to stream from
-            max_connections: Maximum number of simultaneous stream connections
-            frame_buffer_size: Size of frame buffer queue
-        """
+        """Initialize the MJPEG streamer."""
         self.camera = camera
         self.max_connections = max_connections
         self._active_streams = 0
@@ -40,18 +34,31 @@ class MJPEGStreamer:
             
             self._streaming_event.set()
             asyncio.create_task(self._stream_producer())
-            self._logger.info("MJPEG streaming started")
             return True
         except Exception as e:
             self._logger.error(f"Failed to start streaming: {str(e)}")
             return False
     
+    async def reset(self) -> None:
+        """Reset the streamer to initial state."""
+        await self.stop_streaming()
+        self._frame_queue = Queue(maxsize=self._frame_queue.maxsize)
+        self._streaming_event.clear()
+        with self._stream_lock:
+            self._active_streams = 0
+
     async def stop_streaming(self) -> None:
         """Stop the streaming process."""
         self._streaming_event.clear()
-        await asyncio.sleep(0.1)  # Give producer time to stop
         
+        # Wait for active streams to disconnect
+        timeout = 2.0  # 2 second timeout
+        start_time = time.time()
+        while self._active_streams > 0 and (time.time() - start_time) < timeout:
+            await asyncio.sleep(0.1)
+            
         with self._stream_lock:
+            was_active = self._active_streams > 0
             self._active_streams = 0
             
         # Clear the frame queue
@@ -61,20 +68,19 @@ class MJPEGStreamer:
             except:
                 pass
         
-        try:
-            if self.camera.live_view_enabled:
+        if was_active:
+            try:
                 await self.camera.toggle_live_view(False)
-        except Exception as e:
-            self._logger.error(f"Error disabling live view: {str(e)}")
-        finally:
-            self._logger.info("MJPEG streaming stopped")
+                await asyncio.sleep(0.2)  # Give camera more time to cleanup
+            except Exception as e:
+                self._logger.error(f"Error disabling live view: {str(e)}")
 
     async def _stream_producer(self) -> None:
         """Continuously capture frames and add them to the queue."""
         retry_delay = 0.1
         max_retries = 3
         last_frame_time = 0
-        min_frame_interval = 0.03  # ~30fps max
+        min_frame_interval = 0.05  # ~30fps max
         
         while self._streaming_event.is_set():
             if self._active_streams > 0:
@@ -93,12 +99,10 @@ class MJPEGStreamer:
                                 self._frame_queue.put(frame)
                                 last_frame_time = time.time()
                                 break
-                            else:
-                                self._logger.warning(f"Empty frame (attempt {attempt + 1}/{max_retries})")
-                                if attempt < max_retries - 1:
-                                    await asyncio.sleep(retry_delay)
+                            elif attempt == max_retries - 1:
+                                self._logger.error("Failed to capture frame after multiple attempts")
+                            await asyncio.sleep(retry_delay)
                         except asyncio.CancelledError:
-                            self._logger.info("Stream producer cancelled")
                             return
                         except Exception as e:
                             self._logger.error(f"Frame capture error: {str(e)}")
@@ -107,26 +111,29 @@ class MJPEGStreamer:
             await asyncio.sleep(0.01)  # Shorter sleep for more responsive shutdown
 
     async def get_stream(self) -> AsyncGenerator[bytes, None]:
-        """Get a MJPEG stream generator.
+        """Get a MJPEG stream generator."""
+        # First check if we can accept a new connection
+        with self._stream_lock:
+            if self._active_streams >= self.max_connections:
+                self._logger.error("Maximum stream connections reached")
+                return
         
-        Yields:
-            JPEG frame data with MJPEG multipart format
-        """
+        # Then try to start streaming if needed
         if not self._streaming_event.is_set():
             if not await self.start_streaming():
                 self._logger.error("Failed to start streaming")
                 return
         
+        # Finally increment connection count
         with self._stream_lock:
+            # Double check max connections in case of race condition
             if self._active_streams >= self.max_connections:
-                self._logger.warning("Maximum stream connections reached")
+                self._logger.error("Maximum stream connections reached (race check)")
                 return
             self._active_streams += 1
-            self._logger.info(f"New stream connected (active: {self._active_streams})")
         
         try:
             boundary = "frame"
-            # Send MJPEG header
             header = [
                 '--' + boundary,
                 'Content-Type: image/jpeg',
@@ -142,13 +149,11 @@ class MJPEGStreamer:
                     )
                     
                     if frame:
-                        # Construct MJPEG frame
                         frame_header = (
                             f"{header_str}{len(frame)}\r\n\r\n"
                         ).encode('utf-8')
                         yield frame_header + frame + b'\r\n'
                 except asyncio.CancelledError:
-                    self._logger.info("Stream consumer cancelled")
                     break
                 except Exception as e:
                     if not isinstance(e, TimeoutError):
@@ -157,7 +162,6 @@ class MJPEGStreamer:
         finally:
             with self._stream_lock:
                 self._active_streams -= 1
-                self._logger.info(f"Stream disconnected (active: {self._active_streams})")
                 if self._active_streams == 0:
                     asyncio.create_task(self.stop_streaming())
     

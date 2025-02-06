@@ -239,27 +239,42 @@ export class ProfileManager {
             const response = await fetch('/focus/status');
             const status = await response.json();
             
-            if (!status.tracking_active) {
-                // Profile finished playing
-                this.isPlaying = false;
-                this.currentProfile = null;
-                this.progressOverlay.classList.remove('active');
-                return;
-            }
-            
             if (this.currentProfile) {
-                // Find current point index
+                // Show the overlay while profile is active
+                if (!this.progressOverlay.classList.contains('active')) {
+                    this.progressOverlay.classList.remove('hidden');
+                    this.progressOverlay.classList.add('active');
+                }
+                
+                // Find current point index, accounting for the camera position
                 const currentPointIndex = this.currentProfile.points.findIndex(
                     point => point.focus_point_id === status.current_point_id
                 );
                 
-                if (currentPointIndex !== -1) {
-                    this.updateProgressOverlay(
-                        this.currentProfile.name,
-                        currentPointIndex + 1,
-                        this.currentProfile.points.length
-                    );
+                // Always update progress even if point hasn't changed
+                this.updateProgressOverlay(
+                    this.currentProfile.name,
+                    currentPointIndex >= 0 ? currentPointIndex + 1 : 1,
+                    this.currentProfile.points.length
+                );
+                
+                // Hide overlay if profile completes
+                if (!status.tracking_active && currentPointIndex === this.currentProfile.points.length - 1) {
+                    this.isPlaying = false;
+                    this.currentProfile = null;
+                    this.progressOverlay.classList.add('hidden');
+                    setTimeout(() => {
+                        this.progressOverlay.classList.remove('active');
+                    }, 300); // Match CSS transition duration
                 }
+            } else {
+                // No active profile
+                this.progressOverlay.classList.add('hidden');
+                setTimeout(() => {
+                    if (!this.currentProfile) {
+                        this.progressOverlay.classList.remove('active');
+                    }
+                }, 300);
             }
         } catch (error) {
             console.error('Error updating progress:', error);

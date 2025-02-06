@@ -120,20 +120,20 @@ export class CanvasManager {
         }
 
         // If click was in empty space and tracking is active, stop tracking
-        if (this.trackingHandler && this.trackingHandler.isTracking()) {
-            console.log("Click in empty space, stopping tracking");
-            this.trackingHandler.stopTracking();
-            this.draw(); // Force redraw to update UI
-        }
+       // if (this.trackingHandler && this.trackingHandler.isTracking()) {
+         //   console.log("Click in empty space, stopping tracking");
+          //  this.trackingHandler.stopTracking();
+            //this.draw(); // Force redraw to update UI
+       // }
     }
 
     handleZoom(event) {
         event.preventDefault();
-        const zoomFactor = 0.1;
+        const zoomFactor = 0.5;
         if (event.deltaY < 0) {
-            this.targetZoom = Math.min(this.targetZoom + zoomFactor, 2);
+            this.targetZoom = Math.min(this.targetZoom + zoomFactor, 5);
         } else {
-            this.targetZoom = Math.max(this.targetZoom - zoomFactor, 0.3);
+            this.targetZoom = Math.max(this.targetZoom - zoomFactor, 0.2);
         }
     }
 
@@ -168,7 +168,7 @@ export class CanvasManager {
     worldToScreen(x, y) {
         const centerOffsetX = -this.currentSliderX;
         const centerOffsetY = -this.currentSliderY-100;
-        const scale = 0.5 * this.zoomLevel;
+        const scale = 0.8 * this.zoomLevel;
         const screenY = (this.canvas.height/2) - ((y + centerOffsetY) * scale);
         const screenX = (this.canvas.width/2) + ((x + centerOffsetX) * scale);
         return { x: screenX, y: screenY };
@@ -192,8 +192,8 @@ export class CanvasManager {
             
             const width = this.background.width * scale;
             const height = this.background.height * scale;
-            const x = (this.canvas.width - width) / 2;
-            const y = (this.canvas.height - height) / 2;
+            const x = (this.canvas.width - width) / 1;
+            const y = (this.canvas.height - height) / 1;
             
             this.ctx.globalAlpha = 0.3;
             this.ctx.drawImage(this.background, x, y, width, height);

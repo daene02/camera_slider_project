@@ -31,6 +31,9 @@
         <button class="icon-button" data-panel="debug">
             <i class="fas fa-terminal"></i>
         </button>
+        <button id="trackToggle" class="icon-button" title="Toggle Track Mode">
+            <i class="fas fa-bullseye"></i>
+        </button>
     </div>
     
     <!-- Panels -->
@@ -114,28 +117,68 @@
         const cameraStream = document.getElementById('camera-stream');
         let streamActive = true;
 
-        const updateStreamUI = (active) => {
+        const cleanupStream = async () => {
+            try {
+                await fetch('/camera/live_view/toggle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ enable: false })
+                });
+            } catch (error) {
+                console.error('Error cleaning up stream:', error);
+            }
+        };
+
+        const updateStreamUI = async (active) => {
+            const overlay = document.querySelector('.camera-stream-overlay');
+            
+            if (!active) {
+                overlay.classList.add('hidden');
+                await cleanupStream();
+                // Clear stream source after fade out and cleanup
+                setTimeout(() => {
+                    if (!streamActive) {
+                        cameraStream.src = '';
+                    }
+                }, 300); // Match the CSS transition duration
+            }
+            
             streamToggle.innerHTML = active ? 
                 '<i class="fas fa-video-slash"></i><span>Stop Stream</span>' :
                 '<i class="fas fa-video"></i><span>Start Stream</span>';
             streamStatus.textContent = active ? 'Stream Active' : 'Stream Stopped';
             streamStatus.className = `stream-status ${active ? 'active' : ''}`;
             
-            const overlay = document.querySelector('.camera-stream-overlay');
             if (active) {
-                overlay.classList.remove('hidden');
-                // Small delay to ensure the transition is visible
-                setTimeout(() => {
-                    startStream();
-                }, 50);
-            } else {
-                overlay.classList.add('hidden');
-                // Clear stream source after fade out animation
-                setTimeout(() => {
-                    if (!streamActive) { // Double check stream is still inactive
-                        cameraStream.src = '';
+                try {
+                    const response = await fetch('/camera/live_view/toggle', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ enable: true })
+                    });
+                    
+                    if (response.ok) {
+                        overlay.classList.remove('hidden');
+                        // Small delay to ensure the transition is visible
+                        setTimeout(() => {
+                            if (streamActive) {
+                                startStream();
+                            }
+                        }, 50);
+                    } else {
+                        console.error('Failed to enable live view');
+                        streamActive = false;
+                        updateStreamUI(false);
                     }
-                }, 300); // Match the CSS transition duration
+                } catch (error) {
+                    console.error('Error enabling live view:', error);
+                    streamActive = false;
+                    updateStreamUI(false);
+                }
             }
         };
 
@@ -146,9 +189,10 @@
             }
         };
 
-        streamToggle.addEventListener('click', () => {
-            streamActive = !streamActive;
-            updateStreamUI(streamActive);
+        streamToggle.addEventListener('click', async () => {
+            const newState = !streamActive;
+            streamActive = newState;
+            await updateStreamUI(newState);
         });
 
         // Connect camera on page load
@@ -198,15 +242,9 @@
         });
 
         // Handle page unload
-        window.addEventListener('beforeunload', () => {
+        window.addEventListener('beforeunload', async () => {
             streamActive = false;
-            fetch('/camera/live_view/toggle', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ enable: false })
-            }).catch(console.error);
+            await cleanupStream();
         });
     </script>
     
@@ -322,13 +360,35 @@
             });
         });
         
-        // Close panel when clicking outside
+        // Track mode toggle functionality
+        const trackToggle = document.getElementById('trackToggle');
+        trackToggle.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (window.focusViz) {
+                const tracking = window.focusViz.trackingHandler.isTracking();
+                window.focusViz.trackingHandler.setTracking(!tracking);
+                trackToggle.classList.toggle('active', !tracking);
+            }
+        });
+
+        // Update tracking button state when tracking status changes
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.focusViz) {
+                window.focusViz.trackingHandler.setUpdateCallback(isTracking => {
+                    trackToggle.classList.toggle('active', isTracking);
+                });
+            }
+        });
+
+        // Close panel only when clicking icon bar buttons
         document.addEventListener('click', (event) => {
             const iconBar = document.querySelector('.icon-bar');
-            if (activePanel && 
-                !event.target.closest('.panel') && 
-                !event.target.closest('.icon-button')) {
-                closePanel();
+            if (activePanel && event.target.closest('.icon-button')) {
+                // Only close if clicking a different icon button
+                const clickedPanelButton = event.target.closest('[data-panel]');
+                if (!clickedPanelButton || clickedPanelButton.dataset.panel !== activePanel.id.replace('-panel', '')) {
+                    closePanel();
+                }
             }
         });
         
