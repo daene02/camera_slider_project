@@ -50,32 +50,164 @@
     </div>
 
     <div id="camera-panel" class="panel">
-        <div class="panel-header">Camera View</div>
+        <div class="panel-header">Camera Control</div>
         <div class="panel-content">
-            <img id="camera-preview" class="camera-preview" />
+            <div class="keyboard-controls">
+                <div class="control-group">
+                    <span class="key-indicator">Space</span>
+                    <span class="key-action">Toggle Stream</span>
+                </div>
+                <div class="control-group">
+                    <span class="key-indicator">↑↓←→</span>
+                    <span class="key-action">Position/Focus</span>
+                </div>
+                <div class="control-group">
+                    <span class="key-indicator">+/-</span>
+                    <span class="key-action">Zoom</span>
+                </div>
+                <div class="control-group">
+                    <span class="key-indicator">Enter</span>
+                    <span class="key-action">Capture</span>
+                </div>
+                <div class="control-group">
+                    <span class="key-indicator">Esc</span>
+                    <span class="key-action">Stop</span>
+                </div>
+            </div>
+            <div class="camera-controls">
+                <button id="streamToggle" class="stream-toggle">
+                    <i class="fas fa-video"></i>
+                    <span>Stop Stream</span>
+                </button>
+                <div id="streamStatus" class="stream-status">Stream Active</div>
+            </div>
         </div>
     </div>
     
-    <canvas id="focusCanvas"></canvas>
-
-    <style>
-        .camera-preview {
-            width: 100%;
-            max-height: 200px;
-            object-fit: contain;
-            background: rgba(0, 0, 0, 0.3);
-        }
-    </style>
+    <!-- Main Container -->
+    <div id="visualization-container">
+        <canvas id="focusCanvas"></canvas>
+        <div class="camera-stream-overlay">
+            <img id="camera-stream" class="camera-stream" />
+        </div>
+    </div>
 
     <script>
-        // Auto-update camera preview
-        const cameraPreview = document.getElementById('camera-preview');
-        const updateCameraPreview = () => {
-            if (cameraPreview && document.getElementById('camera-panel').classList.contains('active')) {
-                cameraPreview.src = '/camera/live_view?' + new Date().getTime();
+        // Camera connection management
+        const connectCamera = async () => {
+            try {
+                const response = await fetch('/camera/connect', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    console.error('Failed to connect camera:', result.error);
+                }
+            } catch (error) {
+                console.error('Error connecting camera:', error);
             }
         };
-        setInterval(updateCameraPreview, 200);
+
+        // Stream control
+        const streamToggle = document.getElementById('streamToggle');
+        const streamStatus = document.getElementById('streamStatus');
+        const cameraStream = document.getElementById('camera-stream');
+        let streamActive = true;
+
+        const updateStreamUI = (active) => {
+            streamToggle.innerHTML = active ? 
+                '<i class="fas fa-video-slash"></i><span>Stop Stream</span>' :
+                '<i class="fas fa-video"></i><span>Start Stream</span>';
+            streamStatus.textContent = active ? 'Stream Active' : 'Stream Stopped';
+            streamStatus.className = `stream-status ${active ? 'active' : ''}`;
+            
+            const overlay = document.querySelector('.camera-stream-overlay');
+            if (active) {
+                overlay.classList.remove('hidden');
+                // Small delay to ensure the transition is visible
+                setTimeout(() => {
+                    startStream();
+                }, 50);
+            } else {
+                overlay.classList.add('hidden');
+                // Clear stream source after fade out animation
+                setTimeout(() => {
+                    if (!streamActive) { // Double check stream is still inactive
+                        cameraStream.src = '';
+                    }
+                }, 300); // Match the CSS transition duration
+            }
+        };
+
+        const startStream = () => {
+            if (streamActive) {
+                cameraStream.src = '/camera/live_view?' + new Date().getTime();
+                setTimeout(startStream, 100);
+            }
+        };
+
+        streamToggle.addEventListener('click', () => {
+            streamActive = !streamActive;
+            updateStreamUI(streamActive);
+        });
+
+        // Connect camera on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            connectCamera().then(() => {
+                updateStreamUI(true);
+            });
+        });
+
+        // Handle keyboard controls
+        document.addEventListener('keydown', (event) => {
+            if (event.target.tagName === 'INPUT') return; // Ignore if typing in input field
+            
+            switch(event.key) {
+                case ' ':
+                    event.preventDefault();
+                    streamToggle.click();
+                    break;
+                case 'Enter':
+                    event.preventDefault();
+                    fetch('/camera/capture', {
+                        method: 'POST'
+                    }).catch(console.error);
+                    break;
+                case 'Escape':
+                    event.preventDefault();
+                    if (streamActive) {
+                        streamActive = false;
+                        updateStreamUI(false);
+                    }
+                    break;
+                case 'ArrowUp':
+                case 'ArrowDown':
+                case 'ArrowLeft':
+                case 'ArrowRight':
+                    event.preventDefault();
+                    // TODO: Implement focus/position control
+                    console.log('Arrow key:', event.key);
+                    break;
+                case '+':
+                case '-':
+                    event.preventDefault();
+                    // TODO: Implement zoom control
+                    console.log('Zoom:', event.key);
+                    break;
+            }
+        });
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            streamActive = false;
+            fetch('/camera/live_view/toggle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ enable: false })
+            }).catch(console.error);
+        });
     </script>
     
     <script type="module">

@@ -1,251 +1,144 @@
-# Camera Slider Project - System Architecture & Patterns
+# System Architecture Patterns - Last Updated: 06/02/2025 4:55am
 
-## Web Interface Design System
+## Core Architecture
 
-### Web Settings Architecture
-
-1. **Core Configuration Structure**
-```python
-# web_settings.py
-
-class WebUISettings:
-    # Colors
-    COLORS = {
-        "primary": "#4a9eff",
-        "background": "#000000",
-        "overlay": "rgba(0, 0, 0, 0.85)",
-        "border": "rgba(255, 255, 255, 0.3)",
-        "text": {
-            "primary": "#ffffff",
-            "secondary": "rgba(255, 255, 255, 0.7)"
-        }
-    }
-
-    # Typography
-    TYPOGRAPHY = {
-        "fonts": {
-            "primary": "Arial, sans-serif",
-            "monospace": "monospace"
-        },
-        "sizes": {
-            "small": "12px",
-            "normal": "14px",
-            "large": "16px",
-            "xlarge": "24px"
-        },
-        "weights": {
-            "normal": 400,
-            "bold": 700
-        }
-    }
-
-    # Component Dimensions
-    COMPONENTS = {
-        "icon_button": {
-            "size": "60px",
-            "radius": "8px"
-        },
-        "panel": {
-            "width": "300px",
-            "header_height": "61px"
-        }
-    }
-
-    # Spacing
-    SPACING = {
-        "small": "10px",
-        "medium": "15px",
-        "large": "20px"
-    }
-
-    # Animations
-    ANIMATIONS = {
-        "fast": "0.2s",
-        "normal": "0.3s",
-        "timing": "ease"
-    }
+### Camera Control System
+```
+[Web Interface] -> [Profile Controller] -> [Camera Controller] -> [gphoto2]
+                                      -> [Motor Controller]   -> [DynamixelSDK]
 ```
 
-2. **CSS Implementation Pattern**
-```css
-/* base.css */
+#### Design Patterns
+1. **Singleton Pattern**
+   - Single camera controller instance
+   - Single motor controller instance
+   - Centralized profile management
 
-:root {
-    /* Colors */
-    --color-primary: var(--COLORS-primary);
-    --color-background: var(--COLORS-background);
-    --color-overlay: var(--COLORS-overlay);
-    --color-border: var(--COLORS-border);
-    
-    /* Typography */
-    --font-primary: var(--TYPOGRAPHY-fonts-primary);
-    --font-monospace: var(--TYPOGRAPHY-fonts-monospace);
-    
-    /* Component Dimensions */
-    --icon-button-size: var(--COMPONENTS-icon_button-size);
-    --icon-button-radius: var(--COMPONENTS-icon_button-radius);
-    
-    /* Spacing */
-    --spacing-small: var(--SPACING-small);
-    --spacing-medium: var(--SPACING-medium);
-    --spacing-large: var(--SPACING-large);
-}
+2. **Observer Pattern**
+   - Motor position updates
+   - Camera status changes
+   - Profile execution progress
+
+3. **Command Pattern**
+   - Camera operations
+   - Motor movements
+   - Profile execution
+
+### Component Structure
+
+#### Camera Module
+```
+CanonEOSR50
+  ├── Connection Management
+  │   ├── Auto-reconnect logic
+  │   └── Connection pooling
+  ├── Operation Handlers
+  │   ├── Photo capture
+  │   ├── Video recording
+  │   └── Live view streaming
+  └── Error Management
+      ├── Retry mechanisms
+      └── State recovery
 ```
 
-### Component Architecture
-
-1. **Base Components**
-```css
-/* Common Button Pattern */
-.btn {
-    background: var(--color-overlay);
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border);
-    padding: var(--spacing-small) var(--spacing-medium);
-    border-radius: var(--icon-button-radius);
-    transition: all var(--animation-fast) var(--animation-timing);
-}
-
-/* Panel Pattern */
-.panel {
-    width: var(--panel-width);
-    background: var(--color-overlay);
-    border: 1px solid var(--color-border);
-}
-
-/* Form Control Pattern */
-.form-control {
-    background: var(--color-overlay);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-primary);
-    padding: var(--spacing-small);
-    border-radius: var(--icon-button-radius);
-}
+#### Profile System
+```
+ProfileController
+  ├── Profile Management
+  │   ├── Load/Save profiles
+  │   └── Validate movements
+  ├── Execution Engine
+  │   ├── Movement sequencing
+  │   ├── Camera triggering
+  │   └── Focus tracking
+  └── State Management
+      ├── Playback control
+      └── Error handling
 ```
 
-2. **Feature-Specific Patterns**
-```css
-/* Focus Control Pattern */
-.focus-controls {
-    display: grid;
-    gap: var(--spacing-medium);
-}
+## Key Design Decisions
 
-/* Motor Control Pattern */
-.motor-box {
-    padding: var(--spacing-medium);
-    border-radius: var(--icon-button-radius);
-    background: var(--color-overlay);
-    transition: border-color var(--animation-fast);
-}
+### Camera Integration
+1. **Asynchronous Operations**
+   - Non-blocking camera operations
+   - Parallel motion control
+   - Event-based updates
 
-/* Profile Management Pattern */
-.profile-controls {
-    margin-bottom: var(--spacing-medium);
-    padding: var(--spacing-medium);
-    background: var(--color-overlay);
-    border-radius: var(--icon-button-radius);
-}
+2. **State Management**
+   - Camera connection state
+   - Recording status
+   - Profile execution progress
+   - Motor positions
 
-/* Camera Panel Pattern */
-.camera-panel {
-    background: transparent !important;
-    border: none !important;
-    padding: 0;
-    
-    .camera-content {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-    }
-    
-    .camera-preview {
-        width: 100%;
-        height: auto;
-        max-height: 80vh;
-        object-fit: contain;
-    }
-    
-    .camera-toggle {
-        position: absolute;
-        bottom: var(--spacing-large);
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--color-overlay);
-        padding: var(--spacing-small) var(--spacing-medium);
-        border-radius: var(--icon-button-radius);
-        border: 1px solid var(--color-border);
-        
-        &.active {
-            background: var(--color-success);
-            border-color: var(--color-success-dark);
-        }
-    }
-}
+3. **Error Handling**
+   - Retry mechanisms
+   - Graceful degradation
+   - State recovery
+   - Error logging
 
-/* Video Controls Pattern */
-.video-controls {
-    margin-bottom: calc(var(--spacing-large) * 1.5);
-}
+### Motion Control
+1. **Position Management**
+   - Continuous position monitoring
+   - Predictive tracking
+   - Error threshold handling
 
-/* Photo Mode Pattern */
-.photo-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: var(--spacing-small);
-}
+2. **Movement Coordination**
+   - Synchronized motor control
+   - Acceleration profiles
+   - Emergency stop handling
 
-/* Camera State Pattern */
-.camera-state {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-small);
-    padding: var(--spacing-small);
-    background: var(--color-overlay);
-    border-radius: var(--icon-button-radius);
-    
-    .status-indicator {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--color-error);
-        
-        &.active {
-            background: var(--color-success);
-        }
-    }
-}
-```
+## Communication Patterns
 
-### Implementation Guidelines
+### Internal Communication
+1. **Event System**
+   - Motor position updates
+   - Camera status changes
+   - Profile execution events
+   - Error notifications
 
-1. **CSS Organization**
-   - Base reset styles
-   - Common components
-   - Typography classes
-   - Utility classes
-   - Feature-specific styles
-   - Media queries
+2. **State Updates**
+   - Camera connection status
+   - Recording state
+   - Movement progress
+   - Focus tracking data
 
-2. **Class Naming Convention**
-   - Use BEM methodology
-   - Component-based organization
-   - Utility-first approach for common patterns
-   - Feature-specific namespacing
+### External Interfaces
+1. **Web API**
+   - REST endpoints
+   - Status polling
+   - Command submission
+   - Profile management
 
-3. **Responsive Design**
-   - Mobile-first approach
-   - Breakpoint system
-   - Fluid typography
-   - Flexible layouts
+2. **Hardware Interface**
+   - Camera control protocol
+   - Motor control commands
+   - Sensor feedback
+   - Error reporting
 
-4. **Performance Optimization**
-   - CSS specificity management
-   - Minimal nesting
-   - Reusable utility classes
-   - Efficient selectors
+## Error Handling Patterns
 
-[Previous content remains unchanged...]
+### Recovery Strategies
+1. **Camera Issues**
+   - Connection retry
+   - State recovery
+   - Operation timeout handling
+   - Error notification
+
+2. **Motion Control**
+   - Position verification
+   - Emergency stop
+   - Calibration recovery
+   - Error compensation
+
+### Fault Tolerance
+1. **Graceful Degradation**
+   - Partial functionality
+   - Safe state fallback
+   - User notification
+   - Recovery options
+
+2. **State Preservation**
+   - Profile checkpointing
+   - Position memory
+   - Configuration backup
+   - Error logging

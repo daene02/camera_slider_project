@@ -6,12 +6,124 @@ body {
     font-family: Arial, sans-serif;
 }
 
+#visualization-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 canvas {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
+    z-index: 1;
+}
+
+/* Camera Stream Overlay */
+.camera-stream-overlay {
+    position: absolute;
+    top: 20px;
+    right: 80px;
+    width: 25%;
+    max-width: 400px;
+    min-width: 200px;
+    aspect-ratio: 16/9;
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+    z-index: 2;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.camera-stream-overlay.hidden {
+    opacity: 0;
+    transform: translateX(20px);
+    pointer-events: none;
+}
+
+.camera-stream {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+}
+
+/* Camera Controls */
+.camera-controls {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+
+.keyboard-controls {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    margin: 8px 0;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+}
+
+.key-indicator {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-right: 10px;
+    min-width: 40px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.key-action {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.stream-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    background: rgba(74, 158, 255, 0.2);
+    border: 1px solid #4a9eff;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.stream-toggle:hover {
+    background: rgba(74, 158, 255, 0.3);
+}
+
+.stream-toggle i {
+    font-size: 16px;
+}
+
+.stream-status {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.stream-status.active {
+    color: #4CAF50;
 }
 
 .back-button {
@@ -239,6 +351,11 @@ canvas {
 
 /* Mobile Optimizations */
 @media (max-width: 768px) {
+    .camera-stream-overlay {
+        width: 35%;
+        min-width: 150px;
+    }
+
     /* Panel adjustments */
     .panel {
         width: 100%;
@@ -298,6 +415,11 @@ canvas {
 
 /* Additional optimizations for very small screens */
 @media (max-width: 600px) {
+    .camera-stream-overlay {
+        width: 40%;
+        min-width: 120px;
+    }
+
     .icon-button {
         width: 50px;
         height: 50px;
@@ -315,5 +437,34 @@ canvas {
 
     .progress-overlay {
         padding: 15px;
+    }
+
+    .keyboard-controls {
+        font-size: 11px;
+    }
+
+    .key-indicator {
+        padding: 2px 4px;
+        min-width: 25px;
+    }
+
+    .key-action {
+        font-size: 11px;
+    }
+}
+
+/* Landscape mode optimization */
+@media (max-width: 900px) and (orientation: landscape) {
+    .camera-stream-overlay {
+        width: 20%;
+        min-width: 150px;
+    }
+
+    .keyboard-controls {
+        font-size: 11px;
+    }
+
+    .control-group {
+        margin: 2px 0;
     }
 }

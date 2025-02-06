@@ -1,10 +1,9 @@
-from flask import Flask, render_template, request, send_from_directory, jsonify, make_response
+from flask import Flask, render_template, request, send_from_directory, jsonify
 from src.web.controllers.motor_controller import motor_controller
 from src.web.controllers.profile_controller import profile_controller
 from src.web.controllers.focus_controller import focus_controller
-import gphoto2 as gp
+from src.web.routes.camera_routes import camera_routes, cleanup_streamer
 import asyncio
-import os
 import logging
 import time
 
@@ -14,6 +13,9 @@ logging.basicConfig(level=logging.DEBUG,
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Register blueprints
+app.register_blueprint(camera_routes, url_prefix='/camera')
 
 # Background images for each page
 PAGE_BACKGROUNDS = {
@@ -37,12 +39,6 @@ def run_async(coro):
 def get_background_image(endpoint):
     """Get the background image for the current page"""
     return PAGE_BACKGROUNDS.get(endpoint, PAGE_BACKGROUNDS['home'])
-
-def check_camera_connected():
-    """Check if camera is connected and return error response if not."""
-    if not profile_controller.camera_connected:
-        return jsonify({"error": "Camera not connected"}), 400
-    return None
 
 # Main page routes
 @app.route('/')
@@ -79,7 +75,8 @@ def photo():
 
 @app.route('/focus/visualization')
 def focus_visualization():
-    return render_template('focus_visualization.html')
+    """Render the focus visualization page."""
+    return render_template('focus_visualization.html', background_image=get_background_image('focus'))
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):
@@ -233,208 +230,6 @@ def get_focus_motor_positions():
         return jsonify({"error": "Failed to read positions"}), 500
     return jsonify(positions)
 
-# Camera control routes
-@app.route('/camera/connect', methods=['POST'])
-def connect_camera():
-    try:
-        success, error = run_async(profile_controller.connect_camera())
-        if success:
-            return jsonify({"success": True})
-        return jsonify({"error": error}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/camera/status', methods=['GET'])
-def get_camera_status():
-    try:
-        if not profile_controller.camera_connected:
-            return jsonify({"connected": False})
-            
-        storage_info = run_async(profile_controller.camera.get_storage_info())
-        camera_settings = run_async(profile_controller.camera.get_settings())
-        
-        return jsonify({
-            "connected": True,
-            "recording": profile_controller.recording_active,
-            "storage": storage_info,
-            "settings": camera_settings,
-            "live_view": profile_controller.camera.live_view_enabled
-        })
-    except Exception as e:
-        logger.error(f"Error getting camera status: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/camera/capture', methods=['POST'])
-def capture_photo():
-    if error_response := check_camera_connected():
-        return error_response
-        
-    try:
-        success = run_async(profile_controller.camera.capture_photo())
-        if success:
-            return jsonify({"success": True})
-        return jsonify({"error": "Failed to capture photo"}), 500
-    except Exception as e:
-        logger.error(f"Error capturing photo: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/camera/start_recording', methods=['POST'])
-def start_recording():
-    # Try to connect camera if not connected
-    if not profile_controller.camera_connected:
-        try:
-            success, error = run_async(profile_controller.connect_camera())
-            if not success:
-                return jsonify({"error": f"Failed to connect camera: {error}"}), 400
-        except Exception as e:
-            return jsonify({"error": f"Camera connection error: {str(e)}"}), 500
-
-    try:
-        try:
-            success = run_async(profile_controller.camera.start_video())
-            if success:
-                profile_controller.recording_active = True
-                return jsonify({"success": True})
-            return jsonify({"error": "Failed to start recording"}), 500
-        except gp.GPhoto2Error as e:
-            if e.code == -110:  # I/O in progress
-                logger.warning("Camera I/O in progress, please wait a moment and try again")
-                return jsonify({"error": "Camera busy, please wait a moment and try again"}), 503
-            logger.error(f"GPhoto2 error: {str(e)}", exc_info=True)
-            return jsonify({"error": f"Camera error: {str(e)}"}), 500
-        except Exception as e:
-            logger.error(f"Error starting recording: {str(e)}", exc_info=True)
-            return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
-        return jsonify({"error": "An unexpected error occurred"}), 500
-
-@app.route('/camera/stop_recording', methods=['POST'])
-def stop_recording():
-    # Ensure camera is connected
-    if not profile_controller.camera_connected:
-        return jsonify({"error": "No camera connected"}), 400
-        
-    try:
-        try:
-            success = run_async(profile_controller.camera.stop_video())
-            if success:
-                profile_controller.recording_active = False
-                return jsonify({"success": True})
-            return jsonify({"error": "Failed to stop recording"}), 500
-        except gp.GPhoto2Error as e:
-            if e.code == -110:  # I/O in progress
-                logger.warning("Camera I/O in progress, please wait a moment and try again")
-                return jsonify({"error": "Camera busy, please wait a moment and try again"}), 503
-            logger.error(f"GPhoto2 error: {str(e)}", exc_info=True)
-            return jsonify({"error": f"Camera error: {str(e)}"}), 500
-        except Exception as e:
-            logger.error(f"Error stopping recording: {str(e)}", exc_info=True)
-            return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
-        return jsonify({"error": "An unexpected error occurred"}), 500
-
-@app.route('/camera/live_view')
-def get_live_view():
-    try:
-        # Check camera connection
-        if error_response := check_camera_connected():
-            logger.error("Camera not connected during live view request")
-            return error_response
-
-        camera = profile_controller.camera
-        if not camera:
-            logger.error("Camera object is None")
-            return jsonify({"error": "Camera not properly initialized"}), 500
-        
-        # Verify live view state
-        if not camera.live_view_enabled:
-            logger.debug("Live view not enabled, enabling now...")
-            success = run_async(camera.toggle_live_view(True))
-            if not success:
-                logger.error("Failed to enable live view")
-                return jsonify({"error": "Failed to enable live view"}), 500
-                
-        # Capture preview with retries and increasing delays
-        max_retries = 3
-        base_delay = 0.5
-        for attempt in range(max_retries):
-            delay = base_delay * (attempt + 1)  # Increasing delay for each retry
-            logger.debug(f"Attempting preview capture (attempt {attempt + 1}/{max_retries})")
-            
-            preview = run_async(camera.capture_preview())
-            if not preview and attempt < max_retries - 1:
-                logger.warning(f"Preview capture failed, waiting {delay}s before retry")
-                time.sleep(delay)
-            if preview:
-                try:
-                    if not preview:
-                        logger.error("No preview data received")
-                        raise ValueError("Preview data is empty")
-                        
-                    # Handle potential tuple return (data, size)
-                    if isinstance(preview, tuple):
-                        data = preview[0]
-                        logger.debug(f"Got preview data from tuple, size: {len(data) if data else 0}")
-                    else:
-                        data = preview
-                        logger.debug(f"Got preview data directly, size: {len(data) if data else 0}")
-                    
-                    if not data:
-                        raise ValueError("No valid preview data")
-                        
-                    # Create response with preview bytes
-                    response = make_response(data)
-                    response.headers['Content-Type'] = 'image/jpeg'
-                    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-                    logger.debug("Sending preview response")
-                    return response
-                except Exception as e:
-                    logger.error(f"Error processing preview data: {str(e)}", exc_info=True)
-                    continue
-            else:
-                logger.error("Preview capture returned None")
-                
-        logger.error("Failed to capture preview after all retries")
-        return jsonify({"error": "Failed to capture preview after multiple attempts"}), 500
-    except Exception as e:
-        logger.error(f"Live view error: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/camera/settings', methods=['POST'])
-def update_camera_settings():
-    if error_response := check_camera_connected():
-        return error_response
-        
-    try:
-        settings = request.json
-        success = run_async(profile_controller.camera.update_settings(settings))
-        if success:
-            return jsonify({"success": True})
-        return jsonify({"error": "Failed to update camera settings"}), 500
-    except Exception as e:
-        logger.error(f"Error updating camera settings: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/camera/live_view/toggle', methods=['POST'])
-def toggle_live_view():
-    if error_response := check_camera_connected():
-        return error_response
-        
-    try:
-        enable = request.json.get('enable')
-        success = run_async(profile_controller.camera.toggle_live_view(enable))
-        if success:
-            return jsonify({
-                "success": True,
-                "enabled": profile_controller.camera.live_view_enabled
-            })
-        return jsonify({"error": "Failed to toggle live view"}), 500
-    except Exception as e:
-        logger.error(f"Error toggling live view: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-
 # Profile routes
 @app.route('/profile/list')
 def list_profiles():
@@ -454,7 +249,6 @@ def save_profile():
     if success:
         return jsonify({'success': True})
     return jsonify({'error': 'Failed to save profile'}), 500
-
 
 @app.route('/profile/play', methods=['POST'])
 def play_profile():
@@ -499,4 +293,9 @@ def stop_profile():
 
 if __name__ == '__main__':
     print("Starting Camera Slider Web Interface...")
-    app.run(host='0.0.0.0', port=5000)
+    try:
+        app.run(host='0.0.0.0', port=5000)
+    except Exception as e:
+        logger.error(f"Server error: {str(e)}")
+    finally:
+        cleanup_streamer()

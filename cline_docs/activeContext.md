@@ -1,109 +1,64 @@
-# Active Development Context
+# Active Context - Last Updated: 06/02/2025 4:53am
 
-## Recent Changes (Last 24 Hours)
+## Current Work Status
+- Completed comprehensive code review of camera integration system
+- Identified key areas for optimization and improvement
+- Added support for Canon EOS R50 camera
+- Implemented live view and recording functionality
 
-### Web Interface Styling System Overhaul
-- Implemented centralized styling configuration in web_settings.py
-- Created comprehensive base.css with CSS variables system
-- Updated all templates to use consistent styling:
-  * home.html: Feature grid layout
-  * focus.html: Point controls and tracking interface
-  * motor.html: Motor control boxes and states
-  * profiles.html: Profile management and points
-  * video.html: Recording controls and status
-  * photo.html: Photo sequence and thumbnails
+## Recent Changes
+1. Camera Integration Review:
+   - Analyzed gphoto2 implementation for Canon EOS R50
+   - Reviewed error handling and retry mechanisms
+   - Evaluated live view and recording features
 
-### Focus System Improvements
-- Enhanced tracking smoothness with 50Hz updates
-- Improved position feedback during tracking
+2. System Analysis:
+   - Identified performance bottlenecks in live view streaming
+   - Found potential race conditions in profile playback
+   - Discovered areas for motor control optimization
 
-### Components Updated
+## Next Steps
 
-1. Base CSS System
-   - Implemented CSS variables for consistent styling
-   - Created reusable component classes
-   - Added responsive design utilities
-   - Structured feature-specific styles
+### High Priority
+1. Camera Improvements:
+   - Implement camera settings caching
+   - Add connection pooling
+   - Develop auto-reconnect functionality
+   - Enhance error recovery for camera busy states
 
-2. Web Templates
-   - Removed inline styles
-   - Implemented consistent form controls
-   - Added standardized button styles
-   - Updated panel and card layouts
+2. Performance Optimization:
+   - Convert live view to MJPEG streaming
+   - Implement event-based motor position monitoring
+   - Add proper connection pooling
+   - Refactor asynchronous operations
 
-3. Focus System
-   - Added angle corrections
-   - Improved tracking stability
-   - Enhanced position accuracy
+### Medium Priority
+1. Motion Control:
+   - Add acceleration curves
+   - Implement motion interpolation
+   - Add motor stall detection
 
-4. Profile System
-   - Added continuous tracking updates
-   - Improved error handling
-   - Enhanced logging for diagnostics
+2. Focus System:
+   - Develop auto-focus capabilities
+   - Implement focus stacking
+   - Add focus calibration
+   - Add predictive focus tracking
 
-### Camera Interface Improvements
-- Removed list styling artifacts from camera panel
-- Added power toggle button below preview
-- Improved camera state management and feedback
-- Enhanced live view performance with retries
-- Better error handling for video/photo operations
+### Low Priority
+1. Code Structure:
+   - Unify error handling system
+   - Implement dependency injection
+   - Enhance logging system
 
-### Known Issues
-1. Styling System
-   - Need to monitor CSS specificity conflicts
-   - May need to optimize media queries
-   - Consider adding more breakpoints for mobile
+## Current Issues
+- Mixed sync/async code patterns
+- Polling-based motor position verification
+- Basic motion profiles could be more sophisticated
+- Live view performance could be improved
+- Limited error recovery in some areas
 
-2. Focus System
-   - Still testing angle correction accuracy
-   - Need to verify tracking stability under rapid movement
-
-3. Camera System
-   - Improving connection reliability
-   - Optimizing live view refresh rate
-   - Enhancing error recovery for video mode
-
-### Improvements Needed
-1. User Interface
-   - Consider adding more animation effects
-   - May add hover tooltips
-   - Could add keyboard shortcuts
-   - Consider dark/light theme support
-
-2. Performance
-   - Monitor CSS animation performance
-   - Consider optimizing large CSS file
-   - May need to split CSS by feature
-
-3. Error Handling
-   - Add user feedback for motor errors
-   - Improve position validation
-   - Add recovery mechanisms for tracking interruptions
-
-### Next Steps
-1. Validation & Testing
-   - Test responsive design across devices
-   - Verify accessibility compliance
-   - Test cross-browser compatibility
-
-2. Potential Enhancements
-   - Add CSS transitions for state changes
-   - Consider CSS Grid for complex layouts
-   - May add print stylesheets
-
-3. Documentation
-   - Document CSS architecture
-   - Update component styling guide
-   - Document new CSS utilities
-
-### Current Status
-- New styling system fully implemented
-- All templates updated to use base.css
-- Focus visualization system working with improved interaction
-- Position control system fully functional
-
-### Technical Notes
-- Base font size: 14px
-- Primary spacing unit: 15px
-- Color scheme uses CSS variables
-- Using CSS Grid and Flexbox for layouts
+## Technical Decisions Pending
+1. Best approach for MJPEG streaming implementation
+2. Strategy for camera connection pooling
+3. Method for motor position event system
+4. Architecture for unified error handling
