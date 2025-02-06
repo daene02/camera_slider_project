@@ -147,6 +147,45 @@ class WebUISettings:
     border-radius: var(--icon-button-radius);
 }
 
+/* Camera Panel Pattern */
+.camera-panel {
+    background: transparent !important;
+    border: none !important;
+    padding: 0;
+    
+    .camera-content {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+    
+    .camera-preview {
+        width: 100%;
+        height: auto;
+        max-height: 80vh;
+        object-fit: contain;
+    }
+    
+    .camera-toggle {
+        position: absolute;
+        bottom: var(--spacing-large);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--color-overlay);
+        padding: var(--spacing-small) var(--spacing-medium);
+        border-radius: var(--icon-button-radius);
+        border: 1px solid var(--color-border);
+        
+        &.active {
+            background: var(--color-success);
+            border-color: var(--color-success-dark);
+        }
+    }
+}
+
 /* Video Controls Pattern */
 .video-controls {
     margin-bottom: calc(var(--spacing-large) * 1.5);
@@ -157,6 +196,27 @@ class WebUISettings:
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: var(--spacing-small);
+}
+
+/* Camera State Pattern */
+.camera-state {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    padding: var(--spacing-small);
+    background: var(--color-overlay);
+    border-radius: var(--icon-button-radius);
+    
+    .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--color-error);
+        
+        &.active {
+            background: var(--color-success);
+        }
+    }
 }
 ```
 

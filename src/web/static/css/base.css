@@ -209,7 +209,7 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 600px;
     margin: 0 auto;
 }
 
@@ -369,7 +369,7 @@ body {
 /* Motor Control Specific */
 .motor-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: var(--spacing-medium);
 }
 
@@ -381,11 +381,11 @@ body {
 }
 
 .motor-box.enabled {
-    border: 2px solid rgba(0, 255, 0, 0.5);
+    border: 1px solid rgba(0, 2, 0, 0);
 }
 
 .motor-box.disabled {
-    border: 2px solid rgba(255, 0, 0, 0.5);
+    border: 1px solid rgba(87, 0, 0, 0.612);
 }
 
 .motor-header {
@@ -444,13 +444,13 @@ body {
 }
 
 .btn-enable {
-    background-color: rgba(0, 255, 0, 0.2);
-    border: 1px solid rgba(0, 255, 0, 0.5);
+    background-color: rgba(0, 255, 0, 0.5);
+    border: 1px solid rgba(0, 255, 0, 0.8);
 }
 
 .btn-disable {
-    background-color: rgba(255, 0, 0, 0.2);
-    border: 1px solid rgba(255, 0, 0, 0.5);
+    background-color: rgba(255, 0, 0, 0.5);
+    border: 1px solid rgba(255, 0, 0, 0.8);
 }
 
 /* Profile Page Specific */

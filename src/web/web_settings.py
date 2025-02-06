@@ -43,7 +43,7 @@ FONTS = {
 COMPONENTS = {
     "icon_button": {
         "size": "60px",
-        "border_radius": "8px"
+        "border_radius": "5px"
     },
     "panel": {
         "width": "300px",
@@ -61,8 +61,8 @@ COMPONENTS = {
 ########################################
 ANIMATIONS = {
     "duration": {
-        "fast": "0.4s",
-        "normal": "0.8s"
+        "fast": "0.6s",
+        "normal": "2s"
     },
     "timing": "ease"
 }

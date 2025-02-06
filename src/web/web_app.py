@@ -413,6 +413,21 @@ def list_profiles():
     profiles = profile_controller.list_profiles()
     return jsonify(profiles)
 
+@app.route('/profile/<name>')
+def get_profile(name):
+    profile_data = profile_controller.get_profile(name)
+    if profile_data is None:
+        return jsonify({'error': 'Profile not found'}), 404
+    return jsonify(profile_data)
+
+@app.route('/profile/save', methods=['POST'])
+def save_profile():
+    success = profile_controller.save_profile(request.json)
+    if success:
+        return jsonify({'success': True})
+    return jsonify({'error': 'Failed to save profile'}), 500
+
+
 @app.route('/profile/play', methods=['POST'])
 def play_profile():
     try:

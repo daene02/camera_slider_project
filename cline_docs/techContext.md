@@ -178,8 +178,22 @@
    - Profile Playback: Continuous motion
    - Pan/Tilt Tracking: Real-time response
 
-4. **System Integration**
+4. **Camera System**
+   - Camera Model: Canon EOS R50
+   - Integration:
+     * Live View Support
+     * Video Recording
+     * Photo Capture
+     * Settings Control
+   - Performance:
+     * Live View Refresh: ~24fps
+     * Preview Resolution: 1920x1080
+     * Connection Management: Auto-reconnect
+     * Error Recovery: Retry mechanism
+
+5. **System Integration**
    - Hardware Interface: Dynamixel SDK
+   - Camera Interface: gPhoto2
    - Web Interface: Flask/JSON API
    - Profile Storage: JSON files
    - Real-time Monitoring: Websocket updates

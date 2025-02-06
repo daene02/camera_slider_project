@@ -41,6 +41,13 @@
    - Improved error handling
    - Enhanced logging for diagnostics
 
+### Camera Interface Improvements
+- Removed list styling artifacts from camera panel
+- Added power toggle button below preview
+- Improved camera state management and feedback
+- Enhanced live view performance with retries
+- Better error handling for video/photo operations
+
 ### Known Issues
 1. Styling System
    - Need to monitor CSS specificity conflicts
@@ -50,6 +57,11 @@
 2. Focus System
    - Still testing angle correction accuracy
    - Need to verify tracking stability under rapid movement
+
+3. Camera System
+   - Improving connection reliability
+   - Optimizing live view refresh rate
+   - Enhancing error recovery for video mode
 
 ### Improvements Needed
 1. User Interface
