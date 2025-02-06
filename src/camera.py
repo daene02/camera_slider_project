@@ -3,6 +3,9 @@ import logging
 import asyncio
 from typing import Dict, Optional, Any
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.CRITICAL)  # Disable all logs at module level
+
 class CanonEOSR50:
     """Manages communication with Canon EOS R50 camera via gphoto2."""
     
@@ -11,7 +14,8 @@ class CanonEOSR50:
         self.context = None
         self.live_view_enabled = False
         self._logger = logging.getLogger(__name__)
-
+        self._logger.setLevel(logging.CRITICAL)  # Disable all debug/info logging
+        
     async def connect(self) -> bool:
         """Initialize connection to the camera."""
         try:

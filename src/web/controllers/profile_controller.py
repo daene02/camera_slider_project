@@ -20,6 +20,7 @@ class ProfileController:
     def __init__(self):
         self.playback_stop_event = Event()
         self.current_playback_thread = None
+        self.current_profile = None  # Store current profile for progress tracking
         self.tracking_active = False
         self.camera = None
         self.camera_connected = False
@@ -279,6 +280,7 @@ class ProfileController:
         try:
             self.playback_stop_event.clear()
             self.tracking_active = False
+            self.current_profile = profile  # Store profile for progress tracking
             self.current_playback_thread = Thread(target=self.run_profile, args=(profile, settings))
             self.current_playback_thread.start()
             return True, None
@@ -288,6 +290,7 @@ class ProfileController:
     def stop_playback(self):
         try:
             self.playback_stop_event.set()
+            self.current_profile = None  # Clear current profile
             current_positions = motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_read_positions)
             if current_positions:
                 motor_controller.safe_dxl_operation(motor_controller.dxl.bulk_write_goal_positions, current_positions)

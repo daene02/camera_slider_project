@@ -67,33 +67,100 @@ canvas {
     align-items: center;
 }
 
-.keyboard-controls {
-    margin-bottom: 20px;
+/* Camera Controls */
+.camera-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
     padding: 15px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
 }
 
-.control-group {
+.stream-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+.camera-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.camera-btn {
     display: flex;
     align-items: center;
-    margin: 8px 0;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 14px;
-}
-
-.key-indicator {
-    background: rgba(255, 255, 255, 0.15);
-    padding: 4px 8px;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 4px;
-    margin-right: 10px;
-    min-width: 40px;
-    text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
 }
 
-.key-action {
-    color: rgba(255, 255, 255, 0.7);
+.camera-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.camera-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.camera-btn i {
+    font-size: 16px;
+    transition: color 0.2s ease;
+}
+
+#recordStart.active {
+    background: rgba(255, 59, 48, 0.2);
+    border-color: #FF3B30;
+    animation: pulse 2s infinite;
+}
+
+#recordStart.active i {
+    color: #FF3B30;
+}
+
+#recordStop {
+    background: rgba(255, 59, 48, 0.1);
+}
+
+#recordStop:not(:disabled):hover {
+    background: rgba(255, 59, 48, 0.2);
+}
+
+#takePhoto.active {
+    animation: flash 0.2s ease;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 59, 48, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 59, 48, 0);
+    }
+}
+
+@keyframes flash {
+    0% {
+        background: rgba(255, 255, 255, 0.9);
+    }
+    100% {
+        background: rgba(0, 0, 0, 0.4);
+    }
 }
 
 .stream-toggle {
@@ -249,24 +316,26 @@ canvas {
     position: absolute;
     top: 60px;
     left: 20px;
-    background: rgba(0, 0, 0, 0);
+    background: rgba(0, 0, 0, 0.8);
     padding: 15px 25px;
     border-radius: 8px;
     display: none;
     z-index: 3;
     min-width: 100px;
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-    opacity: 1;
-    transform: translateX(0);
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .progress-overlay.active {
     display: block;
+    opacity: 1;
+    transform: translateX(0);
 }
 
-.progress-overlay.hidden {
+.progress-overlay.fade-out {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateX(-20px);
     pointer-events: none;
 }
 

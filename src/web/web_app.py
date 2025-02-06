@@ -250,6 +250,26 @@ def save_profile():
         return jsonify({'success': True})
     return jsonify({'error': 'Failed to save profile'}), 500
 
+@app.route('/profile/status')
+def get_profile_status():
+    try:
+        playback_active = profile_controller.current_playback_thread is not None and profile_controller.current_playback_thread.is_alive()
+        current_point = None
+        if playback_active:
+            for i, point in enumerate(profile_controller.current_profile.get('points', [])):
+                if point.get('focus_point_id') == focus_controller.active_point.get('id'):
+                    current_point = i
+                    break
+        
+        return jsonify({
+            "playback_active": playback_active,
+            "current_point_index": current_point,
+            "complete": not playback_active and current_point == len(profile_controller.current_profile.get('points', [])) - 1 if profile_controller.current_profile else False
+        })
+    except Exception as e:
+        logger.error(f"Error getting profile status: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
 @app.route('/profile/play', methods=['POST'])
 def play_profile():
     try:

@@ -235,45 +235,59 @@ export class ProfileManager {
     }
     
     async updateProgress() {
-        try {
-            const response = await fetch('/focus/status');
-            const status = await response.json();
-            
-            if (this.currentProfile) {
-                // Show the overlay while profile is active
-                if (!this.progressOverlay.classList.contains('active')) {
-                    this.progressOverlay.classList.remove('hidden');
-                    this.progressOverlay.classList.add('active');
-                }
-                
-                // Find current point index, accounting for the camera position
-                const currentPointIndex = this.currentProfile.points.findIndex(
-                    point => point.focus_point_id === status.current_point_id
-                );
-                
-                // Always update progress even if point hasn't changed
-                this.updateProgressOverlay(
-                    this.currentProfile.name,
-                    currentPointIndex >= 0 ? currentPointIndex + 1 : 1,
-                    this.currentProfile.points.length
-                );
-                
-                // Hide overlay if profile completes
-                if (!status.tracking_active && currentPointIndex === this.currentProfile.points.length - 1) {
-                    this.isPlaying = false;
-                    this.currentProfile = null;
-                    this.progressOverlay.classList.add('hidden');
-                    setTimeout(() => {
-                        this.progressOverlay.classList.remove('active');
-                    }, 300); // Match CSS transition duration
-                }
-            } else {
-                // No active profile
-                this.progressOverlay.classList.add('hidden');
+        if (!this.currentProfile || !this.isPlaying) {
+            if (this.progressOverlay.classList.contains('active')) {
+                this.progressOverlay.classList.add('fade-out');
                 setTimeout(() => {
-                    if (!this.currentProfile) {
-                        this.progressOverlay.classList.remove('active');
-                    }
+                    this.progressOverlay.classList.remove('active', 'fade-out');
+                }, 300);
+            }
+            return;
+        }
+
+        try {
+            // Get both focus and profile status
+            const [focusResponse, profileResponse] = await Promise.all([
+                fetch('/focus/status'),
+                fetch('/profile/status')
+            ]);
+            
+            const focusStatus = await focusResponse.json();
+            const profileStatus = await profileResponse.json();
+
+            if (!this.progressOverlay.classList.contains('active')) {
+                this.progressOverlay.classList.remove('fade-out');
+                this.progressOverlay.classList.add('active');
+            }
+
+            // Find current point index using both focus point and profile position
+            let currentPointIndex = this.currentProfile.points.findIndex(
+                point => point.focus_point_id === focusStatus.current_point_id
+            );
+
+            // If point not found by focus_point_id, use profile position
+            if (currentPointIndex === -1 && profileStatus.current_point_index !== undefined) {
+                currentPointIndex = profileStatus.current_point_index;
+            }
+
+            // Update progress display
+            const pointNumber = currentPointIndex >= 0 ? currentPointIndex + 1 : 1;
+            this.updateProgressOverlay(
+                this.currentProfile.name,
+                pointNumber,
+                this.currentProfile.points.length
+            );
+
+            // Handle profile completion
+            if (profileStatus.complete || 
+                (!focusStatus.tracking_active && 
+                 currentPointIndex === this.currentProfile.points.length - 1)) {
+                this.isPlaying = false;
+                this.currentProfile = null;
+                this.resetProfileButtons();
+                this.progressOverlay.classList.add('fade-out');
+                setTimeout(() => {
+                    this.progressOverlay.classList.remove('active', 'fade-out');
                 }, 300);
             }
         } catch (error) {

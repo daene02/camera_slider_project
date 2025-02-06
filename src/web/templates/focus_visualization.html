@@ -55,34 +55,25 @@
     <div id="camera-panel" class="panel">
         <div class="panel-header">Camera Control</div>
         <div class="panel-content">
-            <div class="keyboard-controls">
-                <div class="control-group">
-                    <span class="key-indicator">Space</span>
-                    <span class="key-action">Toggle Stream</span>
-                </div>
-                <div class="control-group">
-                    <span class="key-indicator">↑↓←→</span>
-                    <span class="key-action">Position/Focus</span>
-                </div>
-                <div class="control-group">
-                    <span class="key-indicator">+/-</span>
-                    <span class="key-action">Zoom</span>
-                </div>
-                <div class="control-group">
-                    <span class="key-indicator">Enter</span>
-                    <span class="key-action">Capture</span>
-                </div>
-                <div class="control-group">
-                    <span class="key-indicator">Esc</span>
-                    <span class="key-action">Stop</span>
-                </div>
-            </div>
             <div class="camera-controls">
-                <button id="streamToggle" class="stream-toggle">
-                    <i class="fas fa-video"></i>
-                    <span>Stop Stream</span>
-                </button>
-                <div id="streamStatus" class="stream-status">Stream Active</div>
+                <div class="stream-section">
+                    <button id="streamToggle" class="stream-toggle">
+                        <i class="fas fa-video"></i>
+                        <span>Stop Stream</span>
+                    </button>
+                    <div id="streamStatus" class="stream-status">Stream Active</div>
+                </div>
+                <div class="camera-buttons">
+                    <button id="recordStart" class="camera-btn">
+                        <i class="fas fa-circle"></i><span>Record</span>
+                    </button>
+                    <button id="recordStop" class="camera-btn">
+                        <i class="fas fa-stop"></i><span>Stop</span>
+                    </button>
+                    <button id="takePhoto" class="camera-btn">
+                        <i class="fas fa-camera"></i><span>Photo</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -184,16 +175,96 @@
 
         const startStream = () => {
             if (streamActive) {
-                cameraStream.src = '/camera/live_view?' + new Date().getTime();
-                setTimeout(startStream, 100);
+                // Use direct stream connection without polling
+                cameraStream.src = '/camera/live_view';
             }
         };
+
+        // Handle stream errors
+        cameraStream.addEventListener('error', () => {
+            if (streamActive) {
+                // Retry once on error
+                setTimeout(() => {
+                    if (streamActive) {
+                        cameraStream.src = '/camera/live_view';
+                    }
+                }, 1000);
+            }
+        });
 
         streamToggle.addEventListener('click', async () => {
             const newState = !streamActive;
             streamActive = newState;
             await updateStreamUI(newState);
         });
+
+        // Camera control button handlers
+        const recordStartBtn = document.getElementById('recordStart');
+        const recordStopBtn = document.getElementById('recordStop');
+        const takePhotoBtn = document.getElementById('takePhoto');
+        let isRecording = false;
+
+        recordStartBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/camera/start_recording', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    isRecording = true;
+                    recordStartBtn.classList.add('active');
+                    recordStopBtn.disabled = false;
+                    takePhotoBtn.disabled = true;
+                } else {
+                    console.error('Failed to start recording:', result.error);
+                }
+            } catch (error) {
+                console.error('Error starting recording:', error);
+            }
+        });
+
+        recordStopBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/camera/stop_recording', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    isRecording = false;
+                    recordStartBtn.classList.remove('active');
+                    recordStopBtn.disabled = true;
+                    takePhotoBtn.disabled = false;
+                } else {
+                    console.error('Failed to stop recording:', result.error);
+                }
+            } catch (error) {
+                console.error('Error stopping recording:', error);
+            }
+        });
+
+        takePhotoBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/camera/capture', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Visual feedback
+                    takePhotoBtn.classList.add('active');
+                    setTimeout(() => takePhotoBtn.classList.remove('active'), 200);
+                } else {
+                    console.error('Failed to capture photo:', result.error);
+                }
+            } catch (error) {
+                console.error('Error capturing photo:', error);
+            }
+        });
+
+        // Initialize camera button states
+        recordStopBtn.disabled = true;
 
         // Connect camera on page load
         document.addEventListener('DOMContentLoaded', () => {

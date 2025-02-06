@@ -6,6 +6,7 @@ import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.CRITICAL)  # Disable all non-critical logs
 camera_routes = Blueprint('camera_routes', __name__)
 
 # Global MJPEG streamer instance
@@ -31,11 +32,11 @@ def ensure_camera_connected():
         if not profile_controller.camera_connected:
             success, error = run_async(profile_controller.connect_camera())
             if not success:
-                logger.error(f"Failed to connect camera: {error}")
+                pass  # Silently handle connection failure
                 return False
         return True
     except Exception as e:
-        logger.error(f"Error connecting camera: {str(e)}")
+        pass  # Silently handle connection error
         return False
 
 def check_camera_connected():
@@ -80,7 +81,7 @@ def get_camera_status():
             "live_view": profile_controller.camera.live_view_enabled
         })
     except Exception as e:
-        logger.error(f"Error getting camera status: {str(e)}", exc_info=True)
+        pass  # Silently handle status error
         return jsonify({"error": str(e)}), 500
 
 @camera_routes.route('/stream')
@@ -88,7 +89,7 @@ def stream_video():
     """Stream video using MJPEG format."""
     try:
         if error_response := check_camera_connected():
-            logger.error("Camera not connected")
+            pass  # Silently handle disconnected camera
             return error_response
 
         streamer = get_mjpeg_streamer()
@@ -112,7 +113,7 @@ def stream_video():
                     except StopAsyncIteration:
                         break
                     except Exception as e:
-                        logger.error(f"Frame generation error: {str(e)}")
+                        pass  # Silently handle frame errors
                         break
             finally:
                 loop.close()
@@ -122,7 +123,7 @@ def stream_video():
             mimetype='multipart/x-mixed-replace; boundary=frame'
         )
     except Exception as e:
-        logger.error(f"Stream setup error: {str(e)}")
+        pass  # Silently handle stream setup error
         return jsonify({"error": str(e)}), 500
 
 @camera_routes.route('/live_view')
@@ -130,12 +131,12 @@ def get_live_view():
     """Endpoint for camera live view that reuses MJPEG stream."""
     try:
         if error_response := check_camera_connected():
-            logger.error("Camera not connected")
+            pass  # Silently handle disconnected camera
             return error_response
 
         return stream_video()
     except Exception as e:
-        logger.error(f"Live view setup error: {str(e)}")
+        pass  # Silently handle live view error
         return jsonify({"error": str(e)}), 500
 
 @camera_routes.route('/capture', methods=['POST'])
@@ -149,7 +150,7 @@ def capture_photo():
             return jsonify({"success": True})
         return jsonify({"error": "Failed to capture photo"}), 500
     except Exception as e:
-        logger.error(f"Error capturing photo: {str(e)}", exc_info=True)
+        pass  # Silently handle photo capture error
         return jsonify({"error": str(e)}), 500
 
 @camera_routes.route('/start_recording', methods=['POST'])
@@ -170,12 +171,12 @@ def start_recording():
         return jsonify({"error": "Failed to start recording"}), 500
     except gp.GPhoto2Error as e:
         if e.code == -110:  # I/O in progress
-            logger.warning("Camera I/O in progress, please wait a moment and try again")
+            pass  # Silently handle busy camera
             return jsonify({"error": "Camera busy, please wait a moment and try again"}), 503
-        logger.error(f"GPhoto2 error: {str(e)}", exc_info=True)
+        pass  # Silently handle GPhoto2 error
         return jsonify({"error": f"Camera error: {str(e)}"}), 500
     except Exception as e:
-        logger.error(f"Error starting recording: {str(e)}", exc_info=True)
+        pass  # Silently handle recording error
         return jsonify({"error": str(e)}), 500
 
 @camera_routes.route('/stop_recording', methods=['POST'])
@@ -191,12 +192,12 @@ def stop_recording():
         return jsonify({"error": "Failed to stop recording"}), 500
     except gp.GPhoto2Error as e:
         if e.code == -110:  # I/O in progress
-            logger.warning("Camera I/O in progress, please wait a moment and try again")
+            pass  # Silently handle busy camera
             return jsonify({"error": "Camera busy, please wait a moment and try again"}), 503
-        logger.error(f"GPhoto2 error: {str(e)}", exc_info=True)
+        pass  # Silently handle GPhoto2 error
         return jsonify({"error": f"Camera error: {str(e)}"}), 500
     except Exception as e:
-        logger.error(f"Error stopping recording: {str(e)}", exc_info=True)
+        pass  # Silently handle stop recording error
         return jsonify({"error": str(e)}), 500
 
 @camera_routes.route('/settings', methods=['POST'])
@@ -211,7 +212,7 @@ def update_camera_settings():
             return jsonify({"success": True})
         return jsonify({"error": "Failed to update camera settings"}), 500
     except Exception as e:
-        logger.error(f"Error updating camera settings: {str(e)}", exc_info=True)
+        pass  # Silently handle settings error
         return jsonify({"error": str(e)}), 500
 
 @camera_routes.route('/live_view/toggle', methods=['POST'])
@@ -236,5 +237,5 @@ def toggle_live_view():
             })
         return jsonify({"error": "Failed to toggle live view"}), 500
     except Exception as e:
-        logger.error(f"Error toggling live view: {str(e)}", exc_info=True)
+        pass  # Silently handle live view toggle error
         return jsonify({"error": str(e)}), 500

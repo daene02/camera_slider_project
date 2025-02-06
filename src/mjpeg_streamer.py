@@ -9,15 +9,16 @@ from concurrent.futures import ThreadPoolExecutor
 class MJPEGStreamer:
     """Handles MJPEG streaming from the camera with connection pooling."""
     
-    def __init__(self, camera, max_connections=5, frame_buffer_size=2):
+    def __init__(self, camera, max_connections=5, frame_buffer_size=1):
         """Initialize the MJPEG streamer."""
         self.camera = camera
         self.max_connections = max_connections
         self._active_streams = 0
         self._stream_lock = Lock()
-        self._frame_queue = Queue(maxsize=frame_buffer_size)
+        self._frame_queue = Queue(maxsize=1)  # Always use size 1 to minimize lag
         self._streaming_event = Event()
         self._logger = logging.getLogger(__name__)
+        self._logger.setLevel(logging.CRITICAL)  # Only show critical errors
         self._executor = ThreadPoolExecutor(max_workers=2)
         
     async def start_streaming(self) -> bool:
@@ -80,7 +81,7 @@ class MJPEGStreamer:
         retry_delay = 0.1
         max_retries = 3
         last_frame_time = 0
-        min_frame_interval = 0.05  # ~30fps max
+        min_frame_interval = 0.033  # ~30fps
         
         while self._streaming_event.is_set():
             if self._active_streams > 0:
@@ -100,35 +101,35 @@ class MJPEGStreamer:
                                 last_frame_time = time.time()
                                 break
                             elif attempt == max_retries - 1:
-                                self._logger.error("Failed to capture frame after multiple attempts")
+                                pass  # Silently fail
                             await asyncio.sleep(retry_delay)
                         except asyncio.CancelledError:
                             return
                         except Exception as e:
-                            self._logger.error(f"Frame capture error: {str(e)}")
+                            pass  # Silently ignore frame errors
                             if attempt < max_retries - 1:
                                 await asyncio.sleep(retry_delay)
-            await asyncio.sleep(0.01)  # Shorter sleep for more responsive shutdown
+            await asyncio.sleep(0.001)  # Minimal sleep for faster frame updates
 
     async def get_stream(self) -> AsyncGenerator[bytes, None]:
         """Get a MJPEG stream generator."""
         # First check if we can accept a new connection
         with self._stream_lock:
             if self._active_streams >= self.max_connections:
-                self._logger.error("Maximum stream connections reached")
+                pass  # Silently handle connection limit
                 return
         
         # Then try to start streaming if needed
         if not self._streaming_event.is_set():
             if not await self.start_streaming():
-                self._logger.error("Failed to start streaming")
+                pass  # Silently handle streaming failure
                 return
         
         # Finally increment connection count
         with self._stream_lock:
             # Double check max connections in case of race condition
             if self._active_streams >= self.max_connections:
-                self._logger.error("Maximum stream connections reached (race check)")
+                pass  # Silently handle race condition
                 return
             self._active_streams += 1
         
@@ -143,9 +144,10 @@ class MJPEGStreamer:
             
             while self._streaming_event.is_set():
                 try:
+                    # Use shorter timeout to reduce lag
                     frame = await asyncio.get_event_loop().run_in_executor(
                         self._executor,
-                        lambda: self._frame_queue.get(timeout=1.0)
+                        lambda: self._frame_queue.get(timeout=0.1)
                     )
                     
                     if frame:
@@ -157,7 +159,7 @@ class MJPEGStreamer:
                     break
                 except Exception as e:
                     if not isinstance(e, TimeoutError):
-                        self._logger.error(f"Frame fetch error: {str(e)}")
+                        pass  # Silently handle frame fetch errors
                     continue
         finally:
             with self._stream_lock:
