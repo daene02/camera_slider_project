@@ -60,21 +60,31 @@ class CanonEOSR50:
             self._logger.error("Camera not connected")
             return False
 
-        try:
-            config = self.camera.get_config()
-            if movie_mode := self._get_config_value(config, 'eosmoviemode'):
-                movie_mode.set_value(1)
-                self.camera.set_config(config)
-            
-            if remote_mode := self._get_config_value(config, 'eosremoterelease'):
-                remote_mode.set_value("Record Start")
-                self.camera.set_config(config)
-                self._logger.info("Video recording started")
-                return True
-            return False
-        except Exception as e:
-            self._logger.error(f"Error starting video: {str(e)}")
-            return False
+        max_retries = 3
+        retry_delay = 0.5
+
+        for attempt in range(max_retries):
+            try:
+                config = self.camera.get_config()
+                if movie_mode := self._get_config_value(config, 'eosmoviemode'):
+                    movie_mode.set_value(1)
+                    self.camera.set_config(config)
+                
+                if remote_mode := self._get_config_value(config, 'eosremoterelease'):
+                    remote_mode.set_value("Record Start")
+                    self.camera.set_config(config)
+                    self._logger.info("Video recording started")
+                    return True
+                return False
+            except gp.GPhoto2Error as e:
+                if e.code == -110 and attempt < max_retries - 1:  # I/O in progress
+                    self._logger.warning(f"I/O in progress (attempt {attempt + 1}/{max_retries})")
+                    await self._sleep(retry_delay)
+                    continue
+                raise
+            except Exception as e:
+                self._logger.error(f"Error starting video: {str(e)}")
+                return False
 
     async def stop_video(self) -> bool:
         """Stop video recording."""
@@ -82,17 +92,27 @@ class CanonEOSR50:
             self._logger.error("Camera not connected")
             return False
 
-        try:
-            config = self.camera.get_config()
-            if remote_mode := self._get_config_value(config, 'eosremoterelease'):
-                remote_mode.set_value("Record Stop")
-                self.camera.set_config(config)
-                self._logger.info("Video recording stopped")
-                return True
-            return False
-        except Exception as e:
-            self._logger.error(f"Error stopping video: {str(e)}")
-            return False
+        max_retries = 3
+        retry_delay = 0.5
+
+        for attempt in range(max_retries):
+            try:
+                config = self.camera.get_config()
+                if remote_mode := self._get_config_value(config, 'eosremoterelease'):
+                    remote_mode.set_value("Record Stop")
+                    self.camera.set_config(config)
+                    self._logger.info("Video recording stopped")
+                    return True
+                return False
+            except gp.GPhoto2Error as e:
+                if e.code == -110 and attempt < max_retries - 1:  # I/O in progress
+                    self._logger.warning(f"I/O in progress (attempt {attempt + 1}/{max_retries})")
+                    await self._sleep(retry_delay)
+                    continue
+                raise
+            except Exception as e:
+                self._logger.error(f"Error stopping video: {str(e)}")
+                return False
 
     async def toggle_live_view(self, enable: bool = None) -> bool:
         """Toggle live view on/off."""

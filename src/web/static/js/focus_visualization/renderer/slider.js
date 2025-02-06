@@ -8,7 +8,7 @@ export class SliderRenderer {
         const pos = this.canvasManager.worldToScreen(0, position);
         
         // Scale dot size proportionally with zoom
-        const dotRadius = Math.max(12, 15 * this.canvasManager.zoomLevel);
+        const dotRadius = Math.max(20, 20 * this.canvasManager.zoomLevel);
         
         // Draw slider dot
         ctx.beginPath();
@@ -17,7 +17,7 @@ export class SliderRenderer {
         ctx.fill();
         
         // Draw tilt value
-        const fontSize = Math.max(12, Math.floor(12 * this.canvasManager.zoomLevel));
+        const fontSize = Math.max(16, Math.floor(12 * this.canvasManager.zoomLevel));
         ctx.fillStyle = 'white';
         ctx.font = `${fontSize}px Arial`;
         ctx.textAlign = 'center';
@@ -29,7 +29,7 @@ export class SliderRenderer {
 
     drawPanArrow(ctx, pos, panAngle, dotRadius) {
         // Scale arrow length with zoom, but keep base length shorter
-        const arrowLength = Math.max(40, 40 * this.canvasManager.zoomLevel);
+        const arrowLength = Math.max(60, 60 * this.canvasManager.zoomLevel);
         const angle = (-panAngle * Math.PI) / 180 + Math.PI/2; // Invert pan direction and rotate 90 degrees
         
         // Start from edge of red dot
@@ -48,11 +48,11 @@ export class SliderRenderer {
         ctx.moveTo(startX, startY);
         ctx.lineTo(endX, endY);
         ctx.strokeStyle = gradient;
-        ctx.lineWidth = Math.max(2, 2 * this.canvasManager.zoomLevel);
+        ctx.lineWidth = Math.max(4, 4 * this.canvasManager.zoomLevel);
         ctx.stroke();
         
         // Draw arrow head with yellow color
-        const headLength = Math.max(10, 10 * this.canvasManager.zoomLevel);
+        const headLength = Math.max(25, 25 * this.canvasManager.zoomLevel);
         const headAngle = Math.PI / 6;
         
         ctx.beginPath();

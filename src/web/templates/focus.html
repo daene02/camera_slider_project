@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <h2 class="text-xlarge">Focus Point Control</h2>
@@ -20,6 +24,11 @@
                 <div class="btn-group w-100">
                     <button id="startTracking" class="btn btn-success">Start</button>
                     <button id="stopTracking" class="btn btn-danger" disabled>Stop</button>
+                </div>
+                <div class="text-center mt-3">
+                    <button id="recordButton" class="icon-button record-button">
+                        <i class="fas fa-circle"></i>
+                    </button>
                 </div>
             </div>
             <div class="col-md-6">
@@ -51,6 +60,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentPointId = null;
     let savedPoints = [];
+
+    let isRecording = false;
+    const recordButton = document.getElementById('recordButton');
+
+    recordButton.addEventListener('click', async () => {
+        try {
+            const action = isRecording ? 'stop' : 'start';
+            const response = await fetch(`/camera/${action}_recording`, { method: 'POST' });
+            
+            if (response.ok) {
+                isRecording = !isRecording;
+                recordButton.classList.toggle('recording', isRecording);
+            } else {
+                throw new Error(`Failed to ${action} recording`);
+            }
+        } catch (error) {
+            console.error('Recording error:', error);
+            alert(error.message);
+        }
+    });
 
     async function loadFocusPoints() {
         try {

@@ -17,10 +17,10 @@
     --font-monospace: monospace;
     
     /* Font Sizes */
-    --font-size-small: 12px;
-    --font-size-normal: 14px;
-    --font-size-large: 16px;
-    --font-size-xlarge: 24px;
+    --font-size-small: 15px;
+    --font-size-normal: 20px;
+    --font-size-large: 40px;
+    --font-size-xlarge: 60px;
     
     /* Font Weights */
     --font-weight-normal: 400;
@@ -29,7 +29,7 @@
     /* Component Dimensions */
     --icon-button-size: 60px;
     --icon-button-radius: 8px;
-    --panel-width: 300px;
+    --panel-width: 100px;
     --panel-header-height: 61px;
     
     /* Spacing */
@@ -38,8 +38,8 @@
     --spacing-large: 20px;
 
     /* Animations */
-    --animation-fast: 0.2s;
-    --animation-normal: 0.3s;
+    --animation-fast: 0.6s;
+    --animation-normal: 1s;
     --animation-timing: ease;
 }
 
@@ -586,6 +586,18 @@ body {
     font-style: italic;
 }
 
+/* Recording Button Animation */
+@keyframes recordingBlink {
+    0% { background-color: rgba(255, 0, 0, 0.8); }
+    50% { background-color: rgba(153, 0, 0, 0.8); }
+    100% { background-color: rgba(255, 0, 0, 0.8); }
+}
+
+.record-button.recording {
+    animation: recordingBlink 2s infinite;
+    border-color: #ff0000 !important;
+}
+
 /* Video Mode Specific */
 .control-section {
     max-width: 800px;
@@ -731,8 +743,156 @@ body {
     border: 1px solid var(--color-border);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1000px) {
+    :root {
+        /* Larger touch targets for mobile */
+        --spacing-small: 12px;
+        --spacing-medium: 18px;
+        --spacing-large: 24px;
+        --icon-button-size: 10px;
+    }
+
+    /* Panel adjustments */
+    .panel {
+        width: 100%;
+        border-left: none;
+    }
+
+    /* Navigation adjustments */
+    .nav-container {
+        flex-direction: column;
+        gap: var(--spacing-medium);
+    }
+
+    .nav-menu {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .nav-link {
+        display: block;
+        padding: var(--spacing-medium);
+        text-align: center;
+    }
+
+    /* Grid adjustments */
+    .feature-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-medium);
+    }
+
+    .motor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Form controls */
+    .form-control, 
+    .btn,
+    select,
+    input[type="number"] {
+        min-height: 80px; /* Minimum touch target size */
+        font-size: var(--font-size-large);
+    }
+
+    /* Button groups */
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .btn-group .btn {
+        width: 100%;
+    }
+
+    /* Layout improvements */
+    .row {
+        flex-direction: column;
+    }
+
+    .col-md-6 {
+        width: 100%;
+    }
+
+    /* Control adjustments */
+    .control-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .control-group label {
+        min-width: auto;
+        margin-bottom: var(--spacing-small);
+    }
+
+    /* Photo grid */
     .photo-grid {
         grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    }
+
+    /* Setting rows */
+    .setting-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .setting-row label {
+        min-width: auto;
+        margin-bottom: var(--spacing-small);
+    }
+
+    .setting-row select,
+    .setting-row input {
+        width: 100%;
+        min-width: auto;
+    }
+
+    /* Motor controls */
+    .motor-box {
+        padding: var(--spacing-large);
+    }
+
+    .motor-stats,
+    .motor-controls {
+        font-size: var(--font-size-large);
+    }
+
+    /* Profile controls */
+    .position-row {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-medium);
+    }
+
+    .velocity-control {
+        grid-template-columns: 1fr;
+    }
+
+    /* Focus visualization */
+    canvas {
+        touch-action: none; /* Prevent default touch actions */
+    }
+
+    .icon-bar {
+        right: var(--spacing-small);
+    }
+
+    .icon-button {
+        font-size: var(--font-size-xlarge);
+    }
+}
+
+/* Additional mobile optimizations for very small screens */
+@media (max-width: 600px) {
+    .container {
+        padding: var(--spacing-small);
+    }
+
+    .panel-header {
+        font-size: var(--font-size-large);
+        padding: var(--spacing-medium);
+    }
+
+    .progress-overlay {
+        min-width: auto;
+        width: 90%;
     }
 }

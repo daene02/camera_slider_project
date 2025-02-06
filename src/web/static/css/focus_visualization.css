@@ -236,3 +236,84 @@ canvas {
     font-size: 12px;
     opacity: 0.8;
 }
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    /* Panel adjustments */
+    .panel {
+        width: 100%;
+        border-left: none;
+    }
+
+    /* Icon bar adjustments */
+    .icon-bar {
+        right: 10px;
+        flex-direction: row;
+        bottom: 20px;
+        top: auto;
+        transform: none;
+        justify-content: flex-end;
+    }
+
+    .icon-bar.hidden {
+        transform: translateY(100px);
+    }
+
+    /* Back button */
+    .back-button {
+        top: 10px;
+        left: 10px;
+        padding: 12px 24px;
+        font-size: 16px;
+    }
+
+    /* Progress overlay */
+    .progress-overlay {
+        width: 90%;
+        min-width: auto;
+        padding: 20px;
+        bottom: 80px; /* Above icon bar */
+    }
+
+    /* Better touch targets */
+    .point-item {
+        padding: 15px;
+        margin: 8px 0;
+    }
+
+    .point-name {
+        font-size: 16px;
+    }
+
+    .point-coords, 
+    .point-angles {
+        font-size: 14px;
+    }
+
+    /* Canvas interactions */
+    canvas {
+        touch-action: none; /* Prevent default touch actions */
+    }
+}
+
+/* Additional optimizations for very small screens */
+@media (max-width: 600px) {
+    .icon-button {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+
+    .panel-header {
+        padding: 15px;
+        font-size: 18px;
+    }
+
+    .panel-content {
+        padding: 15px;
+    }
+
+    .progress-overlay {
+        padding: 15px;
+    }
+}

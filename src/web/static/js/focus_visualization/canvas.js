@@ -131,7 +131,7 @@ export class CanvasManager {
         event.preventDefault();
         const zoomFactor = 0.1;
         if (event.deltaY < 0) {
-            this.targetZoom = Math.min(this.targetZoom + zoomFactor, 2.0);
+            this.targetZoom = Math.min(this.targetZoom + zoomFactor, 2);
         } else {
             this.targetZoom = Math.max(this.targetZoom - zoomFactor, 0.3);
         }
@@ -167,7 +167,7 @@ export class CanvasManager {
 
     worldToScreen(x, y) {
         const centerOffsetX = -this.currentSliderX;
-        const centerOffsetY = -this.currentSliderY-200;
+        const centerOffsetY = -this.currentSliderY-100;
         const scale = 0.5 * this.zoomLevel;
         const screenY = (this.canvas.height/2) - ((y + centerOffsetY) * scale);
         const screenX = (this.canvas.width/2) + ((x + centerOffsetX) * scale);

@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, send_from_directory, jsonify,
 from src.web.controllers.motor_controller import motor_controller
 from src.web.controllers.profile_controller import profile_controller
 from src.web.controllers.focus_controller import focus_controller
+import gphoto2 as gp
 import asyncio
 import os
 import logging
@@ -277,35 +278,62 @@ def capture_photo():
         logger.error(f"Error capturing photo: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-@app.route('/camera/video/start', methods=['POST'])
-def start_video():
-    if error_response := check_camera_connected():
-        return error_response
-        
-    try:
-        success = run_async(profile_controller.camera.start_video())
-        if success:
-            profile_controller.recording_active = True
-            return jsonify({"success": True})
-        return jsonify({"error": "Failed to start recording"}), 500
-    except Exception as e:
-        logger.error(f"Error starting video: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+@app.route('/camera/start_recording', methods=['POST'])
+def start_recording():
+    # Try to connect camera if not connected
+    if not profile_controller.camera_connected:
+        try:
+            success, error = run_async(profile_controller.connect_camera())
+            if not success:
+                return jsonify({"error": f"Failed to connect camera: {error}"}), 400
+        except Exception as e:
+            return jsonify({"error": f"Camera connection error: {str(e)}"}), 500
 
-@app.route('/camera/video/stop', methods=['POST'])
-def stop_video():
-    if error_response := check_camera_connected():
-        return error_response
+    try:
+        try:
+            success = run_async(profile_controller.camera.start_video())
+            if success:
+                profile_controller.recording_active = True
+                return jsonify({"success": True})
+            return jsonify({"error": "Failed to start recording"}), 500
+        except gp.GPhoto2Error as e:
+            if e.code == -110:  # I/O in progress
+                logger.warning("Camera I/O in progress, please wait a moment and try again")
+                return jsonify({"error": "Camera busy, please wait a moment and try again"}), 503
+            logger.error(f"GPhoto2 error: {str(e)}", exc_info=True)
+            return jsonify({"error": f"Camera error: {str(e)}"}), 500
+        except Exception as e:
+            logger.error(f"Error starting recording: {str(e)}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+@app.route('/camera/stop_recording', methods=['POST'])
+def stop_recording():
+    # Ensure camera is connected
+    if not profile_controller.camera_connected:
+        return jsonify({"error": "No camera connected"}), 400
         
     try:
-        success = run_async(profile_controller.camera.stop_video())
-        if success:
-            profile_controller.recording_active = False
-            return jsonify({"success": True})
-        return jsonify({"error": "Failed to stop recording"}), 500
+        try:
+            success = run_async(profile_controller.camera.stop_video())
+            if success:
+                profile_controller.recording_active = False
+                return jsonify({"success": True})
+            return jsonify({"error": "Failed to stop recording"}), 500
+        except gp.GPhoto2Error as e:
+            if e.code == -110:  # I/O in progress
+                logger.warning("Camera I/O in progress, please wait a moment and try again")
+                return jsonify({"error": "Camera busy, please wait a moment and try again"}), 503
+            logger.error(f"GPhoto2 error: {str(e)}", exc_info=True)
+            return jsonify({"error": f"Camera error: {str(e)}"}), 500
+        except Exception as e:
+            logger.error(f"Error stopping recording: {str(e)}", exc_info=True)
+            return jsonify({"error": str(e)}), 500
     except Exception as e:
-        logger.error(f"Error stopping video: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 @app.route('/camera/live_view')
 def get_live_view():
