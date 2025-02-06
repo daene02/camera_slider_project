@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.DEBUG)
 # Kommunikations- und Hardware-Einstellungen
 ########################################
 DEVICE_NAME = "/dev/ttyUSB0"  # Serial device for Dynamixel communication
-BAUD_RATE = 57600            # Communication speed with Dynamixel motors
+BAUD_RATE = 2000000            # Communication speed with Dynamixel motors
 PROTOCOL_VERSION = 2.0       # Dynamixel protocol version
 
 ########################################

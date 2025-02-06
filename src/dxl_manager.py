@@ -33,7 +33,7 @@ LEN_PRO_PRESENT_VOLTAGE        = 2
 LEN_PRO_PRESENT_CURRENT        = 2
 
 PROTOCOL_VERSION               = 2.0
-BAUDRATE                       = 57600
+BAUDRATE                       = 2000000
 DEVICENAME                     = "/dev/ttyUSB0"
 
 DXL_IDS                        = [1, 2, 3, 4, 5, 6]

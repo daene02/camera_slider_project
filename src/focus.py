@@ -1,59 +1,110 @@
 import numpy as np
 from math import atan2, degrees, radians, sqrt, cos, sin
+from time import time
+from collections import deque
 from src.settings import (
     MOTOR_LIMITS, CONVERSION_FACTORS, MIN_FOCUS_DISTANCE, MAX_FOCUS_DISTANCE,
     DEFAULT_VELOCITY, DEFAULT_ACCELERATION, DEFAULT_DURATION
 )
 
 class FocusController:
-    def __init__(self, object_position=(-400, 600, -300)):
+    def __init__(self, object_position=(-400, 600, -300), history_size=5):
         self.object_x, self.object_y, self.object_z = object_position
         self.slider_position = 0  # Current position along Y-axis
+        self.last_update_time = time()
+        self.position_history = deque(maxlen=history_size)
+        self.velocity = 0
+        self.last_pan = 0
+        self.last_tilt = 0
+        self.last_focus = 0
         
-    def calculate_angles(self, slider_pos):
+    def update_velocity(self, current_pos):
+        """
+        Calculate current velocity based on position history
+        """
+        current_time = time()
+        dt = current_time - self.last_update_time
+        
+        if dt > 0 and self.position_history:
+            old_pos = self.position_history[0]
+            self.velocity = (current_pos - old_pos) / dt
+            
+        self.position_history.append(current_pos)
+        self.last_update_time = current_time
+        
+        return self.velocity
+        
+    def calculate_angles(self, slider_pos, prediction_time=0.02):
         """
         Calculate pan and tilt angles for a given slider position
-        to keep the object centered in frame
+        with prediction and smoothing
         """
+        # Predict future position based on velocity
+        predicted_pos = slider_pos + (self.velocity * prediction_time)
+        
         # Calculate relative position from camera to object
         rel_x = self.object_x  # X stays constant
-        rel_y = self.object_y - slider_pos  # Y changes with slider position
+        rel_y = self.object_y - predicted_pos  # Y changes with slider position
         rel_z = self.object_z  # Z stays constant
         
         # Calculate pan angle (horizontal rotation) - inverted direction
-        pan_angle = -degrees(atan2(rel_x, rel_y))  # Added minus sign to invert direction
+        pan_angle = -degrees(atan2(rel_x, rel_y))
         
         # Calculate tilt angle (vertical rotation)
         distance_horizontal = sqrt(rel_x**2 + rel_y**2)
         tilt_angle = degrees(atan2(rel_z, distance_horizontal))
         
+        # Apply smoothing
+        smooth_factor = min(1.0, abs(self.velocity) / 100.0 + 0.3)  # Dynamic smoothing
+        
+        pan_angle = self.last_pan * (1 - smooth_factor) + pan_angle * smooth_factor
+        tilt_angle = self.last_tilt * (1 - smooth_factor) + tilt_angle * smooth_factor
+        
+        self.last_pan = pan_angle
+        self.last_tilt = tilt_angle
+        
         return pan_angle, tilt_angle
 
-    def calculate_focus(self, slider_pos):
+    def calculate_focus(self, slider_pos, prediction_time=0.02):
         """
         Calculate focus value based on distance to object
+        with prediction and smoothing
         """
+        # Predict future position based on velocity
+        predicted_pos = slider_pos + (self.velocity * prediction_time)
+        
         # Calculate direct distance from camera to object
         rel_x = self.object_x
-        rel_y = self.object_y - slider_pos
+        rel_y = self.object_y - predicted_pos
         rel_z = self.object_z
         
         distance = sqrt(rel_x**2 + rel_y**2 + rel_z**2)
         
-        # Convert distance to focus motor steps (this needs to be calibrated)
-        # Assuming linear relationship between distance and focus value
+        # Convert distance to focus motor steps
         focus_min = MOTOR_LIMITS["focus"]["min"]
         focus_max = MOTOR_LIMITS["focus"]["max"]
         focus_range = focus_max - focus_min
         
         # Map distance to focus value using settings
-        focus_value = ((distance - MIN_FOCUS_DISTANCE) / (MAX_FOCUS_DISTANCE - MIN_FOCUS_DISTANCE)) * focus_range + focus_min
+        focus_value = ((distance - MIN_FOCUS_DISTANCE) / 
+                      (MAX_FOCUS_DISTANCE - MIN_FOCUS_DISTANCE)) * focus_range + focus_min
+        
+        # Apply smoothing
+        smooth_factor = min(1.0, abs(self.velocity) / 100.0 + 0.3)  # Dynamic smoothing
+        focus_value = self.last_focus * (1 - smooth_factor) + focus_value * smooth_factor
+        
+        self.last_focus = focus_value
         return int(focus_value)
 
     def get_motor_positions(self, slider_pos):
         """
         Get all motor positions for a given slider position
+        with velocity tracking and prediction
         """
+        # Update velocity tracking
+        self.update_velocity(slider_pos)
+        
+        # Calculate positions with prediction
         pan_angle, tilt_angle = self.calculate_angles(slider_pos)
         focus_value = self.calculate_focus(slider_pos)
         
