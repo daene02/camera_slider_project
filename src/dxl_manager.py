@@ -25,12 +25,18 @@ ADDR_PRO_PRESENT_TEMPERATURE   = 146
 ADDR_PRO_PRESENT_VOLTAGE       = 144
 ADDR_PRO_PRESENT_CURRENT       = 126
 
+# PID Register
+ADDR_PRO_POSITION_D_GAIN      = 80
+ADDR_PRO_POSITION_I_GAIN      = 82
+ADDR_PRO_POSITION_P_GAIN      = 84
+
 LEN_PRO_GOAL_POSITION          = 4
 LEN_PRO_PRESENT_POSITION       = 4
 LEN_PRO_PROFILE_PARAM          = 4
 LEN_PRO_PRESENT_TEMPERATURE    = 1
 LEN_PRO_PRESENT_VOLTAGE        = 2
 LEN_PRO_PRESENT_CURRENT        = 2
+LEN_PRO_PID_GAIN              = 2
 
 PROTOCOL_VERSION               = 2.0
 BAUDRATE                       = 2000000
@@ -317,6 +323,87 @@ class DynamixelManager:
                 print(f"[ERROR] BulkRead Voltage error: {e}")
                 return {}
 
+    def bulk_read_pid_gains(self):
+        """
+        Liest die PID-Gains aller Servos.
+        Rückgabe: Dictionary mit Motor-IDs als Schlüssel und PID-Werten als Dictionary
+        """
+        with self.lock:
+            try:
+                gains = {}
+                
+                # Separate GroupBulkRead für jeden Gain-Typ
+                for addr, name in [
+                    (ADDR_PRO_POSITION_P_GAIN, 'p'),
+                    (ADDR_PRO_POSITION_I_GAIN, 'i'),
+                    (ADDR_PRO_POSITION_D_GAIN, 'd')
+                ]:
+                    grp_read = GroupBulkRead(self.portHandler, self.packetHandler)
+                    
+                    # Parameter für alle Motoren hinzufügen
+                    for dxl_id in self.dxl_ids:
+                        ok = grp_read.addParam(dxl_id, addr, LEN_PRO_PID_GAIN)
+                        if not ok:
+                            print(f"[WARN] Konnte ID {dxl_id} nicht für {name}-Gain registrieren")
+                    
+                    # Bulk Read durchführen
+                    result = grp_read.txRxPacket()
+                    if result != COMM_SUCCESS:
+                        print(f"[ERROR] BulkRead {name}-Gain: {self.packetHandler.getTxRxResult(result)}")
+                        continue
+                    
+                    # Werte auslesen
+                    for dxl_id in self.dxl_ids:
+                        if grp_read.isAvailable(dxl_id, addr, LEN_PRO_PID_GAIN):
+                            if dxl_id not in gains:
+                                gains[dxl_id] = {}
+                            gains[dxl_id][name] = grp_read.getData(dxl_id, addr, LEN_PRO_PID_GAIN)
+                    
+                    grp_read.clearParam()
+                
+                return gains
+            
+            except Exception as e:
+                print(f"[ERROR] BulkRead PID Gains error: {e}")
+                return {}
+
+    def bulk_write_pid_gains(self, pid_dict):
+        """
+        Schreibt PID-Gains für mehrere Servos.
+        pid_dict: {motor_id: {'p': p_gain, 'i': i_gain, 'd': d_gain}}
+        """
+        with self.lock:
+            try:
+                for addr, name in [
+                    (ADDR_PRO_POSITION_P_GAIN, 'p'),
+                    (ADDR_PRO_POSITION_I_GAIN, 'i'),
+                    (ADDR_PRO_POSITION_D_GAIN, 'd')
+                ]:
+                    self.groupBulkWrite.clearParam()
+                    
+                    for dxl_id, gains in pid_dict.items():
+                        if name in gains:
+                            gain_value = gains[name]
+                            param_data = [
+                                DXL_LOBYTE(gain_value),
+                                DXL_HIBYTE(gain_value)
+                            ]
+                            ok = self.groupBulkWrite.addParam(dxl_id, addr, LEN_PRO_PID_GAIN, param_data)
+                            if not ok:
+                                print(f"[WARN] Konnte {name}-Gain für ID {dxl_id} nicht hinzufügen")
+                    
+                    result = self.groupBulkWrite.txPacket()
+                    if result != COMM_SUCCESS:
+                        print(f"[ERROR] BulkWrite {name}-Gain: {self.packetHandler.getTxRxResult(result)}")
+                    
+                    self.groupBulkWrite.clearParam()
+                
+                return True
+            
+            except Exception as e:
+                print(f"[ERROR] BulkWrite PID Gains error: {e}")
+                return False
+                
     def bulk_read_current(self):
         with self.lock:  # Acquire lock before port access
             try:
@@ -370,28 +457,49 @@ class DynamixelManager:
 
 if __name__ == "__main__":
     manager = DynamixelManager()
-    manager.enable_torque()
+    
+    try:
+        # PID-Werte auslesen
+        print("\nLese aktuelle PID-Werte...")
+        pid_values = manager.bulk_read_pid_gains()
+        print("Aktuelle PID-Werte:", pid_values)
 
-    # Beispiel: Positionen schreiben
-    manager.bulk_write_goal_positions({1: 500, 2: 1500})
-    time.sleep(2)
+        # Beispiel: PID-Werte setzen
+        print("\nSetze neue PID-Werte...")
+        test_pid = {
+            1: {'p': 800, 'i': 0, 'd': 0},
+            2: {'p': 800, 'i': 0, 'd': 0}
+        }
+        success = manager.bulk_write_pid_gains(test_pid)
+        if success:
+            print("PID-Werte erfolgreich geschrieben")
+            
+            # Zur Überprüfung nochmal auslesen
+            print("\nLese neue PID-Werte zur Überprüfung...")
+            new_pid_values = manager.bulk_read_pid_gains()
+            print("Neue PID-Werte:", new_pid_values)
+        
+        # Normale Operationen
+        manager.enable_torque()
+        manager.bulk_write_goal_positions({1: 500, 2: 1500})
+        time.sleep(2)
 
-    # Auslesen
-    pos_data = manager.bulk_read_positions()
-    print("Positions:", pos_data)
+        pos_data = manager.bulk_read_positions()
+        print("\nPositions:", pos_data)
 
-    acc_data = manager.bulk_read_profile_acceleration()
-    vel_data = manager.bulk_read_profile_velocity()
-    print("Accel:", acc_data)
-    print("Velocity:", vel_data)
+        acc_data = manager.bulk_read_profile_acceleration()
+        vel_data = manager.bulk_read_profile_velocity()
+        print("Accel:", acc_data)
+        print("Velocity:", vel_data)
 
-    temp_data = manager.bulk_read_temperature()
-    volt_data = manager.bulk_read_voltage()
-    curr_data = manager.bulk_read_current()
+        temp_data = manager.bulk_read_temperature()
+        volt_data = manager.bulk_read_voltage()
+        curr_data = manager.bulk_read_current()
 
-    print("Temperature:", temp_data)
-    print("Voltage:", volt_data)
-    print("Current:", curr_data)
+        print("Temperature:", temp_data)
+        print("Voltage:", volt_data)
+        print("Current:", curr_data)
 
-    manager.disable_torque()
-    manager.close()
+    finally:
+        manager.disable_torque()
+        manager.close()

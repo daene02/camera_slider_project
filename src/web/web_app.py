@@ -122,6 +122,59 @@ def update_motor_acceleration(motor_id):
     except ValueError:
         return jsonify({"error": "Invalid acceleration value"}), 400
 
+@app.route('/motor/pid', methods=['GET'])
+def get_pid_values():
+    """Liest die PID-Werte aller Motoren"""
+    try:
+        pid_values = motor_controller.manager.bulk_read_pid_gains()
+        return jsonify(pid_values)
+    except Exception as e:
+        logger.error(f"Error reading PID values: {str(e)}")
+        return jsonify({"error": "Failed to read PID values"}), 500
+
+@app.route('/motor/pid', methods=['POST'])
+def set_pid_values():
+    """Setzt die PID-Werte für ausgewählte Motoren"""
+    try:
+        pid_dict = request.json
+        if not pid_dict:
+            return jsonify({"error": "No PID values provided"}), 400
+            
+        # Validiere die Eingabedaten
+        for motor_id, gains in pid_dict.items():
+            if not isinstance(gains, dict):
+                return jsonify({"error": f"Invalid gain format for motor {motor_id}"}), 400
+            if not all(k in gains for k in ('p', 'i', 'd')):
+                return jsonify({"error": f"Missing PID values for motor {motor_id}"}), 400
+            
+            # Konvertiere zu Integers und validiere Bereiche
+            try:
+                gains['p'] = int(gains['p'])
+                gains['i'] = int(gains['i'])
+                gains['d'] = int(gains['d'])
+                
+                # Validiere Wertebereiche (beispielhaft)
+                if not (0 <= gains['p'] <= 16383 and
+                       0 <= gains['i'] <= 16383 and
+                       0 <= gains['d'] <= 16383):
+                    return jsonify({"error": f"PID values out of range for motor {motor_id}"}), 400
+            except ValueError:
+                return jsonify({"error": f"Invalid PID values for motor {motor_id}"}), 400
+        
+        success = motor_controller.manager.bulk_write_pid_gains(pid_dict)
+        if success:
+            # Lese die Werte zur Bestätigung
+            new_values = motor_controller.manager.bulk_read_pid_gains()
+            return jsonify({
+                "success": True,
+                "values": new_values
+            })
+        return jsonify({"error": "Failed to write PID values"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error setting PID values: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
 @app.route('/motor/status')
 def motor_status():
     motors = motor_controller.get_motor_status()
@@ -168,6 +221,25 @@ def save_focus_point():
         return jsonify({"success": True, "point": point})
     return jsonify({"error": "Invalid point data"}), 400
 
+@app.route('/focus/manual', methods=['POST'])
+def set_manual_focus():
+    """Set manual focus position"""
+    try:
+        focus_value = request.json.get('focus_value')
+        if focus_value is None:
+            return jsonify({"error": "No focus value provided"}), 400
+
+        success, result = focus_controller.set_manual_focus(focus_value)
+        if success:
+            return jsonify({
+                "success": True,
+                "focus_value": result
+            })
+        return jsonify({"error": result}), 400
+    except Exception as e:
+        logger.error(f"Error setting manual focus: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
 @app.route('/focus/start_tracking', methods=['POST'])
 def start_focus_tracking():
     try:
@@ -186,6 +258,9 @@ def start_focus_tracking():
         except (ValueError, TypeError):
             return jsonify({"error": "Invalid coordinate values. Must be numbers."}), 400
 
+        # Get auto_focus parameter, default to False
+        auto_focus = request.json.get('auto_focus', False)
+        
         success, error = focus_controller.start_tracking(point_data)
         if success:
             return jsonify({
@@ -215,10 +290,16 @@ def stop_focus_tracking():
 def get_focus_status():
     try:
         active_point = focus_controller.active_point
-        return jsonify({
-            "tracking_active": focus_controller.current_tracking_thread is not None and focus_controller.current_tracking_thread.is_alive(),
-            "current_point_id": active_point['id'] if active_point else None
-        })
+        tracking_thread = focus_controller.current_tracking_thread
+        current_positions = motor_controller.get_motor_positions()
+        
+        status = {
+            "tracking_active": tracking_thread is not None and tracking_thread.is_alive(),
+            "current_point_id": active_point['id'] if active_point else None,
+            "current_positions": current_positions if current_positions else {},
+            "focus_enabled": focus_controller.auto_focus if hasattr(focus_controller, 'auto_focus') else False
+        }
+        return jsonify(status)
     except Exception as e:
         logger.error(f"Error getting focus status: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500

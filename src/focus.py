@@ -96,36 +96,63 @@ class FocusController:
         self.last_focus = focus_value
         return int(focus_value)
 
-    def get_motor_positions(self, slider_pos):
+    def get_motor_positions(self, slider_pos, include_focus=True):
         """
-        Get all motor positions for a given slider position
-        with velocity tracking and prediction
+        Get motor positions for a given slider position
+        with velocity tracking and prediction.
+        
+        Args:
+            slider_pos: Current slider position
+            include_focus: Whether to include automatic focus calculation
         """
         # Update velocity tracking
         self.update_velocity(slider_pos)
         
         # Calculate positions with prediction
         pan_angle, tilt_angle = self.calculate_angles(slider_pos)
-        focus_value = self.calculate_focus(slider_pos)
         
-        return {
+        positions = {
             "pan": pan_angle,
             "tilt": tilt_angle,
-            "focus": focus_value
         }
+        
+        # Only include focus if requested
+        if include_focus:
+            positions["focus"] = self.calculate_focus(slider_pos)
+            
+        return positions
 
-    def generate_movement_sequence(self, start_pos, end_pos, num_steps=50):
+    def generate_movement_sequence(self, start_pos, end_pos, num_steps=50, include_focus=True):
         """
         Generate a sequence of motor positions for smooth movement
+        
+        Args:
+            start_pos: Starting slider position
+            end_pos: Ending slider position
+            num_steps: Number of interpolation steps
+            include_focus: Whether to include automatic focus calculation
         """
         slider_positions = np.linspace(start_pos, end_pos, num_steps)
         sequence = []
         
         for slider_pos in slider_positions:
-            motor_positions = self.get_motor_positions(slider_pos)
+            motor_positions = self.get_motor_positions(slider_pos, include_focus)
             sequence.append(motor_positions)
             
         return sequence
+
+    def set_focus_position(self, focus_value):
+        """
+        Set a direct focus position value
+        
+        Args:
+            focus_value: Raw focus position value
+        Returns:
+            Clamped focus value within valid range
+        """
+        focus_min = MOTOR_LIMITS["focus"]["min"]
+        focus_max = MOTOR_LIMITS["focus"]["max"]
+        return int(max(min(focus_value, focus_max), focus_min))
 
 if __name__ == "__main__":
     from camera_slider import CameraSlider
@@ -138,10 +165,10 @@ if __name__ == "__main__":
         # Enable motors
         camera_slider.enable_motors()
         
-        # Generate a sequence of positions as the slider moves from 0 to 600mm
-        sequence = focus_controller.generate_movement_sequence(0, 900, num_steps=900)
+        # Example 1: Generate sequence with automatic focus
+        print("\nExample 1: Automatic focus tracking")
+        sequence = focus_controller.generate_movement_sequence(0, 900, num_steps=900, include_focus=True)
         
-        # Create full movement sequence including slider positions
         movement_sequence = []
         for i, motors in enumerate(sequence):
             # Calculate slider position
@@ -152,11 +179,32 @@ if __name__ == "__main__":
                 "slider": slider_pos,
                 "pan": motors["pan"],
                 "tilt": motors["tilt"],
-                "focus": motors["focus"],
-                "turntable": 0,  # Static position for turntable
-                "zoom": 0        # Static position for zoom
+                "focus": motors.get("focus", 0),  # Use 0 if focus not included
+                "turntable": 0,
+                "zoom": 0
             }
             movement_sequence.append(position_dict)
+        
+        print("Starting movement with automatic focus...")
+        print("Initial position:", movement_sequence[0])
+        print("Final position:", movement_sequence[-1])
+        
+        camera_slider.move_motors(
+            movement_sequence,
+            velocity=DEFAULT_VELOCITY,
+            acceleration=DEFAULT_ACCELERATION,
+            duration=DEFAULT_DURATION
+        )
+        
+        # Example 2: Manual focus control
+        print("\nExample 2: Manual focus control")
+        focus_position = focus_controller.set_focus_position(500)  # Set focus directly
+        camera_slider.move_motors(
+            [{"slider": 0, "pan": 0, "tilt": 0, "focus": focus_position}],
+            velocity=DEFAULT_VELOCITY,
+            acceleration=DEFAULT_ACCELERATION,
+            duration=1
+        )
         
         print("Starting movement sequence...")
         print("Initial position:", movement_sequence[0])

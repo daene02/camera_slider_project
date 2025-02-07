@@ -23,6 +23,7 @@ class FocusController:
         self.active_point = None
         self.tracking_stop_event = Event()
         self.current_tracking_thread = None
+        self.auto_focus = False
 
     def get_focus_points_path(self):
         base_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -230,7 +231,25 @@ class FocusController:
             logger.error(error_msg)
             return False, error_msg
 
-    def track_focus_point(self):
+    def set_manual_focus(self, focus_value):
+        """Set manual focus position"""
+        try:
+            focus_value = float(focus_value)
+            if self.active_controller:
+                clamped_value = self.active_controller.set_focus_position(focus_value)
+                target_steps = motor_controller.units_to_steps(clamped_value, 'focus')
+                motor_controller.safe_dxl_operation(
+                    motor_controller.dxl.write_goal_position,
+                    MOTOR_IDS['focus'],
+                    target_steps
+                )
+                return True, clamped_value
+            return False, "No active controller"
+        except Exception as e:
+            logger.error(f"Error setting manual focus: {str(e)}")
+            return False, str(e)
+
+    def track_focus_point(self, auto_focus=True):
         """Continuous focus tracking thread function"""
         if not FOCUS_ENABLED:
             logger.warning("Focus tracking is disabled in settings")
@@ -258,14 +277,17 @@ class FocusController:
                     slider_pos = motor_controller.steps_to_units(positions[MOTOR_IDS['slider']], 'slider')
                     
                     # Calculate new positions
-                    motor_positions = self.active_controller.get_motor_positions(slider_pos)
+                    motor_positions = self.active_controller.get_motor_positions(slider_pos, include_focus=auto_focus)
                     
                     # Convert to steps
                     target_positions = {
                         MOTOR_IDS['pan']: motor_controller.units_to_steps(motor_positions['pan'], 'pan'),
                         MOTOR_IDS['tilt']: motor_controller.units_to_steps(motor_positions['tilt'], 'tilt'),
-                        MOTOR_IDS['focus']: motor_controller.units_to_steps(motor_positions['focus'], 'focus')
                     }
+                    
+                    # Include focus only if auto-focus is enabled
+                    if auto_focus and 'focus' in motor_positions:
+                        target_positions[MOTOR_IDS['focus']] = motor_controller.units_to_steps(motor_positions['focus'], 'focus')
                     
                     # Move motors
                     motor_controller.safe_dxl_operation(
@@ -285,14 +307,21 @@ class FocusController:
         finally:
             self.tracking_stop_event.clear()
 
-    def start_tracking(self, point):
-        """Start focus tracking with given point"""
+    def start_tracking(self, point, auto_focus=False):
+        """
+        Start focus tracking with given point
+        Args:
+            point: Focus point data
+            auto_focus: Whether to enable automatic focus control
+        """
         if not FOCUS_ENABLED:
             return False, "Focus tracking is disabled in settings"
 
         if self.current_tracking_thread and self.current_tracking_thread.is_alive():
             # If already tracking, just update the point
             success, error = self.set_focus_point(point)
+            if success:
+                self.auto_focus = auto_focus
             return success, error
 
         try:
@@ -301,9 +330,15 @@ class FocusController:
             if not success:
                 return False, error
 
+            # Set focus mode
+            self.auto_focus = auto_focus
+
             # Start tracking thread
             self.tracking_stop_event.clear()
-            self.current_tracking_thread = Thread(target=self.track_focus_point)
+            self.current_tracking_thread = Thread(
+                target=self.track_focus_point,
+                args=(auto_focus,)
+            )
             self.current_tracking_thread.start()
             return True, None
 
@@ -319,6 +354,7 @@ class FocusController:
         self.active_point = None
         self.active_controller = None
         self.current_tracking_thread = None
+        self.auto_focus = False
         motor_controller.toggle_torque(enable=False)
         return True
 

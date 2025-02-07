@@ -28,8 +28,12 @@ class MotorController:
             velocities = self.safe_dxl_operation(self.dxl.bulk_read_profile_velocity) or {}
             accels = self.safe_dxl_operation(self.dxl.bulk_read_profile_acceleration) or {}
             torque_states = self.safe_dxl_operation(self.dxl.bulk_read_torque_enable) or {}
+            pid_gains = self.safe_dxl_operation(self.dxl.bulk_read_pid_gains) or {}
             
             for motor_id in self.dxl.dxl_ids:
+                # Get PID values for this motor
+                pid = pid_gains.get(motor_id, {})
+                
                 motors.append({
                     "id": motor_id,
                     "name": MOTOR_NAMES.get(motor_id, f"Motor {motor_id}"),
@@ -39,7 +43,12 @@ class MotorController:
                     "current": currents.get(motor_id, 0),
                     "speed": velocities.get(motor_id, 0),
                     "load": accels.get(motor_id, 0),
-                    "torque_enabled": torque_states.get(motor_id, False)
+                    "torque_enabled": torque_states.get(motor_id, False),
+                    "pid": {
+                        "p": pid.get('p', 0),
+                        "i": pid.get('i', 0),
+                        "d": pid.get('d', 0)
+                    }
                 })
             return motors
         except Exception as e:
@@ -80,5 +89,18 @@ class MotorController:
         if motor in MOTOR_OFFSETS:
             units += MOTOR_OFFSETS[motor]
         return round(units / CONVERSION_FACTORS[motor])
+
+    def update_pid_values(self, pid_dict):
+        """
+        Aktualisiert die PID-Werte für die angegebenen Motoren.
+        pid_dict Format: {motor_id: {'p': value, 'i': value, 'd': value}}
+        """
+        return self.safe_dxl_operation(self.dxl.bulk_write_pid_gains, pid_dict)
+
+    def get_pid_values(self):
+        """
+        Liest die PID-Werte aller Motoren.
+        """
+        return self.safe_dxl_operation(self.dxl.bulk_read_pid_gains)
 
 motor_controller = MotorController()
