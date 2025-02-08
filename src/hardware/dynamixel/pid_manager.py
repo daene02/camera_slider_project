@@ -136,6 +136,23 @@ class DynamixelPIDManager(DynamixelBaseManager):
             for dxl_id in self.dxl_ids
         }
 
+    def bulk_read_pid_gains(self) -> Dict[int, Dict[str, int]]:
+        """Liest alle PID Parameter (Position und Velocity)"""
+        pos_gains = self.bulk_read_position_pid_gains()
+        vel_gains = self.bulk_read_velocity_pid_gains()
+        
+        # Combine position and velocity gains
+        combined_gains = {}
+        for dxl_id in self.dxl_ids:
+            combined_gains[dxl_id] = {
+                'p': pos_gains.get(dxl_id, {}).get('p', 0),
+                'i': pos_gains.get(dxl_id, {}).get('i', 0),
+                'd': pos_gains.get(dxl_id, {}).get('d', 0),
+                'vel_p': vel_gains.get(dxl_id, {}).get('p', 0),
+                'vel_i': vel_gains.get(dxl_id, {}).get('i', 0)
+            }
+        return combined_gains
+
     def bulk_read_position_pid_gains(self) -> Dict[int, Dict[str, int]]:
         """Liest alle Position PID Parameter"""
         p_gains = self.bulk_read_position_p_gains()

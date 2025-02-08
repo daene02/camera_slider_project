@@ -24,6 +24,15 @@ class CameraSlider:
         # Initialize motion prediction
         self.motion_predictor = MotionPredictor()
         self.focus_mode = False
+        
+        # Enable motion prediction by default for pan/tilt
+        self.motion_predictor.enable_focus_mode(True)
+        # Initialize with the center position
+        self.motion_predictor.set_focus_point({
+            "x": 400,  # Center X
+            "y": 600,  # Center Y 
+            "z": -300  # Center Z
+        })
 
     def smooth_acceleration(self, positions, duration, steps=100):
         """

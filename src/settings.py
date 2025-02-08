@@ -215,9 +215,9 @@ MOTION_CONTROL = {
     "slave_kalman": {
         "update_rate": 0.01,        # 100Hz Update-Rate
         "process_noise": {          # Process Noise (Q) Parameter
-            "position": 0.05,       # Position Unsicherheit (reduziert für stabilere Schätzung)
+            "position": 0.03,       # Position Unsicherheit (reduziert für stabilere Schätzung)
             "velocity": 0.1,        # Geschwindigkeit Unsicherheit
-            "acceleration": 0.15    # Beschleunigung Unsicherheit (erhöht für bessere Adaption)
+            "acceleration": 0.3    # Beschleunigung Unsicherheit (erhöht für bessere Adaption)
         },
         "measurement_noise": 0.5,   # Measurement Noise (R) Parameter (reduziert für schnellere Reaktion)
         "initial_uncertainty": 50   # Anfängliche Zustandsunsicherheit

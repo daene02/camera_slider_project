@@ -32,7 +32,47 @@
             <div>Current: <span class="current-value">{{ motor.current }}</span>A</div>
             <div>Velocity: <span class="speed-value">{{ motor.speed }}</span> ms</div>
             <div>Acceleration: <span class="load-value">{{ motor.load }}</span> ms</div>
+            <div class="pid-info">
+                <div class="position-pid" data-motor-id="{{ motor.id }}">
+                    <span>Position PID:</span>
+                    <span>P: {{ motor.position_pid.p }}, I: {{ motor.position_pid.i }}, D: {{ motor.position_pid.d }}</span>
+                </div>
+                <div class="velocity-pid" data-motor-id="{{ motor.id }}">
+                    <span>Velocity PID:</span>
+                    <span>P: {{ motor.velocity_pid.p }}, I: {{ motor.velocity_pid.i }}</span>
+                </div>
+            </div>
         </div>
+        
+        {% if motor.id in [2, 3, 4] %}  {# Only for slider, pan, and tilt motors #}
+        <div class="filter-status">
+            <h3>Kalman Filter Status</h3>
+            <div class="filter-stats">
+                <div>
+                    Prediction Time: 
+                    <span class="prediction-time-value" data-motor-id="{{ motor.id }}">{{ motor.prediction_time|default(0.0, true)|round(3) }}</span> ms
+                </div>
+                <div>
+                    Estimated Position: 
+                    <span class="estimated-position" data-motor-id="{{ motor.id }}">{{ motor.estimated_position|default(0.0, true)|round(2) }}</span>
+                    {% if motor.id == 2 %}mm{% else %}°{% endif %}
+                </div>
+                <div>
+                    Estimated Velocity: 
+                    <span class="estimated-velocity" data-motor-id="{{ motor.id }}">{{ motor.estimated_velocity|default(0.0, true)|round(2) }}</span>
+                    {% if motor.id == 2 %}mm/s{% else %}°/s{% endif %}
+                </div>
+                <div>
+                    Prediction Error: 
+                    <span class="prediction-error" data-motor-id="{{ motor.id }}">{{ motor.prediction_error|default(0.0, true)|round(2) }}</span>
+                </div>
+                <div>
+                    Filter Uncertainty: 
+                    <span class="filter-uncertainty" data-motor-id="{{ motor.id }}">{{ motor.filter_uncertainty|default(0.0, true)|round(2) }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         
         <div class="motor-controls">
             <div class="control-group">
@@ -74,6 +114,79 @@
 </div>
 
 <script src="/static/main.js"></script>
+<script src="/static/motor_status.js"></script>
+<style>
+.filter-status, .pid-info {
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.pid-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.position-pid, .velocity-pid {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9em;
+}
+
+.position-pid span:first-child,
+.velocity-pid span:first-child {
+    color: #bbb;
+    font-weight: 500;
+}
+
+.position-pid span:last-child,
+.velocity-pid span:last-child {
+    color: #4a9eff;
+    font-family: monospace;
+}
+
+.filter-status h3 {
+    margin: 0 0 10px 0;
+    color: #ddd;
+    font-size: 1.1em;
+}
+
+.filter-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.filter-stats div {
+    font-size: 0.9em;
+    color: #bbb;
+}
+
+.filter-stats span {
+    color: #4a9eff;
+    font-weight: 500;
+}
+
+.prediction-error.warning {
+    color: #ffbb00;
+}
+
+.prediction-error.error {
+    color: #ff4444;
+}
+
+@keyframes value-update {
+    0% { background-color: #4a9eff33; }
+    100% { background-color: transparent; }
+}
+
+.value-updated {
+    animation: value-update 0.5s ease-out;
+}
+</style>
 <script>
 // Initialize position inputs with converted values
 document.addEventListener('DOMContentLoaded', function() {

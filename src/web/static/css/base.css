@@ -19,15 +19,15 @@
     /* Font Sizes */
     --font-size-small: 15px;
     --font-size-normal: 20px;
-    --font-size-large: 40px;
-    --font-size-xlarge: 50px;
+    --font-size-large: 25px;
+    --font-size-xlarge: 35px;
     
     /* Font Weights */
     --font-weight-normal: 400;
     --font-weight-bold: 700;
 
     /* Component Dimensions */
-    --icon-button-size: 60px;
+    --icon-button-size: 50px;
     --icon-button-radius: 8px;
     --panel-width: 100px;
     --panel-header-height: 61px;
