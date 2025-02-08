@@ -26,12 +26,53 @@
             </div>
         </div>
         <div class="motor-stats">
-            <div>Position: <span class="position-value" data-motor-id="{{ motor.id }}">{{ motor.position }}</span>{% if motor.id == 2 %}mm{% else %}°{% endif %}</div>
-            <div>Temperature: <span class="temperature-value">{{ motor.temperature }}</span>°C</div>
-            <div>Voltage: <span class="voltage-value">{{ motor.voltage }}</span>V</div>
-            <div>Current: <span class="current-value">{{ motor.current }}</span>A</div>
-            <div>Velocity: <span class="speed-value">{{ motor.speed }}</span> ms</div>
-            <div>Acceleration: <span class="load-value">{{ motor.load }}</span> ms</div>
+            <div class="motor-value position">
+                <label>Position:</label>
+                <div class="value-container">
+                    <span class="raw-value">{{ motor.position }}</span>
+                    <span class="position-value" data-motor-id="{{ motor.id }}">{{ motor.position }}</span>
+                    <span class="unit">{% if motor.id == 2 %}mm{% else %}°{% endif %}</span>
+                </div>
+            </div>
+            <div class="motor-value">
+                <label>Temperature{% if motor.temperature > 60 %}⚠️{% endif %}:</label>
+                <div class="value-container">
+                    <span class="temperature-value {{ 'warning' if motor.temperature > 55 else 'error' if motor.temperature > 65 }}">
+                        {{ motor.temperature }}
+                    </span>
+                    <span class="unit">°C</span>
+                </div>
+            </div>
+            <div class="motor-value">
+                <label>Velocity:</label>
+                <div class="value-container">
+                    <span class="speed-value">{{ motor.speed }}</span>
+                    <span class="unit">steps/s</span>
+                </div>
+            </div>
+            <div class="motor-value">
+                <label>Acceleration:</label>
+                <div class="value-container">
+                    <span class="load-value">{{ motor.load }}</span>
+                    <span class="unit">steps/s²</span>
+                </div>
+            </div>
+            <div class="motor-value">
+                <label>Current:</label>
+                <div class="value-container">
+                    <span class="current-value">{{ motor.current }}</span>
+                    <span class="unit">mA</span>
+                </div>
+            </div>
+            <div class="motor-value">
+                <label>Voltage{% if motor.voltage < 11 %}⚠️{% endif %}:</label>
+                <div class="value-container">
+                    <span class="voltage-value {{ 'low' if motor.voltage < 11.5 }}">
+                        {{ motor.voltage }}
+                    </span>
+                    <span class="unit">V</span>
+                </div>
+            </div>
             <div class="pid-info">
                 <div class="position-pid" data-motor-id="{{ motor.id }}">
                     <span>Position PID:</span>
@@ -44,31 +85,37 @@
             </div>
         </div>
         
-        {% if motor.id in [2, 3, 4] %}  {# Only for slider, pan, and tilt motors #}
+        {% if motor.id in [2, 3, 4] %}
         <div class="filter-status">
             <h3>Kalman Filter Status</h3>
             <div class="filter-stats">
-                <div>
-                    Prediction Time: 
-                    <span class="prediction-time-value" data-motor-id="{{ motor.id }}">{{ motor.prediction_time|default(0.0, true)|round(3) }}</span> ms
+                <div class="status-chart">
+                    <canvas id="motor{{ motor.id }}_chart"></canvas>
                 </div>
-                <div>
-                    Estimated Position: 
-                    <span class="estimated-position" data-motor-id="{{ motor.id }}">{{ motor.estimated_position|default(0.0, true)|round(2) }}</span>
-                    {% if motor.id == 2 %}mm{% else %}°{% endif %}
-                </div>
-                <div>
-                    Estimated Velocity: 
-                    <span class="estimated-velocity" data-motor-id="{{ motor.id }}">{{ motor.estimated_velocity|default(0.0, true)|round(2) }}</span>
-                    {% if motor.id == 2 %}mm/s{% else %}°/s{% endif %}
-                </div>
-                <div>
-                    Prediction Error: 
-                    <span class="prediction-error" data-motor-id="{{ motor.id }}">{{ motor.prediction_error|default(0.0, true)|round(2) }}</span>
-                </div>
-                <div>
-                    Filter Uncertainty: 
-                    <span class="filter-uncertainty" data-motor-id="{{ motor.id }}">{{ motor.filter_uncertainty|default(0.0, true)|round(2) }}</span>
+                <div class="chart-metrics">
+                    <div class="metric prediction-time">
+                        <span class="label">Prediction Time:</span>
+                        <span class="prediction-time-value" data-motor-id="{{ motor.id }}">{{ motor.prediction_time|default(0.0, true)|round(3) }}</span>
+                        <span class="unit">ms</span>
+                    </div>
+                    <div class="metric position">
+                        <span class="label">Est. Position:</span>
+                        <span class="estimated-position" data-motor-id="{{ motor.id }}">{{ motor.estimated_position|default(0.0, true)|round(2) }}</span>
+                        <span class="unit">{% if motor.id == 2 %}mm{% else %}°{% endif %}</span>
+                    </div>
+                    <div class="metric velocity">
+                        <span class="label">Est. Velocity:</span>
+                        <span class="estimated-velocity" data-motor-id="{{ motor.id }}">{{ motor.estimated_velocity|default(0.0, true)|round(2) }}</span>
+                        <span class="unit">{% if motor.id == 2 %}mm/s{% else %}°/s{% endif %}</span>
+                    </div>
+                    <div class="metric prediction-error">
+                        <span class="label">Pred. Error:</span>
+                        <span class="prediction-error" data-motor-id="{{ motor.id }}">{{ motor.prediction_error|default(0.0, true)|round(2) }}</span>
+                    </div>
+                    <div class="metric uncertainty">
+                        <span class="label">Uncertainty:</span>
+                        <span class="filter-uncertainty" data-motor-id="{{ motor.id }}">{{ motor.filter_uncertainty|default(0.0, true)|round(2) }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -113,94 +160,26 @@
     {% endfor %}
 </div>
 
+<!-- JavaScript Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
+<!-- Application Scripts -->
 <script src="/static/main.js"></script>
+<script src="/static/notifications.js"></script>
+<script src="/static/motor_init.js"></script>
+<script src="/static/motor_monitor.js"></script>
+<script src="/static/motor_charts.js"></script>
 <script src="/static/motor_status.js"></script>
-<style>
-.filter-status, .pid-info {
-    background-color: #2a2a2a;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 10px 0;
-}
 
-.pid-info {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
+<!-- Load styles -->
+<link rel="stylesheet" href="/static/styles.css">
 
-.position-pid, .velocity-pid {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.9em;
-}
-
-.position-pid span:first-child,
-.velocity-pid span:first-child {
-    color: #bbb;
-    font-weight: 500;
-}
-
-.position-pid span:last-child,
-.velocity-pid span:last-child {
-    color: #4a9eff;
-    font-family: monospace;
-}
-
-.filter-status h3 {
-    margin: 0 0 10px 0;
-    color: #ddd;
-    font-size: 1.1em;
-}
-
-.filter-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-}
-
-.filter-stats div {
-    font-size: 0.9em;
-    color: #bbb;
-}
-
-.filter-stats span {
-    color: #4a9eff;
-    font-weight: 500;
-}
-
-.prediction-error.warning {
-    color: #ffbb00;
-}
-
-.prediction-error.error {
-    color: #ff4444;
-}
-
-@keyframes value-update {
-    0% { background-color: #4a9eff33; }
-    100% { background-color: transparent; }
-}
-
-.value-updated {
-    animation: value-update 0.5s ease-out;
-}
-</style>
+<!-- Initialize motor monitoring -->
 <script>
-// Initialize position inputs with converted values
 document.addEventListener('DOMContentLoaded', function() {
-    {% for motor in motors %}
-        const position{{ motor.id }} = stepsToUnits({{ motor.position }}, {{ motor.id }});
-        const input{{ motor.id }} = document.getElementById('position_{{ motor.id }}');
-        if (input{{ motor.id }}) {
-            input{{ motor.id }}.value = position{{ motor.id }};
-        }
-        const display{{ motor.id }} = document.querySelector('.position-value[data-motor-id="{{ motor.id }}"]');
-        if (display{{ motor.id }}) {
-            display{{ motor.id }}.textContent = position{{ motor.id }};
-        }
-    {% endfor %}
+    const motorData = {{ motors|tojson|safe }};
+    motorMonitor.initialize(motorData);
 });
 </script>
 {% endblock %}

@@ -1,0 +1,417 @@
+/* Motor status styles */
+
+.motor-box {
+    position: relative;
+    margin: 1em;
+    padding: 1.5em;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #1e1e1e, #2a2a2a);
+    box-shadow: 5px 5px 10px #181818, -5px -5px 10px #323232;
+}
+
+.motor-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1em;
+    margin: 1em 0;
+}
+
+.motor-value {
+    padding: 0.8em;
+    border-radius: 6px;
+    background: #2a2a2a;
+    transition: background-color 0.2s ease;
+}
+
+.motor-value:hover {
+    background: #2d2d2d;
+}
+
+.motor-value label {
+    display: block;
+    color: #999;
+    font-size: 0.9em;
+    margin-bottom: 0.4em;
+}
+
+.value-container {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em;
+}
+
+.raw-value {
+    color: #666;
+    font-size: 0.85em;
+    text-decoration: line-through;
+}
+
+.position-value,
+.speed-value,
+.load-value {
+    color: #4a9eff;
+    font-family: monospace;
+    font-size: 1.1em;
+}
+
+.unit {
+    color: #666;
+    font-size: 0.85em;
+}
+
+/* Temperature and voltage indicators */
+.temperature-value.warning {
+    color: #ffbb00;
+}
+
+.temperature-value.error {
+    color: #ff4444;
+}
+
+.voltage-value.low {
+    color: #ff8800;
+}
+
+/* Value transitions */
+.motor-stats span,
+.filter-stats span {
+    display: inline-block;
+    transition: all 0.3s ease-out;
+}
+
+.filter-stats span {
+    min-width: 60px;
+    text-align: right;
+}
+
+/* Smooth value updates */
+@keyframes value-highlight {
+    0% {
+        background: rgba(74, 158, 255, 0.2);
+        transform: scale(1.05);
+    }
+    100% {
+        background: transparent;
+        transform: scale(1);
+    }
+}
+
+.value-updated {
+    animation: value-highlight 0.5s ease-out;
+}
+
+/* Filter status and chart display */
+.filter-status {
+    padding: 1em;
+    border-radius: 8px;
+    background: #2a2a2a;
+    margin-top: 1em;
+}
+
+.filter-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+}
+
+.status-chart {
+    width: 100%;
+    height: 200px;
+    margin-bottom: 1em;
+    background: #232323;
+    border-radius: 4px;
+    padding: 0.5em;
+}
+
+.chart-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8em;
+}
+
+.filter-stats .metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5em 0.8em;
+    border-radius: 4px;
+    background: #232323;
+    transition: all 0.2s ease;
+}
+
+.filter-stats .metric:hover {
+    background: #2d2d2d;
+    transform: translateX(2px);
+}
+
+.filter-stats .metric .label {
+    color: #999;
+    font-size: 0.9em;
+    flex: 1;
+}
+
+.filter-stats .metric span:not(.label) {
+    font-family: monospace;
+    font-size: 0.95em;
+    margin-left: 0.5em;
+}
+
+.filter-stats .metric .unit {
+    color: #666;
+    font-size: 0.85em;
+    margin-left: 0.3em;
+    min-width: 25px;
+}
+
+/* Special styling for specific metrics */
+.filter-stats .metric.prediction-time .prediction-time-value {
+    color: #4a9eff;
+}
+
+.filter-stats .metric.position .estimated-position {
+    color: #44ff44;
+}
+
+.filter-stats .metric.velocity .estimated-velocity {
+    color: #ff9944;
+}
+
+.filter-stats .metric.prediction-error .prediction-error,
+.filter-stats .metric.uncertainty .filter-uncertainty {
+    position: relative;
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    transition: text-shadow 0.3s ease;
+}
+
+.filter-stats .metric.prediction-error .prediction-error {
+    color: #4a9eff;
+}
+
+.filter-stats .metric.uncertainty .filter-uncertainty {
+    color: #bb44ff;
+}
+
+/* Glow effects for error states */
+.filter-stats .metric .prediction-error.error,
+.filter-stats .metric .filter-uncertainty.error {
+    color: #ff4444;
+    text-shadow: 0 0 10px rgba(255, 68, 68, 0.7);
+    animation: errorPulse 2s ease-in-out infinite;
+}
+
+.filter-stats .metric .prediction-error.warning,
+.filter-stats .metric .filter-uncertainty.warning {
+    color: #ffbb00;
+    text-shadow: 0 0 8px rgba(255, 187, 0, 0.7);
+    animation: warningPulse 2s ease-in-out infinite;
+}
+
+@keyframes errorPulse {
+    0%, 100% { text-shadow: 0 0 10px rgba(255, 68, 68, 0.7); }
+    50% { text-shadow: 0 0 15px rgba(255, 68, 68, 0.9); }
+}
+
+@keyframes warningPulse {
+    0%, 100% { text-shadow: 0 0 8px rgba(255, 187, 0, 0.7); }
+    50% { text-shadow: 0 0 12px rgba(255, 187, 0, 0.9); }
+}
+
+/* Warning and error states */
+.prediction-error.warning {
+    color: #ffbb00;
+    text-shadow: 0 0 5px rgba(255, 187, 0, 0.5);
+}
+
+.prediction-error.error {
+    color: #ff4444;
+    text-shadow: 0 0 5px rgba(255, 68, 68, 0.5);
+}
+
+/* PID value display */
+.pid-info {
+    margin-top: 1em;
+    padding: 1em;
+    border-radius: 8px;
+    background: #2a2a2a;
+}
+
+.position-pid,
+.velocity-pid {
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5em 0;
+    padding: 0.5em;
+    border-radius: 4px;
+    background: #232323;
+}
+
+/* Motor controls */
+.motor-controls {
+    margin-top: 1.5em;
+    padding: 1em;
+    background: #2a2a2a;
+    border-radius: 8px;
+}
+
+.control-group {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1em;
+    align-items: center;
+    margin-bottom: 1em;
+    padding: 0.8em;
+    background: #232323;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.control-group:hover {
+    background: #2d2d2d;
+}
+
+.control-group label {
+    color: #999;
+    font-size: 0.9em;
+}
+
+.control-group input {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #4a9eff;
+    padding: 0.5em;
+    border-radius: 4px;
+    font-family: monospace;
+    width: 120px;
+}
+
+.control-group input:focus {
+    outline: none;
+    border-color: #4a9eff;
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+}
+
+.control-group button {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: #ddd;
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.control-group button:hover {
+    background: #3a3a3a;
+    border-color: #4a9eff;
+}
+
+.control-group button:active {
+    transform: translateY(1px);
+}
+
+/* Button group styles */
+.btn-group {
+    display: flex;
+    gap: 0.5em;
+}
+
+.btn-enable {
+    background: #1a4a1a;
+    border-color: #2a6a2a;
+}
+
+.btn-enable:hover {
+    background: #2a5a2a;
+}
+
+.btn-disable {
+    background: #4a1a1a;
+    border-color: #6a2a2a;
+}
+
+.btn-disable:hover {
+    background: #5a2a2a;
+}
+
+/* Notification styles */
+#notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.notification {
+    opacity: 0.95;
+    pointer-events: auto;
+    backdrop-filter: blur(5px);
+}
+
+.notification.warning {
+    background: linear-gradient(to right, #ffbb00 0%, #ffbb00 4px, #2a2a2a 4px, #2a2a2a 100%);
+    box-shadow: 0 2px 8px rgba(255, 187, 0, 0.2);
+}
+
+.notification.error {
+    background: linear-gradient(to right, #ff4444 0%, #ff4444 4px, #2a2a2a 4px, #2a2a2a 100%);
+    box-shadow: 0 2px 8px rgba(255, 68, 68, 0.2);
+}
+
+.notification.info {
+    background: linear-gradient(to right, #4a9eff 0%, #4a9eff 4px, #2a2a2a 4px, #2a2a2a 100%);
+    box-shadow: 0 2px 8px rgba(74, 158, 255, 0.2);
+}
+
+.notification button {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 5px;
+    transition: color 0.2s ease;
+}
+
+.notification button:hover {
+    color: #ff4444;
+}
+
+/* Notification animations */
+@keyframes slideIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 0.95; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 0.95; }
+    to { transform: translateX(120%); opacity: 0; }
+}
+
+/* Responsive grid layout */
+@media (max-width: 768px) {
+    .motor-stats,
+    .filter-stats,
+    .control-group {
+        grid-template-columns: 1fr;
+    }
+    
+    .control-group input {
+        width: 100%;
+    }
+
+    #notification-container {
+        left: 20px;
+        right: 20px;
+    }
+
+    .notification {
+        min-width: unset;
+        width: 100%;
+    }
+}

@@ -154,21 +154,37 @@ class MotionPredictor:
         Returns:
             PredictedState with predicted positions
         """
-        # Update time step based on slider velocity
-        pred_time = self._calculate_prediction_time(
-            velocities['slider'],
-            profile_duration
-        )
+        # Update time step based on profile or velocity
+        if profile_duration is not None:
+            pred_time = min(
+                profile_duration * 0.1,  # 10% of profile duration
+                self.prediction_settings['max_time']
+            )
+            pred_time = max(pred_time, self.prediction_settings['min_time'])
+        else:
+            pred_time = self._calculate_prediction_time(
+                velocities['slider'],
+                None
+            )
         
-        # Apply velocity limits and update filters
-        limited_velocities = {
-            name: self._limit_velocity(velocities.get(name, 0.0), name)
-            for name in self.filters.keys()
-        }
+        # Apply velocity limits and calculate time-based velocities
+        limited_velocities = {}
+        for name in self.filters.keys():
+            current_pos = measurements[name]
+            target_velocity = velocities.get(name, 0.0)
+            
+            if profile_duration is not None and profile_duration > 0:
+                # Use profile-based velocity calculation
+                velocity = target_velocity / profile_duration
+            else:
+                # Use direct velocity with limits
+                velocity = self._limit_velocity(target_velocity, name)
+                
+            limited_velocities[name] = velocity
         
+        # Update filters with time step and measurements
         for name, filter in self.filters.items():
             filter.update_time_step(pred_time)
-            # Pass both position and velocity measurements
             filter.update(
                 measurement=measurements[name],
                 measured_velocity=limited_velocities[name]

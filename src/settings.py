@@ -84,14 +84,14 @@ DEFAULT_DURATION = 10           # Default movement duration in seconds
 # Position verification settings
 POSITION_CHECK_INTERVAL = 0.05   # Interval for checking position updates (seconds)
 POSITION_CHECK_TIMEOUT = 30      # Timeout for position checking (seconds)
-POSITION_TOLERANCE = 10          # Position tolerance in steps
+POSITION_TOLERANCE = 4          # Position tolerance in steps
 MAX_POSITION_RETRIES = 100      # Maximum retries for position verification
 
 # Pan/Tilt spezifische Einstellungen
-PAN_TILT_VELOCITY = 500          # Specific velocity for pan/tilt movements
-PAN_TILT_ACCELERATION = 1500      # Specific acceleration for pan/tilt movements
-UPDATE_INTERVAL = 0.01          # Changed to 100Hz (from 50Hz)
-PAN_TILT_TOLERANCE = 20         # Position tolerance for pan/tilt movements
+PAN_TILT_VELOCITY = 10          # Reduziert für sanftere Bewegungen
+PAN_TILT_ACCELERATION = 1000      # Deutlich reduziert für weichere Beschleunigung
+UPDATE_INTERVAL = 0.02          # Auf 50Hz gesetzt für stabileres Verhalten
+PAN_TILT_TOLERANCE = 4          # Engere Toleranz für präzisere Bewegungen
 
 ########################################
 # Konvertierungsfaktoren
@@ -115,12 +115,12 @@ MAX_HOMING_VELOCITY = 50        # Maximale Geschwindigkeit während des Homings
 # Sicherheitsabschaltung: maximale Stromgrenzen
 ########################################
 MAX_CURRENT_LIMITS: Dict[str, int] = {
-    "turntable": 300,
-    "slider": 300,
-    "pan": 300,
-    "tilt": 300,
-    "zoom": 300,
-    "focus": 300
+    "turntable": 400,
+    "slider": 400,
+    "pan": 400,
+    "tilt": 400,
+    "zoom": 400,
+    "focus": 400
 }
 
 ########################################
@@ -164,7 +164,7 @@ MOVEMENT_SETTINGS = {
         "check_interval": 0.01,      # Reduced to 100Hz
     },
     "pan_tilt": {
-        "position_tolerance": 2,     # Larger tolerance for pan/tilt
+        "position_tolerance": 4,     # Larger tolerance for pan/tilt
         "update_rate": 0.01,         # Changed to 100Hz
         "independent_movement": True  # Allow pan/tilt to move independently
     }
@@ -213,32 +213,50 @@ MOTION_CONTROL = {
     
     # Kalman Filter Einstellungen für Slave-Motoren
     "slave_kalman": {
-        "update_rate": 0.01,        # 100Hz Update-Rate
+        "update_rate": 0.02,        # 50Hz Update-Rate für stabileres Verhalten
         "process_noise": {          # Process Noise (Q) Parameter
-            "position": 0.01,       # Reduziert für präzisere Positionsschätzung
-            "velocity": 0.01,       # Reduziert für stabilere Geschwindigkeit
-            "acceleration": 0.1    # Reduziert für weichere Bewegungen
+            "position": 0.001,      # Stark reduziert für stabilere Position
+            "velocity": 0.01,       # Reduziert für sanftere Geschwindigkeitsänderungen
+            "acceleration": 0.05    # Reduziert für weichere Beschleunigung
         },
-        "measurement_noise": 0.7,   # Erhöht für stabilere Messungen
-        "initial_uncertainty": 50   # Reduziert für konservativere Anfangsschätzung
+        "measurement_noise": 0.5,   # Erhöht für stärkere Glättung
+        "initial_uncertainty": 50   # Reduziert für konservativeres Startverhalten
     },
     
     # Bewegungsprädiktion für Slave-Motoren
     "prediction": {
-        "min_time": 0.003,         # Schnellere minimale Reaktion (3ms)
-        "max_time": 0.03,          # Kürzere maximale Vorhersage (30ms)
-        "time": 0.01,              # Schnellere Standardvorhersage (10ms)
+        "min_time": 0.01,          # Längere Mindestvorhersage (10ms)
+        "max_time": 0.1,           # Längere Maximalvorhersage (100ms)
+        "time": 0.02,              # Standard auf 20ms für sanftere Übergänge
         "smoothing": {
-            "min_factor": 0.1,     # Erhöht für stabilere Mindestglättung
-            "max_factor": 0.9,     # Reduziert für präzisere Maximalglättung
-            "velocity_scale": 0.0001 # Halbiert für feinere Geschwindigkeitsanpassung
+            "min_factor": 0.05,     # Stärkere Mindestglättung
+            "max_factor": 0.9,     # Reduzierte Maximalglättung für mehr Stabilität
+            "velocity_scale": 0.001 # Angepasst für bessere Geschwindigkeitsglättung
         }
     },
     
     # Fehlerbehandlung
     "error_handling": {
-        "max_prediction_error": 10,  # Reduziert für striktere Fehlerkontrolle
-        "recovery_factor": 0.8      # Erhöht für schnellere Fehlerkorrektur
+        "max_prediction_error": 10,  # Reduziert für frühere Fehlerkorrektur
+        "recovery_factor": 0.4,     # Stark reduziert für sehr sanfte Fehlerkorrektur
+        "monitoring": {
+            "temperature": {
+                "warning": 55,      # °C
+                "error": 65         # °C
+            },
+            "voltage": {
+                "warning": 11.5,    # V
+                "error": 11.0       # V
+            },
+            "current": {
+                "warning": 800,     # mA
+                "error": 1000       # mA
+            },
+            "load": {
+                "warning": 0,      # %
+                "error": 0        # %
+            }
+        }
     }
 }
 
