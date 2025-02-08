@@ -90,7 +90,7 @@ MAX_POSITION_RETRIES = 100      # Maximum retries for position verification
 # Pan/Tilt spezifische Einstellungen
 PAN_TILT_VELOCITY = 500          # Specific velocity for pan/tilt movements
 PAN_TILT_ACCELERATION = 1500      # Specific acceleration for pan/tilt movements
-UPDATE_INTERVAL = 0.02          # Pan/tilt update rate (50Hz)
+UPDATE_INTERVAL = 0.01          # Changed to 100Hz (from 50Hz)
 PAN_TILT_TOLERANCE = 20         # Position tolerance for pan/tilt movements
 
 ########################################
@@ -148,7 +148,7 @@ TURNTABLE_POSITION: Dict[str, Union[int, float]] = {
 
 MOTOR_OFFSETS: Dict[str, int] = {
     "pan": 180,              # Offset für Pan in Grad
-    "tilt": 180,            # Offset für Tilt in Grad
+    "tilt": 180,            # Korrigierter Offset für Tilt (20° mehr)
     "camera_to_tilt_pivot": 0
 }
 
@@ -161,11 +161,11 @@ MOVEMENT_SETTINGS = {
     "primary_motors": {
         "position_tolerance": 4,     # Steps tolerance for position verification
         "max_retries": 200,          # Maximum position check retries
-        "check_interval": 0.05,      # Seconds between position checks
+        "check_interval": 0.01,      # Reduced to 100Hz
     },
     "pan_tilt": {
         "position_tolerance": 2,     # Larger tolerance for pan/tilt
-        "update_rate": 0.02,         # Update rate for pan/tilt movements
+        "update_rate": 0.01,         # Changed to 100Hz
         "independent_movement": True  # Allow pan/tilt to move independently
     }
 }
@@ -182,7 +182,7 @@ CAMERA_SETTINGS = {
     "live_view": {
         "enabled": False,        # Live view default state
         "temp_dir": "/tmp/camera_preview",  # Directory for temporary preview files
-        "update_rate": 0.1,      # Live view update rate (seconds)
+        "update_rate": 0.01,      # Changed to 100Hz
     },
     "preview": {
         "width": 854,           # Preview image width
@@ -215,30 +215,30 @@ MOTION_CONTROL = {
     "slave_kalman": {
         "update_rate": 0.01,        # 100Hz Update-Rate
         "process_noise": {          # Process Noise (Q) Parameter
-            "position": 0.03,       # Position Unsicherheit (reduziert für stabilere Schätzung)
-            "velocity": 0.1,        # Geschwindigkeit Unsicherheit
-            "acceleration": 0.3    # Beschleunigung Unsicherheit (erhöht für bessere Adaption)
+            "position": 0.01,       # Reduziert für präzisere Positionsschätzung
+            "velocity": 0.01,       # Reduziert für stabilere Geschwindigkeit
+            "acceleration": 0.1    # Reduziert für weichere Bewegungen
         },
-        "measurement_noise": 0.5,   # Measurement Noise (R) Parameter (reduziert für schnellere Reaktion)
-        "initial_uncertainty": 50   # Anfängliche Zustandsunsicherheit
+        "measurement_noise": 0.7,   # Erhöht für stabilere Messungen
+        "initial_uncertainty": 50   # Reduziert für konservativere Anfangsschätzung
     },
     
     # Bewegungsprädiktion für Slave-Motoren
     "prediction": {
-        "min_time": 0.005,         # Minimale Vorhersage-Zeit (5ms)
-        "max_time": 0.05,          # Maximale Vorhersage-Zeit (50ms)
-        "time": 0.02,              # Standard Vorhersage-Zeit (20ms)
+        "min_time": 0.003,         # Schnellere minimale Reaktion (3ms)
+        "max_time": 0.03,          # Kürzere maximale Vorhersage (30ms)
+        "time": 0.01,              # Schnellere Standardvorhersage (10ms)
         "smoothing": {
-            "min_factor": 0.3,     # Minimaler Glättungsfaktor
-            "max_factor": 1.0,     # Maximaler Glättungsfaktor
-            "velocity_scale": 0.001 # Geschwindigkeitsskalierung für adaptive Zeitberechnung
+            "min_factor": 0.1,     # Erhöht für stabilere Mindestglättung
+            "max_factor": 0.9,     # Reduziert für präzisere Maximalglättung
+            "velocity_scale": 0.0001 # Halbiert für feinere Geschwindigkeitsanpassung
         }
     },
     
     # Fehlerbehandlung
     "error_handling": {
-        "max_prediction_error": 10, # Maximaler erlaubter Vorhersagefehler
-        "recovery_factor": 0.8      # Faktor für Fehlerkorrektur (0-1)
+        "max_prediction_error": 10,  # Reduziert für striktere Fehlerkontrolle
+        "recovery_factor": 0.8      # Erhöht für schnellere Fehlerkorrektur
     }
 }
 

@@ -1,4 +1,8 @@
-// Motor status and filter data update handling
+// Motor status and filter data update handling with polling
+
+// Polling configuration
+const POLL_INTERVAL = 100; // 100ms = 10Hz
+let pollTimer = null;
 
 const updateValues = (element, newValue, animate = true) => {
     if (element && element.textContent !== newValue) {
@@ -68,27 +72,42 @@ const updateFilterStatus = (motorId, data) => {
     }
 };
 
-const updateAllMotorStatus = () => {
-    fetch('/motor/status')
-        .then(response => response.json())
-        .then(motors => {
-            motors.forEach(motor => {
-                // Only update filter status for motors that have it (slider, pan, tilt)
-                if ([2, 3, 4].includes(motor.id)) {
-                    updateFilterStatus(motor.id, {
-                        prediction_time: motor.prediction_time || 0,
-                        estimated_position: motor.estimated_position || 0,
-                        estimated_velocity: motor.estimated_velocity || 0,
-                        prediction_error: motor.prediction_error || 0,
-                        filter_uncertainty: motor.filter_uncertainty || 0,
-                        position_pid: motor.position_pid || { p: 0, i: 0, d: 0 },
-                        velocity_pid: motor.velocity_pid || { p: 0, i: 0 }
-                    });
-                }
-            });
-        })
-        .catch(error => console.error('Error updating motor status:', error));
+const updateAllMotorStatus = async () => {
+    try {
+        const response = await fetch('/motor/status');
+        if (!response.ok) throw new Error('Failed to fetch motor status');
+        
+        const motors = await response.json();
+        motors.forEach(motor => {
+            if ([2, 3, 4].includes(motor.id)) {
+                updateFilterStatus(motor.id, {
+                    prediction_time: motor.prediction_time || 0,
+                    estimated_position: motor.estimated_position || 0,
+                    estimated_velocity: motor.estimated_velocity || 0,
+                    prediction_error: motor.prediction_error || 0,
+                    filter_uncertainty: motor.filter_uncertainty || 0,
+                    position_pid: motor.position_pid || { p: 0, i: 0, d: 0 },
+                    velocity_pid: motor.velocity_pid || { p: 0, i: 0 }
+                });
+            }
+        });
+    } catch (error) {
+        console.error('Error updating motor status:', error);
+    }
 };
 
-// Update status every 100ms (10Hz)
-setInterval(updateAllMotorStatus, 100);
+// Start polling when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    // Start immediate polling
+    pollTimer = setInterval(updateAllMotorStatus, POLL_INTERVAL);
+    
+    // Initial update
+    updateAllMotorStatus();
+});
+
+// Clean up when page unloads
+window.addEventListener('beforeunload', () => {
+    if (pollTimer) {
+        clearInterval(pollTimer);
+    }
+});

@@ -1,0 +1,11 @@
+Flask==2.0.1
+Flask-SocketIO==5.1.1
+python-socketio==5.4.0
+python-engineio==4.2.1
+eventlet==0.33.0
+numpy>=1.19.5
+scipy>=1.7.0
+opencv-python>=4.5.3.56
+RPi.GPIO>=0.7.0
+pyserial>=3.5
+dynamixel-sdk>=3.7.31
