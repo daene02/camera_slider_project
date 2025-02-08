@@ -134,7 +134,7 @@ MAX_FOCUS_DISTANCE = 2000     # Maximum focus distance in mm
 # Slider-Einstellungen
 ########################################
 SLIDER_STEP_TO_MM = 0.08789122581892  # 1 step = 0.08789122581892 mm
-SLIDER_MAX_MM = 1400  # Maximum slider range in mm
+SLIDER_MAX_MM = 1300  # Maximum slider range in mm
 
 ########################################
 # Kamera-Position und Offset-Einstellungen
@@ -159,12 +159,12 @@ CAMERA_OFFSET_Z = 0         # Vertikaler Kamera-Offset
 ########################################
 MOVEMENT_SETTINGS = {
     "primary_motors": {
-        "position_tolerance": 20,     # Steps tolerance for position verification
+        "position_tolerance": 4,     # Steps tolerance for position verification
         "max_retries": 200,          # Maximum position check retries
         "check_interval": 0.05,      # Seconds between position checks
     },
     "pan_tilt": {
-        "position_tolerance": 10,     # Larger tolerance for pan/tilt
+        "position_tolerance": 2,     # Larger tolerance for pan/tilt
         "update_rate": 0.02,         # Update rate for pan/tilt movements
         "independent_movement": True  # Allow pan/tilt to move independently
     }
@@ -194,6 +194,49 @@ CAMERA_SETTINGS = {
 # Create temporary directory for camera preview files
 os.makedirs(CAMERA_SETTINGS["live_view"]["temp_dir"], exist_ok=True)
 
+########################################
+# Motion Control Configuration
+########################################
+MOTION_CONTROL = {
+    # Master-Slave Konfiguration
+    "master_motor": "slider",
+    "synchronized_motors": {
+        "pan": {
+            "master": "slider",
+            "prediction_enabled": True
+        },
+        "tilt": {
+            "master": "slider",
+            "prediction_enabled": True
+        }
+    },
+    
+    # Kalman Filter Einstellungen für Slave-Motoren
+    "slave_kalman": {
+        "update_rate": 0.01,        # 100Hz Update-Rate
+        "process_noise": {          # Process Noise (Q) Parameter
+            "position": 0.1,        # Position Unsicherheit
+            "velocity": 0.1,        # Geschwindigkeit Unsicherheit
+            "acceleration": 0.1     # Beschleunigung Unsicherheit
+        },
+        "measurement_noise": 1.0,   # Measurement Noise (R) Parameter
+        "initial_uncertainty": 100  # Anfängliche Zustandsunsicherheit
+    },
+    
+    # Bewegungsprädiktion für Slave-Motoren
+    "prediction": {
+        "time": 0.02,              # 20ms Vorhersage-Zeit
+        "smoothing": {
+            "min_factor": 0.3,     # Minimaler Glättungsfaktor
+            "max_factor": 1.0,     # Maximaler Glättungsfaktor
+            "velocity_scale": 100   # Geschwindigkeitsskalierung
+        }
+    }
+}
+
+# Reverse lookup für Motor-IDs zu Namen
+MOTOR_ID_TO_NAME = {v: k for k, v in MOTOR_IDS.items()}
+
 # Auto-detected camera settings options
 CAMERA_AUTO_SETTINGS = {
     "iso": ["Auto", "100", "200", "400", "800", "1600", "3200", "6400"],
@@ -216,5 +259,6 @@ __all__ = [
     "MIN_FOCUS_DISTANCE", "MAX_FOCUS_DISTANCE",
     "SLIDER_STEP_TO_MM", "SLIDER_MAX_MM",
     "TURNTABLE_POSITION", "MOTOR_OFFSETS", "CAMERA_OFFSET_Z",
-    "MOVEMENT_SETTINGS", "CAMERA_SETTINGS", "CAMERA_AUTO_SETTINGS"
+    "MOVEMENT_SETTINGS", "CAMERA_SETTINGS", "CAMERA_AUTO_SETTINGS",
+    "KALMAN_SETTINGS", "MOTION_CONTROL"  # Neue Settings hinzugefügt
 ]

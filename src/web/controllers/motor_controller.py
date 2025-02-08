@@ -1,6 +1,7 @@
 from threading import Lock
 from flask import jsonify
 from src.dxl_manager import DynamixelManager
+from src.enhanced_motor_control import EnhancedMotorControl
 from src.settings import (
     CONVERSION_FACTORS, MOTOR_OFFSETS, MOTOR_IDS, MOTOR_NAMES
 )
@@ -9,6 +10,7 @@ class MotorController:
     def __init__(self):
         self.dxl = DynamixelManager()
         self.dxl_lock = Lock()
+        self.enhanced = EnhancedMotorControl(self.dxl)
 
     def safe_dxl_operation(self, func, *args, **kwargs):
         with self.dxl_lock:
@@ -21,7 +23,10 @@ class MotorController:
     def get_motor_status(self):
         try:
             motors = []
-            positions = self.safe_dxl_operation(self.dxl.bulk_read_positions) or {}
+            # Get filtered states from enhanced controller
+            filtered_states = self.safe_dxl_operation(self.enhanced.get_filtered_positions) or {}
+            
+            # Get other motor data
             temperatures = self.safe_dxl_operation(self.dxl.bulk_read_temperature) or {}
             voltages = self.safe_dxl_operation(self.dxl.bulk_read_voltage) or {}
             currents = self.safe_dxl_operation(self.dxl.bulk_read_current) or {}
@@ -31,13 +36,18 @@ class MotorController:
             pid_gains = self.safe_dxl_operation(self.dxl.bulk_read_pid_gains) or {}
             
             for motor_id in self.dxl.dxl_ids:
+                # Get filtered state values
+                filtered_pos, filtered_vel, filtered_accel = filtered_states.get(motor_id, (0, 0, 0))
+                
                 # Get PID values for this motor
                 pid = pid_gains.get(motor_id, {})
                 
                 motors.append({
                     "id": motor_id,
                     "name": MOTOR_NAMES.get(motor_id, f"Motor {motor_id}"),
-                    "position": positions.get(motor_id, 0),
+                    "position": filtered_pos,
+                    "filtered_velocity": filtered_vel,
+                    "filtered_acceleration": filtered_accel,
                     "temperature": temperatures.get(motor_id, 0),
                     "voltage": voltages.get(motor_id, 0) / 10.0,
                     "current": currents.get(motor_id, 0),
@@ -67,8 +77,14 @@ class MotorController:
             else:
                 self.safe_dxl_operation(self.dxl.disable_torque, [motor_id])
 
-    def update_motor_position(self, motor_id, position):
-        self.safe_dxl_operation(self.dxl.bulk_write_goal_positions, {motor_id: position})
+    def update_motor_position(self, motor_id, position, use_prediction=True):
+        """Aktualisiert die Motorposition mit optionaler prädiktiver Kontrolle"""
+        self.safe_dxl_operation(
+            self.enhanced.move_to_position,
+            motor_id,
+            position,
+            use_prediction
+        )
 
     def update_motor_velocity(self, motor_id, velocity):
         self.safe_dxl_operation(self.dxl.bulk_write_profile_velocity, {motor_id: velocity})
@@ -97,10 +113,16 @@ class MotorController:
         """
         return self.safe_dxl_operation(self.dxl.bulk_write_pid_gains, pid_dict)
 
+    def move_motors_profile(self, positions, duration):
+        """Führt eine profilierte Bewegung für mehrere Motoren aus"""
+        self.safe_dxl_operation(
+            self.enhanced.move_with_profile,
+            positions,
+            duration
+        )
+
     def get_pid_values(self):
-        """
-        Liest die PID-Werte aller Motoren.
-        """
-        return self.safe_dxl_operation(self.dxl.bulk_read_pid_gains)
+        """Liest die PID-Werte aller Motoren."""
+        return self.safe_dxl_operation(self.enhanced.get_pid_values)
 
 motor_controller = MotorController()

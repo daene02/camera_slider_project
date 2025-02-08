@@ -99,10 +99,42 @@ def toggle_motor_torque(motor_id):
 def update_motor_position(motor_id):
     try:
         position = int(request.json.get('position', 512))
-        motor_controller.update_motor_position(motor_id, position)
+        # Für den Slider (ID 2) immer False, für andere True als Standard
+        use_prediction = request.json.get('use_prediction', motor_id != 2)
+        motor_controller.update_motor_position(motor_id, position, use_prediction)
         return jsonify({"success": True})
-    except ValueError:
+    except ValueError as e:
         return jsonify({"error": "Invalid position value"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/motors/profile', methods=['POST'])
+def move_motors_profile():
+    """Bewegung mehrerer Motoren mit Bewegungsprofil"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        positions = data.get('positions', {})
+        duration = float(data.get('duration', 2.0))
+        
+        # Validiere Positionen
+        try:
+            positions = {int(k): int(v) for k, v in positions.items()}
+        except ValueError:
+            return jsonify({"error": "Invalid position values"}), 400
+            
+        if not positions:
+            return jsonify({"error": "No positions provided"}), 400
+            
+        # Führe Bewegung aus
+        motor_controller.move_motors_profile(positions, duration)
+        return jsonify({"success": True})
+        
+    except Exception as e:
+        logger.error(f"Error in move_motors_profile: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/motor/<int:motor_id>/velocity', methods=['POST'])
 def update_motor_velocity(motor_id):
@@ -184,10 +216,25 @@ def motor_status():
 
 @app.route('/motors/positions')
 def get_motor_positions():
-    positions = motor_controller.get_motor_positions()
-    if positions is None:
-        return jsonify({"error": "Failed to read positions"}), 500
-    return jsonify(positions)
+    """Liest gefilterte Motorpositionen und -zustände"""
+    try:
+        motors = motor_controller.get_motor_status()
+        if motors is None:
+            return jsonify({"error": "Failed to read positions"}), 500
+            
+        # Extrahiere nur die relevanten Zustandsdaten
+        states = {
+            motor["id"]: {
+                "position": motor["position"],
+                "velocity": motor["filtered_velocity"],
+                "acceleration": motor["filtered_acceleration"]
+            }
+            for motor in motors
+        }
+        return jsonify(states)
+    except Exception as e:
+        logger.error(f"Error reading motor positions: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 # Focus control routes
 @app.route('/focus/points', methods=['GET'])
