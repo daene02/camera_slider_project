@@ -28,6 +28,25 @@ class MotionPredictor:
         self.focus_mode_active = False
         self.current_focus_point = None
         
+        # Velocity limits
+        self.velocity_limits = {
+            'slider': 500.0,  # mm/s
+            'pan': 180.0,    # deg/s
+            'tilt': 180.0    # deg/s
+        }
+        
+    def _normalize_angle(self, angle: float) -> float:
+        """Normalize angle to -180 to +180 range"""
+        angle = angle % 360
+        if angle > 180:
+            angle -= 360
+        return angle
+        
+    def _limit_velocity(self, velocity: float, motor_name: str) -> float:
+        """Apply velocity limits based on motor type"""
+        limit = self.velocity_limits.get(motor_name, 180.0)
+        return np.clip(velocity, -limit, limit)
+        
     def _init_kalman_filters(self):
         """Initialize separate Kalman filters for each axis"""
         default_dt = self.kalman_settings['update_rate']
@@ -58,8 +77,9 @@ class MotionPredictor:
         if profile_duration is not None:
             base_time = profile_duration * 0.01  # 1% of profile duration
         else:
-            # Velocity-based timing
-            velocity_scale = abs(velocity) * pred_settings['smoothing']['velocity_scale']
+            # Velocity-based timing with normalized velocity
+            norm_velocity = abs(velocity) / self.velocity_limits['slider']
+            velocity_scale = norm_velocity * pred_settings['smoothing']['velocity_scale']
             base_time = pred_settings['time'] * (1.0 + velocity_scale)
             
         # Apply min/max limits
@@ -96,7 +116,7 @@ class MotionPredictor:
         # Pan angle (horizontal rotation) - arctangent of x/y displacement
         pan_angle = np.degrees(np.arctan2(dx, dy))
         
-        # Tilt angle (vertical rotation) - arctangent of z/horizontal displacement
+        # Tilt angle (vertical rotation) - arctangent of z/horizontal distance
         horizontal_distance = np.sqrt(dx*dx + dy*dy)
         tilt_angle = np.degrees(np.arctan2(dz, horizontal_distance))
         
@@ -140,9 +160,19 @@ class MotionPredictor:
             profile_duration
         )
         
+        # Apply velocity limits and update filters
+        limited_velocities = {
+            name: self._limit_velocity(velocities.get(name, 0.0), name)
+            for name in self.filters.keys()
+        }
+        
         for name, filter in self.filters.items():
             filter.update_time_step(pred_time)
-            filter.update(measurements[name])
+            # Pass both position and velocity measurements
+            filter.update(
+                measurement=measurements[name],
+                measured_velocity=limited_velocities[name]
+            )
             
         # Predict next states
         slider_state = self.filters['slider'].predict()
@@ -154,22 +184,35 @@ class MotionPredictor:
             )
             
             # Update pan/tilt predictions with new targets
-            self.filters['pan'].update(pan_target)
-            self.filters['tilt'].update(tilt_target)
+            self.filters['pan'].update(pan_target, measured_velocity=limited_velocities['pan'])
+            self.filters['tilt'].update(tilt_target, measured_velocity=limited_velocities['tilt'])
             
-            # Get final predictions
+            # Get final predictions and normalize angles
             pan_state = self.filters['pan'].predict()
             tilt_state = self.filters['tilt'].predict()
-        else:
-            # When focus mode is off, maintain current positions
+            
+            # Normalize angles and limit velocities
             pan_state = KalmanState(
-                position=measurements['pan'],
-                velocity=0.0,
+                position=self._normalize_angle(pan_state.position),
+                velocity=self._limit_velocity(pan_state.velocity, 'pan'),
+                acceleration=pan_state.acceleration
+            )
+            
+            tilt_state = KalmanState(
+                position=self._normalize_angle(tilt_state.position),
+                velocity=self._limit_velocity(tilt_state.velocity, 'tilt'),
+                acceleration=tilt_state.acceleration
+            )
+        else:
+            # When focus mode is off, maintain current positions with normalization
+            pan_state = KalmanState(
+                position=self._normalize_angle(measurements['pan']),
+                velocity=self._limit_velocity(velocities.get('pan', 0.0), 'pan'),
                 acceleration=0.0
             )
             tilt_state = KalmanState(
-                position=measurements['tilt'],
-                velocity=0.0,
+                position=self._normalize_angle(measurements['tilt']),
+                velocity=self._limit_velocity(velocities.get('tilt', 0.0), 'tilt'),
                 acceleration=0.0
             )
             
