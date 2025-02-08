@@ -88,8 +88,8 @@ POSITION_TOLERANCE = 10          # Position tolerance in steps
 MAX_POSITION_RETRIES = 100      # Maximum retries for position verification
 
 # Pan/Tilt spezifische Einstellungen
-PAN_TILT_VELOCITY = 500          # Specific velocity for pan/tilt movements
-PAN_TILT_ACCELERATION = 1500      # Specific acceleration for pan/tilt movements
+PAN_TILT_VELOCITY = 800          # Specific velocity for pan/tilt movements
+PAN_TILT_ACCELERATION = 2000      # Specific acceleration for pan/tilt movements
 UPDATE_INTERVAL = 0.01          # Changed to 100Hz (from 50Hz)
 PAN_TILT_TOLERANCE = 20         # Position tolerance for pan/tilt movements
 
@@ -115,12 +115,12 @@ MAX_HOMING_VELOCITY = 50        # Maximale Geschwindigkeit während des Homings
 # Sicherheitsabschaltung: maximale Stromgrenzen
 ########################################
 MAX_CURRENT_LIMITS: Dict[str, int] = {
-    "turntable": 300,
-    "slider": 300,
-    "pan": 300,
-    "tilt": 300,
-    "zoom": 300,
-    "focus": 300
+    "turntable": 400,
+    "slider": 400,
+    "pan": 400,
+    "tilt": 400,
+    "zoom": 400,
+    "focus": 400
 }
 
 ########################################
@@ -159,14 +159,14 @@ CAMERA_OFFSET_Z = 0         # Vertikaler Kamera-Offset
 ########################################
 MOVEMENT_SETTINGS = {
     "primary_motors": {
-        "position_tolerance": 4,     # Steps tolerance for position verification
+        "position_tolerance": 10,     # Steps tolerance for position verification
         "max_retries": 200,          # Maximum position check retries
         "check_interval": 0.01,      # Reduced to 100Hz
     },
     "pan_tilt": {
-        "position_tolerance": 2,     # Larger tolerance for pan/tilt
+        "position_tolerance": 20,     # Larger tolerance for pan/tilt
         "update_rate": 0.01,         # Changed to 100Hz
-        "independent_movement": True  # Allow pan/tilt to move independently
+        "independent_movement": False  # Allow pan/tilt to move independently
     }
 }
 
@@ -201,44 +201,48 @@ MOTION_CONTROL = {
     # Master-Slave Konfiguration
     "master_motor": "slider",
     "synchronized_motors": {
+        "slider": {
+            "master": None,
+            "prediction_enabled": False  # Deaktiviere Kalman Filter für Slider
+        },
         "pan": {
             "master": "slider",
-            "prediction_enabled": True
+            "prediction_enabled": True  # Pan/Tilt weiterhin mit Prediction
         },
         "tilt": {
             "master": "slider",
-            "prediction_enabled": True
+            "prediction_enabled": True  # Pan/Tilt weiterhin mit Prediction
         }
     },
     
     # Kalman Filter Einstellungen für Slave-Motoren
     "slave_kalman": {
-        "update_rate": 0.01,        # 100Hz Update-Rate
+        "update_rate": 0.01,        # 100Hz Standard
         "process_noise": {          # Process Noise (Q) Parameter
-            "position": 0.01,       # Reduziert für präzisere Positionsschätzung
-            "velocity": 0.01,       # Reduziert für stabilere Geschwindigkeit
-            "acceleration": 0.1    # Reduziert für weichere Bewegungen
+            "position": 0.005,      # Ausgewogen
+            "velocity": 0.08,       # Ausgewogen
+            "acceleration": 0.05     # Ausgewogen
         },
-        "measurement_noise": 0.7,   # Erhöht für stabilere Messungen
-        "initial_uncertainty": 50   # Reduziert für konservativere Anfangsschätzung
+        "measurement_noise": 0.7,   # Ausgewogen
+        "initial_uncertainty": 80   # Ausgewogen
     },
     
     # Bewegungsprädiktion für Slave-Motoren
     "prediction": {
-        "min_time": 0.003,         # Schnellere minimale Reaktion (3ms)
-        "max_time": 0.03,          # Kürzere maximale Vorhersage (30ms)
-        "time": 0.01,              # Schnellere Standardvorhersage (10ms)
+        "min_time": 0.002,         # Ausgewogen
+        "max_time": 0.08,          # Ausgewogen
+        "time": 0.01,              # Standardvorhersage
         "smoothing": {
-            "min_factor": 0.1,     # Erhöht für stabilere Mindestglättung
-            "max_factor": 0.9,     # Reduziert für präzisere Maximalglättung
-            "velocity_scale": 0.0001 # Halbiert für feinere Geschwindigkeitsanpassung
+            "min_factor": 0.25,    # Ausgewogen
+            "max_factor": 0.85,    # Ausgewogen
+            "velocity_scale": 0.0005 # Ausgewogen
         }
     },
     
     # Fehlerbehandlung
     "error_handling": {
-        "max_prediction_error": 10,  # Reduziert für striktere Fehlerkontrolle
-        "recovery_factor": 0.8      # Erhöht für schnellere Fehlerkorrektur
+        "max_prediction_error": 15,  # Erhöht für mehr Toleranz bei schnellen Bewegungen
+        "recovery_factor": 0.6      # Reduziert für sanftere Fehlerkorrektur
     }
 }
 

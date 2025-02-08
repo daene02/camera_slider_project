@@ -76,40 +76,58 @@ class KalmanFilter:
             acceleration=float(self.x[2])
         )
         
-    def update(self, measurement: float) -> KalmanState:
+    def update(self, measurement: float, measured_velocity: float = None) -> KalmanState:
         """
-        Update state with new measurement
+        Update state with new measurements
         
         Args:
             measurement: New position measurement
+            measured_velocity: Optional velocity measurement or profile velocity
             
         Returns:
             KalmanState with updated position, velocity, and acceleration
         """
         if not self._initialized:
             self.x[0] = measurement
+            if measured_velocity is not None:
+                self.x[1] = measured_velocity
             self._initialized = True
             return KalmanState(
                 position=measurement,
-                velocity=0.0,
+                velocity=measured_velocity if measured_velocity is not None else 0.0,
                 acceleration=0.0
             )
             
-        # Measurement residual
-        y = measurement - float(self.H @ self.x)
+        # Adjust measurement model based on available measurements
+        if measured_velocity is not None:
+            # Extended measurement matrix and vector for position and velocity
+            H = np.array([[1, 0, 0],
+                         [0, 1, 0]])
+            y = np.array([[measurement],
+                         [measured_velocity]])
+            R = np.array([[self.R[0,0], 0],
+                         [0, self.R[0,0]*2]])  # Velocity measurement more uncertain
+        else:
+            # Just position measurement
+            H = self.H
+            y = np.array([[measurement]])
+            R = self.R
+            
+        # Innovation calculation
+        innovation = y - H @ self.x if measured_velocity is None else y - H @ self.x
         
-        # Residual covariance
-        S = self.H @ self.P @ self.H.T + self.R
+        # Innovation covariance
+        S = H @ self.P @ H.T + R
         
         # Kalman gain
-        K = self.P @ self.H.T @ np.linalg.inv(S)
+        K = self.P @ H.T @ np.linalg.inv(S)
         
         # State update
-        self.x = self.x + K @ np.array([[y]])
+        self.x = self.x + K @ innovation
         
         # Covariance update
         I = np.eye(3)
-        self.P = (I - K @ self.H) @ self.P
+        self.P = (I - K @ H) @ self.P
         
         return KalmanState(
             position=float(self.x[0]),

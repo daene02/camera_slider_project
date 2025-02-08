@@ -1,7 +1,7 @@
 // Motor status and filter data update handling with polling
 
 // Polling configuration
-const POLL_INTERVAL = 100; // 100ms = 10Hz
+const POLL_INTERVAL = 50; // 50ms = 20Hz
 let pollTimer = null;
 
 const updateValues = (element, newValue, animate = true) => {

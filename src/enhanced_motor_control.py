@@ -1,6 +1,10 @@
 import numpy as np
 from typing import Dict, Tuple
 from src.dxl_manager import DynamixelManager
+from src.settings import (
+    MOTION_CONTROL, MOTOR_IDS, MOTOR_ID_TO_NAME,
+    PAN_TILT_VELOCITY, DEFAULT_VELOCITY
+)
 
 class KalmanFilter:
     """
@@ -51,20 +55,40 @@ class KalmanFilter:
         self.P = self.F @ self.P @ self.F.T + self.Q
         return self.x
         
-    def update(self, measurement: float) -> np.ndarray:
-        """Update-Schritt mit Messung"""
-        z = np.array([[measurement]])
+    def update(self, measurement: float, measured_velocity: float = None) -> np.ndarray:
+        """
+        Update-Schritt mit Messung und optionaler Geschwindigkeitsmessung
+        """
+        # Passe Messmodell basierend auf verfügbaren Messungen an
+        if measured_velocity is not None:
+            # Erweiterte Messmatrix für Position und Geschwindigkeit
+            H = np.array([[1, 0, 0],
+                         [0, 1, 0]])
+            z = np.array([[measurement],
+                         [measured_velocity]])
+            R = np.array([[self.R[0,0], 0],
+                         [0, self.R[0,0]*2]])  # Geschwindigkeitsmessung unsicherer
+        else:
+            # Nur Positionsmessung
+            H = self.H
+            z = np.array([[measurement]])
+            R = self.R
+            
+        # Innovation berechnen
+        y = z - (H @ self.x if measured_velocity is None else H @ self.x)
+        
+        # Innovation Covariance
+        S = H @ self.P @ H.T + R
         
         # Kalman Gain
-        S = self.H @ self.P @ self.H.T + self.R
-        K = self.P @ self.H.T @ np.linalg.inv(S)
+        K = self.P @ H.T @ np.linalg.inv(S)
         
         # State Update
-        y = z - self.H @ self.x
         self.x = self.x + K @ y
         
         # Covariance Update
-        self.P = (np.eye(self.state_dim) - K @ self.H) @ self.P
+        I = np.eye(self.state_dim)
+        self.P = (I - K @ H) @ self.P
         
         return self.x
 
@@ -90,10 +114,16 @@ class EnhancedMotorControl:
                     dt=self.config["slave_kalman"]["update_rate"]
                 )
     
-    def update_motor_state(self, motor_id: int, position: float) -> Tuple[float, float, float]:
+    def update_motor_state(self, motor_id: int, position: float, velocity: float = None) -> Tuple[float, float, float]:
         """
         Aktualisiert den Zustand eines Motors mit Kalman Filtering
-        Returns: (gefilterte_position, geschwindigkeit, beschleunigung)
+        Args:
+            motor_id: Motor ID
+            position: Aktuelle Position
+            velocity: Optionale Geschwindigkeitsmessung oder Profilgeschwindigkeit
+            
+        Returns:
+            (gefilterte_position, geschwindigkeit, beschleunigung)
         """
         if motor_id not in self.filters:
             self.filters[motor_id] = KalmanFilter(dt=self.config["slave_kalman"]["update_rate"])
@@ -101,17 +131,20 @@ class EnhancedMotorControl:
         # Predict
         state_prediction = self.filters[motor_id].predict()
         
-        # Update mit gemessener Position
-        updated_state = self.filters[motor_id].update(position)
+        # Update mit Position und optionaler Geschwindigkeit
+        updated_state = self.filters[motor_id].update(
+            measurement=position,
+            measured_velocity=velocity
+        )
         
         # Extrahiere gefilterte Werte
-        filtered_pos, velocity, accel = self.filters[motor_id].get_state()
+        filtered_pos, filtered_vel, filtered_accel = self.filters[motor_id].get_state()
         
-        return filtered_pos, velocity, accel
+        return filtered_pos, filtered_vel, filtered_accel
     
     def get_filtered_positions(self) -> Dict[int, Tuple[float, float, float]]:
         """
-        Liest aktuelle Motorpositionen und wendet Kalman Filter an
+        Liest aktuelle Motorpositionen und wendet Kalman Filter nur für Pan/Tilt an
         Returns: Dictionary mit {motor_id: (position, velocity, acceleration)}
         """
         # Rohe Positionen lesen
@@ -120,7 +153,13 @@ class EnhancedMotorControl:
         filtered_states = {}
         for motor_id, pos in raw_positions.items():
             if pos is not None:
-                filtered_states[motor_id] = self.update_motor_state(motor_id, float(pos))
+                motor_name = self.id_to_name.get(motor_id, '')
+                # Nur Pan/Tilt filtern
+                if motor_name in ['pan', 'tilt']:
+                    filtered_states[motor_id] = self.update_motor_state(motor_id, float(pos))
+                else:
+                    # Für andere Motoren direkte Werte verwenden
+                    filtered_states[motor_id] = (float(pos), 0.0, 0.0)
             else:
                 filtered_states[motor_id] = (None, None, None)
                 
@@ -181,61 +220,71 @@ class EnhancedMotorControl:
 
     def move_with_profile(self, positions: Dict[int, float], duration: float) -> None:
         """
-        Führt eine profilierte Bewegung für mehrere Motoren aus
+        Führt eine profilierte Bewegung für mehrere Motoren aus.
+        Verwendet Vorhersage für gleichmäßigere Bewegungen.
         """
+        # Lese aktuelle Positionen
+        current_positions = self.manager.bulk_read_positions()
+        if not current_positions:
+            return
+            
         # Verarbeite zuerst den Master-Motor
         master_name = self.config["master_motor"]
         master_id = self.motor_ids[master_name]
         
+        # Berechne Geschwindigkeitsprofile
+        velocities = {}
+        for motor_id, target_pos in positions.items():
+            current_pos = current_positions.get(motor_id)
+            if current_pos is not None:
+                distance = abs(target_pos - current_pos)
+                # Berechne Geschwindigkeit basierend auf Distanz und Zeit
+                velocity = int(distance / duration)
+                # Stelle sicher, dass die Geschwindigkeit nicht zu hoch ist
+                motor_name = self.id_to_name.get(motor_id, '')
+                max_velocity = PAN_TILT_VELOCITY if motor_name in ['pan', 'tilt'] else DEFAULT_VELOCITY
+                velocities[motor_id] = min(velocity, max_velocity)
+        
+        # Setze alle Geschwindigkeitsprofile
+        if velocities:
+            self.manager.bulk_write_profile_velocity(velocities)
+        
+        # Konvertiere Motor-IDs zu Namen für den Prädiktor
+        named_positions = {}
+        named_velocities = {}
+        for motor_id, pos in positions.items():
+            motor_name = self.id_to_name.get(motor_id)
+            if motor_name:
+                named_positions[motor_name] = pos
+                named_velocities[motor_name] = velocities.get(motor_id, 0)
+        
+        # Aktualisiere vorhersagende Kontrolle
+        if hasattr(self, 'filters'):
+            for motor_id, target_pos in positions.items():
+                motor_name = self.id_to_name.get(motor_id)
+                if motor_name in self.filters:
+                    current_pos = current_positions[motor_id]
+                    velocity = velocities.get(motor_id, 0)
+                    
+                    # Aktualisiere Filter mit aktueller Position und Zielgeschwindigkeit
+                    self.filters[motor_name].update(
+                        current_pos,
+                        measured_velocity=velocity
+                    )
+        
+        # Bewege Master-Motor zuerst
         if master_id in positions:
-            # Setze Master-Geschwindigkeit
-            current_pos = self.manager.bulk_read_positions()[master_id]
-            distance = abs(positions[master_id] - current_pos)
-            master_velocity = int(distance / duration)
-            
-            # Setze Master-Profil
-            self.manager.bulk_write_profile_velocity({master_id: master_velocity})
-            
-            # Bewege Master
-            self.move_to_position(master_id, positions[master_id])
-            
-            # Entferne Master aus der Position-Liste
-            slave_positions = positions.copy()
-            del slave_positions[master_id]
-            
-            # Verarbeite Slave-Motoren
-            if slave_positions:
-                # Berechne Geschwindigkeiten für Slaves
-                velocities = {}
-                for motor_id, target_pos in slave_positions.items():
-                    current_pos = self.manager.bulk_read_positions()[motor_id]
-                    if current_pos is not None:
-                        distance = abs(target_pos - current_pos)
-                        velocity = int(distance / duration)
-                        velocities[motor_id] = velocity
-                
-                # Setze Geschwindigkeitsprofile für Slaves
-                if velocities:
-                    self.manager.bulk_write_profile_velocity(velocities)
-                
-                # Bewege Slave-Motoren
-                for motor_id, target_pos in slave_positions.items():
-                    self.move_to_position(motor_id, target_pos)
+            self.move_to_position(master_id, positions[master_id], use_prediction=False)
+            slave_positions = {k: v for k, v in positions.items() if k != master_id}
         else:
-            # Wenn kein Master-Motor, bewege alle direkt
-            velocities = {}
-            for motor_id, target_pos in positions.items():
-                current_pos = self.manager.bulk_read_positions()[motor_id]
-                if current_pos is not None:
-                    distance = abs(target_pos - current_pos)
-                    velocity = int(distance / duration)
-                    velocities[motor_id] = velocity
+            slave_positions = positions
             
-            if velocities:
-                self.manager.bulk_write_profile_velocity(velocities)
-            
-            for motor_id, target_pos in positions.items():
-                self.move_to_position(motor_id, target_pos)
+        # Bewege Slave-Motoren mit Vorhersage
+        for motor_id, target_pos in slave_positions.items():
+            motor_name = self.id_to_name.get(motor_id)
+            use_prediction = motor_name in self.config["synchronized_motors"] and \
+                           self.config["synchronized_motors"][motor_name]["prediction_enabled"]
+            self.move_to_position(motor_id, target_pos, use_prediction=use_prediction)
     
     def get_pid_values(self) -> Dict[int, Dict[str, int]]:
         """Liest aktuelle PID-Werte"""

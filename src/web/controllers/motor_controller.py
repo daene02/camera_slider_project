@@ -103,10 +103,13 @@ class MotorController:
                 
                 try:
                     # Build base motor state
+                    # Use raw position for slider, filtered for others
+                    current_pos = positions.get(motor_id, 0)
+                    pos = current_pos if motor_name == 'slider' else filtered_pos
                     motor_state = {
                         "id": motor_id,
                         "name": motor_name,
-                        "position": filtered_pos,
+                        "position": pos,
                         "filtered_velocity": filtered_vel,
                         "filtered_acceleration": filtered_accel,
                         "temperature": temperatures.get(motor_id, 0),
