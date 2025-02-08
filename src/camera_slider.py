@@ -3,7 +3,11 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from threading import Thread, Event
 from src.dxl_manager import DynamixelManager
-from src.settings import MOTOR_IDS, MOTOR_LIMITS, VELOCITY_LIMITS, CONVERSION_FACTORS, MOTOR_OFFSETS
+from src.motion.motion_predictor import MotionPredictor
+from src.settings import (
+    MOTOR_IDS, MOTOR_LIMITS, VELOCITY_LIMITS, 
+    CONVERSION_FACTORS, MOTOR_OFFSETS, MOTION_CONTROL
+)
 
 class CameraSlider:
     def __init__(self):
@@ -16,6 +20,10 @@ class CameraSlider:
         self.update_rate = 100  # 100Hz update rate
         self.stop_event = Event()
         self.movement_thread = None
+        
+        # Initialize motion prediction
+        self.motion_predictor = MotionPredictor()
+        self.focus_mode = False
 
     def smooth_acceleration(self, positions, duration, steps=100):
         """
@@ -35,10 +43,13 @@ class CameraSlider:
 
     def _movement_loop(self, smoothed_positions, step_duration, velocity, acceleration):
         """
-        High-frequency movement loop running in separate thread
+        High-frequency movement loop running in separate thread with motion prediction
         """
         last_time = time.time()
         next_update = last_time + (1.0 / self.update_rate)
+
+        # Calculate total duration for profile-based prediction
+        total_duration = len(smoothed_positions) * step_duration
 
         for target_positions in smoothed_positions:
             if self.stop_event.is_set():
@@ -49,7 +60,27 @@ class CameraSlider:
             # Precise timing control
             if current_time < next_update:
                 time.sleep(max(0, next_update - current_time))
+                
+            # Get current positions and velocities
+            current_positions = self.read_positions()
+            current_velocities = {
+                name: (target_positions[name] - current_positions[name]) / step_duration
+                for name in ['slider', 'pan', 'tilt']
+            }
             
+            # Update motion prediction
+            predicted_state = self.motion_predictor.update(
+                measurements=current_positions,
+                velocities=current_velocities,
+                profile_duration=total_duration
+            )
+            
+            # Use predicted positions for pan/tilt if in focus mode
+            if self.focus_mode:
+                target_positions['pan'] = predicted_state.pan_angle
+                target_positions['tilt'] = predicted_state.tilt_angle
+            
+            # Convert positions to motor units
             goal_positions = {}
             for motor_name, target_position in target_positions.items():
                 motor_id = self.motor_ids[motor_name]
@@ -81,10 +112,16 @@ class CameraSlider:
             
             next_update = current_time + (1.0 / self.update_rate)
 
-    def move_motors(self, target_positions_list, velocity=None, acceleration=None, duration=10):
+    def move_motors(self, target_positions_list, velocity=None, acceleration=None, duration=10, focus_point=None):
         """
         Enhanced version with high-frequency updates and smooth motion
         """
+        # Update focus point if provided
+        if focus_point is not None:
+            self.motion_predictor.set_focus_point(focus_point)
+            self.motion_predictor.enable_focus_mode(True)
+            self.focus_mode = True
+        
         # Stop any existing movement
         self.stop_event.set()
         if self.movement_thread and self.movement_thread.is_alive():
@@ -130,7 +167,14 @@ class CameraSlider:
         self.stop_event.set()
         if self.movement_thread and self.movement_thread.is_alive():
             self.movement_thread.join()
+        self.motion_predictor.enable_focus_mode(False)
+        self.focus_mode = False
         self.manager.close()
+        
+    def set_focus_mode(self, enable: bool):
+        """Enable or disable focus tracking mode"""
+        self.focus_mode = enable
+        self.motion_predictor.enable_focus_mode(enable)
 
 if __name__ == "__main__":
     slider = CameraSlider()

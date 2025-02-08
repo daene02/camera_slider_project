@@ -215,22 +215,30 @@ MOTION_CONTROL = {
     "slave_kalman": {
         "update_rate": 0.01,        # 100Hz Update-Rate
         "process_noise": {          # Process Noise (Q) Parameter
-            "position": 0.1,        # Position Unsicherheit
+            "position": 0.05,       # Position Unsicherheit (reduziert für stabilere Schätzung)
             "velocity": 0.1,        # Geschwindigkeit Unsicherheit
-            "acceleration": 0.1     # Beschleunigung Unsicherheit
+            "acceleration": 0.15    # Beschleunigung Unsicherheit (erhöht für bessere Adaption)
         },
-        "measurement_noise": 1.0,   # Measurement Noise (R) Parameter
-        "initial_uncertainty": 100  # Anfängliche Zustandsunsicherheit
+        "measurement_noise": 0.5,   # Measurement Noise (R) Parameter (reduziert für schnellere Reaktion)
+        "initial_uncertainty": 50   # Anfängliche Zustandsunsicherheit
     },
     
     # Bewegungsprädiktion für Slave-Motoren
     "prediction": {
-        "time": 0.02,              # 20ms Vorhersage-Zeit
+        "min_time": 0.005,         # Minimale Vorhersage-Zeit (5ms)
+        "max_time": 0.05,          # Maximale Vorhersage-Zeit (50ms)
+        "time": 0.02,              # Standard Vorhersage-Zeit (20ms)
         "smoothing": {
             "min_factor": 0.3,     # Minimaler Glättungsfaktor
             "max_factor": 1.0,     # Maximaler Glättungsfaktor
-            "velocity_scale": 100   # Geschwindigkeitsskalierung
+            "velocity_scale": 0.001 # Geschwindigkeitsskalierung für adaptive Zeitberechnung
         }
+    },
+    
+    # Fehlerbehandlung
+    "error_handling": {
+        "max_prediction_error": 10, # Maximaler erlaubter Vorhersagefehler
+        "recovery_factor": 0.8      # Faktor für Fehlerkorrektur (0-1)
     }
 }
 
