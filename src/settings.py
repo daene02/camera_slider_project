@@ -207,11 +207,11 @@ MOTION_CONTROL = {
         },
         "pan": {
             "master": "slider",
-            "prediction_enabled": True  # Pan/Tilt weiterhin mit Prediction
+            "prediction_enabled": False  # Pan/Tilt weiterhin mit Prediction
         },
         "tilt": {
             "master": "slider",
-            "prediction_enabled": True  # Pan/Tilt weiterhin mit Prediction
+            "prediction_enabled": False  # Pan/Tilt weiterhin mit Prediction
         }
     },
     
@@ -241,7 +241,7 @@ MOTION_CONTROL = {
     
     # Fehlerbehandlung
     "error_handling": {
-        "max_prediction_error": 15,  # Erhöht für mehr Toleranz bei schnellen Bewegungen
+        "max_prediction_error": 5,  # Erhöht für mehr Toleranz bei schnellen Bewegungen
         "recovery_factor": 0.6      # Reduziert für sanftere Fehlerkorrektur
     }
 }
