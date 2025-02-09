@@ -15,7 +15,12 @@
 
 <div class="motor-grid">
     {% for motor in motors %}
-    <div class="motor-box {{ 'enabled' if motor.torque_enabled else 'disabled' }}" data-motor-id="{{ motor.id }}">
+    {# Disable JavaScript validation for Jinja2 template expressions #}
+{# prettier-ignore-start #}
+<div class="motor-box {{ 'enabled' if motor.torque_enabled else 'disabled' }}" 
+     data-motor-id="{{ motor.id }}"
+     data-update-enabled="true">
+{# prettier-ignore-end #}
         <div class="motor-header">
             <h2 class="motor-name {{ 'enabled' if motor.torque_enabled else 'disabled' }}">
                 {{ motor.name }}
@@ -26,7 +31,7 @@
             </div>
         </div>
         <div class="motor-stats">
-            <div>Position: <span class="position-value" data-motor-id="{{ motor.id }}">{{ motor.position }}</span>{% if motor.id == 2 %}mm{% else %}°{% endif %}</div>
+            <div>Position: <span class="position-value" data-motor-id="{{ motor.id }}">{{ motor.position|default(0, true) }}</span>{% if motor.id == 2 %}mm{% else %}°{% endif %}</div>
             <div>Temperature: <span class="temperature-value">{{ motor.temperature }}</span>°C</div>
             <div>Voltage: <span class="voltage-value">{{ motor.voltage }}</span>V</div>
             <div>Current: <span class="current-value">{{ motor.current }}</span>A</div>
@@ -44,7 +49,7 @@
             </div>
         </div>
         
-        {% if motor.id in [2, 3, 4] %}  {# Only for slider, pan, and tilt motors #}
+        {% if motor.id in [3, 4] %}  {# Only for slider, pan, and tilt motors #}
         <div class="filter-status">
             <h3>Kalman Filter Status</h3>
             <div class="filter-stats">
@@ -113,8 +118,6 @@
     {% endfor %}
 </div>
 
-<script src="/static/main.js"></script>
-<script src="/static/motor_status.js"></script>
 <style>
 .filter-status, .pid-info {
     background-color: #2a2a2a;
@@ -187,20 +190,19 @@
     animation: value-update 0.5s ease-out;
 }
 </style>
-<script>
-// Initialize position inputs with converted values
-document.addEventListener('DOMContentLoaded', function() {
-    {% for motor in motors %}
-        const position{{ motor.id }} = stepsToUnits({{ motor.position }}, {{ motor.id }});
-        const input{{ motor.id }} = document.getElementById('position_{{ motor.id }}');
-        if (input{{ motor.id }}) {
-            input{{ motor.id }}.value = position{{ motor.id }};
-        }
-        const display{{ motor.id }} = document.querySelector('.position-value[data-motor-id="{{ motor.id }}"]');
-        if (display{{ motor.id }}) {
-            display{{ motor.id }}.textContent = position{{ motor.id }};
-        }
-    {% endfor %}
-});
+
+{# prettier-ignore-start #}
+<!-- Pass motor data to JavaScript -->
+<script type="text/javascript">
+(function() {
+    // Safely pass motor data from server to client
+    window.INITIAL_MOTOR_DATA = JSON.parse('{{ motors|tojson|safe }}');
+})();
 </script>
+{# prettier-ignore-end #}
+
+<!-- Load JavaScript modules -->
+<script src="/static/motor_init.js"></script>
+<script src="/static/main.js" defer></script>
+<script src="/static/motor_status.js" defer></script>
 {% endblock %}

@@ -193,26 +193,35 @@ class EnhancedMotorControl:
                     self.manager.bulk_read_positions()[motor_id]
                 )
                 
-                # Berechne prädiktive Position
+                # Berechne prädiktive Position mit Korrektur
                 pred_time = self.config["prediction"]["time"]
-                predicted_offset = (velocity * pred_time + 
-                                 0.5 * accel * pred_time * pred_time)
-                adjusted_target = target_position - predicted_offset
+                current_error = target_position - current_pos
                 
-                # Wende Glättung an
+                # Berechne Korrekturposition basierend auf aktueller Bewegung
+                predicted_movement = (velocity * pred_time + 
+                                   0.5 * accel * pred_time * pred_time)
+                
+                # Korrigiere Position basierend auf Vorhersage und Fehler
+                error_correction = current_error * 0.5  # 50% Fehlerkorrektur
+                adjusted_target = target_position + predicted_movement + error_correction
+                
+                # Adaptives Smoothing basierend auf Geschwindigkeit und Fehler
                 smoothing = self.config["prediction"]["smoothing"]
-                if velocity:
-                    smooth_factor = min(
-                        smoothing["max_factor"],
-                        abs(velocity) / smoothing["velocity_scale"] + smoothing["min_factor"]
-                    )
-                else:
-                    smooth_factor = smoothing["min_factor"]
+                base_factor = smoothing["min_factor"]
+                if abs(current_error) > 10:  # Größerer Fehler = schnellere Korrektur
+                    base_factor = smoothing["max_factor"]
                 
-                current_pos = self.manager.bulk_read_positions()[motor_id]
-                smoothed_target = current_pos * (1 - smooth_factor) + int(adjusted_target) * smooth_factor
+                # Berechne endgültige Position
+                smooth_factor = min(
+                    smoothing["max_factor"],
+                    base_factor + abs(velocity) / smoothing["velocity_scale"]
+                )
                 
-                # Sende Position
+                # Gewichte Korrektur stärker bei größerem Fehler
+                smoothed_target = (current_pos * (1 - smooth_factor) + 
+                                 int(adjusted_target) * smooth_factor)
+                
+                # Sende korrigierte Position
                 self.manager.bulk_write_goal_positions({motor_id: int(smoothed_target)})
             else:
                 # Fallback: Direkte Bewegung

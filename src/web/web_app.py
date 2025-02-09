@@ -49,12 +49,35 @@ def home():
 def focus():
     return render_template('focus.html', background_image=get_background_image('focus'))
 
+# Motor operation timeout
+MOTOR_OPERATION_TIMEOUT = 1.0  # 1 second timeout
+
 @app.route('/motor')
 def motor():
-    motors = motor_controller.get_motor_status()
-    if motors is None:
-        return jsonify({"error": "Failed to get motor status"}), 500
-    return render_template('motor.html', motors=motors, background_image=get_background_image('motor'))
+    try:
+        start_time = time.time()
+        motors = motor_controller.get_motor_status()
+        
+        # Check for timeout
+        if time.time() - start_time > MOTOR_OPERATION_TIMEOUT:
+            logger.warning("Motor status request timed out")
+            motors = []
+        elif motors is None:
+            logger.error("Failed to get motor status")
+            motors = []
+            
+        return render_template(
+            'motor.html',
+            motors=motors,
+            background_image=get_background_image('motor')
+        )
+    except Exception as e:
+        logger.error(f"Error in motor route: {str(e)}")
+        return render_template(
+            'motor.html',
+            motors=[],
+            background_image=get_background_image('motor')
+        )
 
 @app.route('/profiles')
 def profiles():
@@ -209,10 +232,22 @@ def set_pid_values():
 
 @app.route('/motor/status')
 def motor_status():
-    motors = motor_controller.get_motor_status()
-    if motors is None:
-        return jsonify({"error": "Failed to get motor status"}), 500
-    return jsonify(motors)
+    try:
+        start_time = time.time()
+        motors = motor_controller.get_motor_status()
+        
+        # Check for timeout
+        if time.time() - start_time > MOTOR_OPERATION_TIMEOUT:
+            logger.warning("Motor status request timed out")
+            return jsonify({"error": "Operation timed out"}), 504
+            
+        if motors is None:
+            return jsonify({"error": "Failed to get motor status"}), 500
+            
+        return jsonify(motors)
+    except Exception as e:
+        logger.error(f"Error in motor status: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/motors/positions')
 def get_motor_positions():

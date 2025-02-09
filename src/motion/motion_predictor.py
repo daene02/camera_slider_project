@@ -174,21 +174,36 @@ class MotionPredictor:
             target_velocity = velocities.get(name, 0.0)
             
             if profile_duration is not None and profile_duration > 0:
-                # Use profile-based velocity calculation
-                velocity = target_velocity / profile_duration
+                # Calculate velocity from position difference and duration
+                start_pos = measurements[name]
+                target_pos = target_velocity  # In this case, target_velocity contains target position
+                distance = target_pos - start_pos
+                # Calculate velocity to reach target in given duration
+                velocity = distance / profile_duration
             else:
                 # Use direct velocity with limits
                 velocity = self._limit_velocity(target_velocity, name)
-                
+            
+            # Store calculated velocity
             limited_velocities[name] = velocity
         
         # Update filters with time step and measurements
         for name, filter in self.filters.items():
+            # Update time step for prediction
             filter.update_time_step(pred_time)
+            
+            # Get current velocity from profile or direct measurement
+            current_velocity = limited_velocities[name]
+            
+            # Update filter with both position and velocity
             filter.update(
                 measurement=measurements[name],
-                measured_velocity=limited_velocities[name]
+                measured_velocity=current_velocity
             )
+            
+            # Force immediate update if we have profile duration
+            if profile_duration is not None:
+                filter.predict()  # Additional prediction step for smoother updates
             
         # Predict next states
         slider_state = self.filters['slider'].predict()
@@ -220,16 +235,35 @@ class MotionPredictor:
                 acceleration=tilt_state.acceleration
             )
         else:
-            # When focus mode is off, maintain current positions with normalization
-            pan_state = KalmanState(
-                position=self._normalize_angle(measurements['pan']),
-                velocity=self._limit_velocity(velocities.get('pan', 0.0), 'pan'),
-                acceleration=0.0
+            # When focus mode is off, use current error for correction
+            pan_error = measurements['pan'] - self.filters['pan'].x[0, 0]
+            tilt_error = measurements['tilt'] - self.filters['tilt'].x[0, 0]
+            
+            # Update pan filter with error correction
+            self.filters['pan'].update(
+                measurements['pan'],
+                measured_velocity=velocities.get('pan', 0.0)
             )
+            pan_state = self.filters['pan'].predict()
+            
+            # Update tilt filter with error correction
+            self.filters['tilt'].update(
+                measurements['tilt'],
+                measured_velocity=velocities.get('tilt', 0.0)
+            )
+            tilt_state = self.filters['tilt'].predict()
+            
+            # Apply corrections and normalize
+            pan_state = KalmanState(
+                position=self._normalize_angle(pan_state.position + pan_error * 0.5),
+                velocity=self._limit_velocity(pan_state.velocity, 'pan'),
+                acceleration=pan_state.acceleration
+            )
+            
             tilt_state = KalmanState(
-                position=self._normalize_angle(measurements['tilt']),
-                velocity=self._limit_velocity(velocities.get('tilt', 0.0), 'tilt'),
-                acceleration=0.0
+                position=self._normalize_angle(tilt_state.position + tilt_error * 0.5),
+                velocity=self._limit_velocity(tilt_state.velocity, 'tilt'),
+                acceleration=tilt_state.acceleration
             )
             
         return PredictedState(

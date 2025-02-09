@@ -140,9 +140,9 @@ SLIDER_MAX_MM = 1300  # Maximum slider range in mm
 # Kamera-Position und Offset-Einstellungen
 ########################################
 TURNTABLE_POSITION: Dict[str, Union[int, float]] = {
-    "x": -260,                # Horizontaler Versatz in mm
+    "x": -300,                # Horizontaler Versatz in mm
     "y": 600,               # Abstand entlang der Slider-Achse in mm
-    "z": -295,              # Vertikaler Versatz in mm
+    "z": -300,              # Vertikaler Versatz in mm
     "DREHTELLER_OFFSET": 0  # Drehteller-Offset
 }
 
@@ -217,14 +217,14 @@ MOTION_CONTROL = {
     
     # Kalman Filter Einstellungen für Slave-Motoren
     "slave_kalman": {
-        "update_rate": 0.01,        # 100Hz Standard
+        "update_rate": 0.005,       # 200Hz für schnellere Updates
         "process_noise": {          # Process Noise (Q) Parameter
-            "position": 0.005,      # Ausgewogen
-            "velocity": 0.08,       # Ausgewogen
-            "acceleration": 0.05     # Ausgewogen
+            "position": 0.02,       # Erhöht für schnellere Positionsanpassung
+            "velocity": 0.08,       # Erhöht für schnellere Geschwindigkeitsänderung
+            "acceleration": 0.15    # Erhöht für schnellere Beschleunigungsanpassung
         },
-        "measurement_noise": 0.7,   # Ausgewogen
-        "initial_uncertainty": 80   # Ausgewogen
+        "measurement_noise": 0.3,   # Reduziert für stärkere Messungsgewichtung
+        "initial_uncertainty": 100  # Erhöht für schnellere initiale Anpassung
     },
     
     # Bewegungsprädiktion für Slave-Motoren
